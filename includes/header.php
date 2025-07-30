@@ -27,7 +27,7 @@ if (session_status() === PHP_SESSION_NONE) {
             <ul class="navbar-nav me-auto">
                 <?php $rol = $_SESSION['user_rol'] ?? ''; ?>
 
-                <?php if (in_array($rol, ['Administrador', 'Contabilidad', 'Supervisor'])): ?>
+                <?php if (in_array($rol, ['Admin', 'Contabilidad', 'Supervisor'])): ?>
                     <li class="nav-item">
                         <a class="nav-link" href="<?php echo BASE_URL; ?>employees/index.php">Empleados</a>
                     </li>
@@ -39,13 +39,13 @@ if (session_status() === PHP_SESSION_NONE) {
                     </li>
                 <?php endif; ?>
 
-                <?php if (in_array($rol, ['Administrador', 'Supervisor'])): ?>
+                <?php if (in_array($rol, ['Admin', 'Supervisor'])): ?>
                     <li class="nav-item">
                         <a class="nav-link" href="<?php echo BASE_URL; ?>approvals/index.php">Aprobar Horas</a>
                     </li>
                 <?php endif; ?>
                 
-                <?php if (in_array($rol, ['Administrador', 'Contabilidad'])): ?>
+                <?php if (in_array($rol, ['Admin', 'Contabilidad'])): ?>
                     <li class="nav-item">
                         <a class="nav-link" href="<?php echo BASE_URL; ?>novedades/index.php">Novedades</a>
                     </li>
@@ -60,7 +60,7 @@ if (session_status() === PHP_SESSION_NONE) {
                     </li>
                 <?php endif; ?>
 
-                <?php if ($rol === 'Administrador'): ?>
+                <?php if ($rol === 'Admin'): ?>
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" id="navbarConfigDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                             Configuración

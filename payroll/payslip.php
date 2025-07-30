@@ -24,7 +24,8 @@ $empleado_id_del_contrato = $stmt_get_employee_id->fetchColumn();
 $user_rol = $_SESSION['user_rol'] ?? '';
 $user_empleado_id = $_SESSION['user_info']['id_empleado'] ?? null;
 
-if ($user_rol !== 'Administrador' && ($user_rol === 'Inspector' && $user_empleado_id !== $empleado_id_del_contrato)) {
+// Cambiado de 'Administrador' a 'Admin'
+if ($user_rol !== 'Admin' && ($user_rol === 'Inspector' && $user_empleado_id !== $empleado_id_del_contrato)) {
     // Si no es administrador y es inspector pero no es su contrato
     header('HTTP/1.0 403 Forbidden');
     die('Acceso denegado. No tienes los permisos necesarios para ver este recibo de nómina.');
@@ -134,7 +135,7 @@ require_once '../includes/header.php';
 
     </div>
     <div class="card-footer text-center">
-         <?php if ($user_rol === 'Administrador'): // Solo el administrador vuelve al resumen general ?>
+         <?php if ($user_rol === 'Admin'): // Solo el administrador vuelve al resumen general ?>
             <a href="show.php?id=<?php echo htmlspecialchars($id_nomina); ?>" class="btn btn-secondary">Volver al Resumen de Nómina</a>
          <?php else: // Los demás roles (ej. Inspector) vuelven al inicio ?>
             <a href="<?php echo BASE_URL; ?>index.php" class="btn btn-secondary">Volver al Inicio</a>

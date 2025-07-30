@@ -3,7 +3,7 @@
 
 require_once '../auth.php'; // Carga el sistema de autenticación
 require_login(); // Asegura que el usuario esté logueado
-require_role('Administrador'); // Solo Administradores pueden acceder a esta sección
+require_role('Admin'); // Solo Admin pueden acceder a esta sección
 
 // La conexión $pdo ya está disponible a través de auth.php
 
@@ -30,7 +30,7 @@ require_once '../includes/header.php';
             <select class="form-select" id="id_posicion" name="id_posicion" required>
                 <option value="">Seleccione una posición...</option>
                 <?php foreach ($posiciones as $posicion): ?>
-                    <option value="<?php echo $posicion['id']; ?>"><?php echo htmlspecialchars($posicion['nombre_posicion']); ?></option>
+                    <option value="<?php echo htmlspecialchars($posicion['id']); ?>"><?php echo htmlspecialchars($posicion['nombre_posicion']); ?></option>
                 <?php endforeach; ?>
             </select>
         </div>

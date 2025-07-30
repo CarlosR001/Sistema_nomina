@@ -3,7 +3,7 @@
 
 require_once '../auth.php'; // Carga el sistema de autenticación, inicia la sesión y $pdo
 require_login(); // Asegura que el usuario esté logueado
-require_role(['Administrador', 'Supervisor']); // Solo Administradores y Supervisores pueden acceder
+require_role(['Admin', 'Supervisor']); // Solo Admin y Supervisores pueden acceder
 
 // La conexión $pdo ya está disponible a través de auth.php
 

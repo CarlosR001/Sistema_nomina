@@ -3,7 +3,7 @@
 
 require_once '../auth.php'; // Carga el sistema de autenticación (incluye DB y sesión)
 require_login(); // Asegura que el usuario esté logueado
-require_role('Administrador'); // Solo Administradores pueden gestionar zonas de transporte
+require_role('Admin'); // Solo Admin pueden gestionar zonas de transporte
 
 // La conexión $pdo ya está disponible a través de auth.php
 
@@ -57,6 +57,7 @@ if (isset($_GET['status'])) {
     <tbody>
         <?php foreach ($zonas as $zona): ?>
         <tr>
+            <td><?php echo htmlspecialchars($zona['id']); ?></td>
             <td><?php echo htmlspecialchars($zona['nombre_zona_o_muelle']); ?></td>
             <td>$<?php echo number_format($zona['monto_transporte_completo'], 2); ?></td>
             <td>

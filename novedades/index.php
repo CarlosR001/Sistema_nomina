@@ -3,7 +3,7 @@
 
 require_once '../auth.php'; // Carga el sistema de autenticación (incluye DB y sesión)
 require_login(); // Asegura que el usuario esté logueado
-require_role(['Administrador', 'Contabilidad']); // Roles permitidos para gestionar novedades
+require_role(['Admin', 'Contabilidad']); // Roles permitidos para gestionar novedades
 
 // La conexión $pdo ya está disponible a través de auth.php
 
