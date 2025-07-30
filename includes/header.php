@@ -80,7 +80,7 @@ if (session_status() === PHP_SESSION_NONE) {
                 <?php if (isset($_SESSION['user_info'])): ?>
                 <li class="nav-item dropdown">
                     <a class="nav-link dropdown-toggle" href="#" id="navbarUserDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                        <?php echo htmlspecialchars($_SESSION['user_info']['username']); ?> (<?php echo htmlspecialchars($rol); ?>)
+                        <?php echo htmlspecialchars($_SESSION['user_info']['nombre_usuario']); ?> (<?php echo htmlspecialchars($rol); ?>)
                     </a>
                     <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="navbarUserDropdown">
                         <li><a class="dropdown-item" href="#">Mi Perfil</a></li>
