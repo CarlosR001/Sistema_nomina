@@ -13,5 +13,5 @@ if (session_status() === PHP_SESSION_NONE) {
 // 2. Cargar la conexión a la base de datos
 require_once __DIR__ . '/database.php';
 
-// 3. Cargar el sistema de autenticación
-require_once __DIR__ . '/../auth.php';
+// 3. El sistema de autenticación (`auth.php`) ahora se carga bajo demanda
+// en las páginas que lo necesitan, en lugar de cargarse aquí.
