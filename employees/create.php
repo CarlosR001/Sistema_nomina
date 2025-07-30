@@ -1,13 +1,13 @@
 <?php
 // employees/create.php
+require_once '../config/init.php'; // Carga la sesión, DB y auth
+require_once '../includes/header.php'; // Muestra el header y protege la página
 
-// Requerir el header
-require_once '../config/init.php';
-require_once '../includes/header.php';
+// Opcional: Restringir acceso solo a Administradores
+// require_role('Admin');
 ?>
 
 <h1 class="mb-4">Añadir Nuevo Empleado</h1>
-
 <form action="store.php" method="POST" class="needs-validation" novalidate>
     <div class="row">
         <div class="col-md-6 mb-3">
@@ -33,7 +33,4 @@ require_once '../includes/header.php';
     <a href="index.php" class="btn btn-secondary">Cancelar</a>
 </form>
 
-<?php
-// Requerir el footer
-require_once '../includes/footer.php';
-?>
+<?php require_once '../includes/footer.php'; ?>

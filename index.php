@@ -1,26 +1,25 @@
 <?php
-// index.php (raíz del proyecto)
+// index.php (Página principal)
+
+// Cargar el archivo de inicialización que contiene todo lo necesario
 require_once 'config/init.php';
 
-// Lógica de seguridad: si no hay sesión, se va al login.
-if (!isset($_SESSION['usuario_id'])) {
-    header('Location: ' . BASE_URL . 'login.php');
-    exit();
-}
-
-// Si la sesión existe, cargamos el resto de la página.
+// Esta página requiere que el usuario haya iniciado sesión, 
+// pero no requiere un rol específico. El header se encargará de la redirección.
 require_once 'includes/header.php';
 ?>
 
 <div class="p-5 mb-4 bg-light rounded-3">
     <div class="container-fluid py-5">
-        <h1 class="display-5 fw-bold">Bienvenido a NóminaSYS, <?php echo htmlspecialchars($_SESSION['nombre_usuario']); ?>!</h1>
+        <h1 class="display-5 fw-bold">Bienvenido a NóminaSYS</h1>
         <p class="col-md-8 fs-4">
-            Este es el sistema de gestión de nóminas. Utilice la barra de navegación para acceder a los diferentes módulos.
+            Ha iniciado sesión como <strong><?php echo htmlspecialchars($user['rol']); ?></strong>.
+            Utilice la barra de navegación para acceder a los módulos disponibles para su rol.
         </p>
     </div>
 </div>
 
 <?php
+// Incluir el footer
 require_once 'includes/footer.php';
 ?>
