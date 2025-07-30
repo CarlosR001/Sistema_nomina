@@ -1,19 +1,11 @@
 <?php
 // payroll/index.php
-require_once '../config/init.php';
 
-// --- Verificación de Seguridad y Rol ---
-if (!isset($_SESSION['usuario_id'])) {
-    header('Location: ' . BASE_URL . 'login.php');
-    exit();
-}
-// Solo los Administradores pueden procesar la nómina.
-if ($_SESSION['rol'] !== 'Administrador') {
-    die('Acceso Denegado. No tienes los permisos necesarios para acceder a esta página.');
-}
-// --- Fin de la verificación ---
+require_once '../auth.php'; // Carga el sistema de autenticación (incluye DB y sesión)
+require_login(); // Asegura que el usuario esté logueado
+require_role('Administrador'); // Solo Administradores pueden procesar la nómina.
 
-require_once '../includes/header.php';
+// La conexión $pdo ya está disponible a través de auth.php
 
 $empleados_a_procesar = [];
 $periodo_seleccionado_id = null;
@@ -55,6 +47,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['periodo_id'])) {
         $empleados_a_procesar = $pdo->query($sql_preview)->fetchAll();
     }
 }
+
+require_once '../includes/header.php';
 ?>
 
 <h1 class="mb-4">Procesar Nómina</h1>
@@ -76,7 +70,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['periodo_id'])) {
                     <select name="periodo_id" id="periodo_id" class="form-select" required>
                         <option value="">Seleccione un período...</option>
                         <?php foreach($periodos_abiertos as $periodo): ?>
-                            <option value="<?php echo $periodo['id']; ?>" <?php echo ($periodo['id'] == $periodo_seleccionado_id) ? 'selected' : ''; ?>>
+                            <option value="<?php echo htmlspecialchars($periodo['id']); ?>" <?php echo ($periodo['id'] == $periodo_seleccionado_id) ? 'selected' : ''; ?>>
                                 <?php echo htmlspecialchars($periodo['fecha_inicio_periodo'] . ' al ' . $periodo['fecha_fin_periodo']); ?>
                             </option>
                         <?php endforeach; ?>

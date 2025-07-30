@@ -1,11 +1,11 @@
 <?php
 // employees/store.php
-require_once '../config/init.php'; // Carga la sesión, DB y auth
 
-// Proteger esta acción, solo usuarios con ciertos roles pueden crear empleados
-if ($user['rol'] !== 'Admin' && $user['rol'] !== 'Supervisor') {
-    die('Acceso denegado.');
-}
+require_once '../auth.'; // Carga el sistema de autenticación (incluye DB y sesión)
+require_login(); // Asegura que el usuario esté logueado
+require_role('Administrador'); // Solo Administradores pueden crear empleados
+
+// La conexión $pdo ya está disponible a través de auth.php
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $cedula = trim($_POST['cedula']);
@@ -26,17 +26,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         try {
             $stmt->execute($params);
-            header("Location: " . BASE_URL . "employees/index.php?status=success");
+            header("Location: " . BASE_URL . "employees/index.php?status=success&message=Empleado%20creado%20exitosamente.");
             exit();
         } catch (PDOException $e) {
-            header("Location: " . BASE_URL . "employees/create.php?status=error&message=" . urlencode($e->getMessage()));
+            // Error al insertar (ej. duplicado de cédula o email)
+            header("Location: " . BASE_URL . "employees/create.php?status=error&message=" . urlencode("Error al crear el empleado: " . $e->getMessage()));
             exit();
         }
     } else {
-        header("Location: " . BASE_URL . "employees/create.php?status=error&message=empty_fields");
+        header("Location: " . BASE_URL . "employees/create.php?status=error&message=Faltan%20campos%20requeridos.");
         exit();
     }
 } else {
+    // Si no es una solicitud POST, redirigir al listado de empleados
     header("Location: " . BASE_URL . "employees/index.php");
     exit();
 }

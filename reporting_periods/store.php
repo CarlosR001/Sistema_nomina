@@ -1,6 +1,11 @@
 <?php
 // reporting_periods/store.php
-require_once '../config/init.php';
+
+require_once '../auth.php'; // Carga el sistema de autenticación (incluye DB y sesión)
+require_login(); // Asegura que el usuario esté logueado
+require_role('Administrador'); // Solo Administradores pueden gestionar períodos de reporte
+
+// La conexión $pdo ya está disponible a través de auth.php
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $fecha_inicio = $_POST['fecha_inicio'];
@@ -16,12 +21,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ':fin' => $fecha_fin,
                 ':tipo' => $tipo_nomina
             ]);
-            header("Location: index.php?status=success");
+            header("Location: index.php?status=success&message=Per%C3%ADodo%20abierto%20exitosamente.");
+            exit();
         } catch (PDOException $e) {
-            header("Location: index.php?status=error&message=" . urlencode($e->getMessage()));
+            header("Location: index.php?status=error&message=" . urlencode("Error al abrir el per%C3%ADodo: " . $e->getMessage()));
+            exit();
         }
-        exit();
     }
+    header("Location: index.php?status=error&message=Faltan%20campos%20requeridos%20o%20son%20inv%C3%A1lidos.");
+    exit();
 }
 header("Location: index.php");
 exit();

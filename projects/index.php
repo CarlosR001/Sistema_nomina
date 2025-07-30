@@ -1,13 +1,29 @@
 <?php
 // projects/index.php
 
-require_once '../config/init.php';
-require_once '../includes/header.php';
+require_once '../auth.php'; // Carga el sistema de autenticación (incluye DB y sesión)
+require_login(); // Asegura que el usuario esté logueado
+require_role('Administrador'); // Solo Administradores pueden gestionar proyectos
+
+// La conexión $pdo ya está disponible a través de auth.php
 
 $proyectos = $pdo->query("SELECT id, nombre_proyecto, codigo_proyecto, estado_proyecto FROM Proyectos ORDER BY nombre_proyecto")->fetchAll();
+
+require_once '../includes/header.php';
 ?>
 
 <h1 class="mb-4">Gestión de Proyectos</h1>
+
+<?php
+// Manejo de mensajes de estado (éxito o error)
+if (isset($_GET['status'])) {
+    if ($_GET['status'] === 'success') {
+        echo '<div class="alert alert-success">Operación realizada exitosamente.</div>';
+    } elseif (isset($_GET['message'])) {
+        echo '<div class="alert alert-danger">Error: ' . htmlspecialchars($_GET['message']) . '</div>';
+    }
+}
+?>
 
 <div class="card mb-4">
     <div class="card-header">Añadir Nuevo Proyecto</div>
@@ -42,9 +58,13 @@ $proyectos = $pdo->query("SELECT id, nombre_proyecto, codigo_proyecto, estado_pr
         <tr>
             <td><?php echo htmlspecialchars($proyecto['nombre_proyecto']); ?></td>
             <td><?php echo htmlspecialchars($proyecto['codigo_proyecto']); ?></td>
-            <td><?php echo htmlspecialchars($proyecto['estado_proyecto']); ?></td>
             <td>
-                <a href="edit.php?id=<?php echo $proyecto['id']; ?>" class="btn btn-sm btn-warning">Editar</a>
+                <span class="badge bg-<?php echo ($proyecto['estado_proyecto'] === 'Activo') ? 'success' : 'secondary'; ?>">
+                    <?php echo htmlspecialchars($proyecto['estado_proyecto']); ?>
+                </span>
+            </td>
+            <td>
+                <a href="edit.php?id=<?php echo htmlspecialchars($proyecto['id']); ?>" class="btn btn-sm btn-warning">Editar</a>
             </td>
         </tr>
         <?php endforeach; ?>

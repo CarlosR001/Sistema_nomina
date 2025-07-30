@@ -1,12 +1,11 @@
 <?php
 // contracts/index.php
-require_once '../config/init.php';
 
-// Lógica de seguridad
-if (!isset($_SESSION['usuario_id'])) {
-    header('Location: ' . BASE_URL . 'login.php');
-    exit();
-}
+require_once '../auth.php'; // Carga el sistema de autenticación
+require_login(); // Asegura que el usuario esté logueado
+require_role('Administrador'); // Solo Administradores pueden acceder a esta sección
+
+// La conexión $pdo ya está disponible a través de auth.php
 
 require_once '../includes/header.php';
 
@@ -40,7 +39,7 @@ $stmt = $pdo->prepare($sql);
 $stmt->execute([$employee_id]);
 ?>
 
-<h1 class="mb-4">Contratos de: <?php echo htmlspecialchars($employee['nombres'] . ' ' . $employee['primer_apellido']); ?></h1>
+<h1 class="mb-4">Contratos de: <?php echo htmlspecialchars($employee['nombres'] . ' ' . htmlspecialchars($employee['primer_apellido'])); ?></h1>
 <a href="create.php?employee_id=<?php echo $employee_id; ?>" class="btn btn-primary mb-3">Añadir Nuevo Contrato</a>
 
 <table class="table table-striped table-hover">
@@ -70,6 +69,7 @@ $stmt->execute([$employee_id]);
             </td>
             <td>
                 <a href="edit.php?id=<?php echo $row['id']; ?>" class="btn btn-sm btn-warning">Editar</a>
+                <!-- Eliminar contrato (implementar después si es necesario) -->
             </td>
         </tr>
         <?php endwhile; ?>

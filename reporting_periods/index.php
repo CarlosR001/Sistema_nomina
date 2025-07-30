@@ -1,13 +1,29 @@
 <?php
 // reporting_periods/index.php
 
-require_once '../config/init.php';
-require_once '../includes/header.php';
+require_once '../auth.php'; // Carga el sistema de autenticación (incluye DB y sesión)
+require_login(); // Asegura que el usuario esté logueado
+require_role('Administrador'); // Solo Administradores pueden gestionar períodos de reporte
+
+// La conexión $pdo ya está disponible a través de auth.php
 
 $periodos = $pdo->query("SELECT id, fecha_inicio_periodo, fecha_fin_periodo, tipo_nomina, estado_periodo FROM PeriodosDeReporte ORDER BY fecha_inicio_periodo DESC")->fetchAll();
+
+require_once '../includes/header.php';
 ?>
 
 <h1 class="mb-4">Gestión de Períodos de Reporte</h1>
+
+<?php
+// Manejo de mensajes de estado (éxito o error)
+if (isset($_GET['status'])) {
+    if ($_GET['status'] === 'success') {
+        echo '<div class="alert alert-success">Operación realizada exitosamente.</div>';
+    } elseif (isset($_GET['message'])) {
+        echo '<div class="alert alert-danger">Error: ' . htmlspecialchars($_GET['message']) . '</div>';
+    }
+}
+?>
 
 <div class="card mb-4">
     <div class="card-header">Abrir Nuevo Período de Reporte</div>
@@ -57,7 +73,8 @@ $periodos = $pdo->query("SELECT id, fecha_inicio_periodo, fecha_fin_periodo, tip
                 </span>
             </td>
             <td>
-                </td>
+                <!-- Acciones como cerrar período o editar, si se implementan -->
+            </td>
         </tr>
         <?php endforeach; ?>
     </tbody>

@@ -1,17 +1,10 @@
 <?php
 // departments/index.php
-require_once '../config/init.php';
+require_once '../auth.php'; // Carga el sistema de autenticación
+require_login(); // Asegura que el usuario esté logueado
+require_role('Administrador'); // Solo Administradores pueden acceder a esta sección
 
-// --- Verificación de Seguridad y Rol ---
-if (!isset($_SESSION['usuario_id'])) {
-    header('Location: ' . BASE_URL . 'login.php');
-    exit();
-}
-// Solo los Administradores pueden gestionar la configuración.
-if ($_SESSION['rol'] !== 'Administrador') {
-    die('Acceso Denegado. No tienes los permisos necesarios para acceder a esta página.');
-}
-// --- Fin de la verificación ---
+// La conexión $pdo ya está disponible a través de auth.php
 
 require_once '../includes/header.php';
 
@@ -68,7 +61,7 @@ if (isset($_GET['status'])) {
     <tbody>
         <?php foreach ($departamentos as $departamento): ?>
         <tr>
-            <td><?php echo $departamento['id']; ?></td>
+            <td><?php echo htmlspecialchars($departamento['id']); ?></td>
             <td><?php echo htmlspecialchars($departamento['nombre_departamento']); ?></td>
             <td>
                 <span class="badge bg-<?php echo $departamento['estado'] === 'Activo' ? 'success' : 'secondary'; ?>">
@@ -76,7 +69,7 @@ if (isset($_GET['status'])) {
                 </span>
             </td>
             <td>
-                <a href="edit.php?id=<?php echo $departamento['id']; ?>" class="btn btn-sm btn-warning">Editar</a>
+                <a href="edit.php?id=<?php echo htmlspecialchars($departamento['id']); ?>" class="btn btn-sm btn-warning">Editar</a>
             </td>
         </tr>
         <?php endforeach; ?>

@@ -1,16 +1,20 @@
 <?php
 // time_tracking/index.php
-require_once '../includes/header.php'; // El header ahora incluye auth.php y protege la página
 
-// --- Lógica para el portal del inspector ---
-// Solo usuarios con el rol 'Inspector' pueden acceder aquí.
-require_role('Inspector');
+require_once '../auth.php'; // Carga el sistema de autenticación (incluye DB y sesión)
+require_login(); // Asegura que el usuario esté logueado
+require_role('Inspector'); // Solo Inspectores pueden acceder aquí.
 
-// La variable $contrato_inspector_id ya viene calculada desde auth.php
-// Verificamos si el inspector tiene un contrato activo.
+// La conexión $pdo ya está disponible a través de auth.php
+// La variable $contrato_inspector_id ya viene calculada y guardada en la sesión por auth.php
+$contrato_inspector_id = $_SESSION['contrato_inspector_id'] ?? null;
+
+// Verificamos si el inspector tiene un contrato activo asociado a su ID de empleado
+// Esto se maneja mejor en el require_role o al inicio del auth.php para ser global.
+// Si el usuario es Inspector pero no tiene contrato_inspector_id, significa un problema de configuración.
 if (!$contrato_inspector_id) {
-    echo "<div class='alert alert-danger'>Su usuario no está vinculado a un contrato de inspector activo. Por favor, contacte al administrador.</div>";
-    require_once '../includes/footer.php';
+    // Mejor redirigir a una página de error o inicio con un mensaje
+    header('Location: ' . BASE_URL . 'index.php?status=error&message=Su%20usuario%20no%20est%C3%A1%20vinculado%20a%20un%20contrato%20de%20inspector%20activo.');
     exit();
 }
 
@@ -28,6 +32,8 @@ if ($periodo_abierto) {
 $stmt_registros = $pdo->prepare("SELECT r.*, p.nombre_proyecto FROM RegistroHoras r JOIN Proyectos p ON r.id_proyecto = p.id WHERE r.id_contrato = ? ORDER BY r.fecha_trabajada DESC, r.hora_inicio DESC LIMIT 10");
 $stmt_registros->execute([$contrato_inspector_id]);
 $registros_recientes = $stmt_registros->fetchAll();
+
+require_once '../includes/header.php'; // Muestra el header después de la verificación de rol
 ?>
 
 <h1 class="mb-4">Portal de Registro de Horas</h1>
@@ -47,18 +53,18 @@ $registros_recientes = $stmt_registros->fetchAll();
     <div class="card-body">
         <?php if ($periodo_abierto): ?>
             <div class="alert alert-info">
-                Período de reporte abierto: Del <strong><?php echo $periodo_abierto['fecha_inicio_periodo']; ?></strong> al <strong><?php echo $periodo_abierto['fecha_fin_periodo']; ?></strong>
+                Período de reporte abierto: Del <strong><?php echo htmlspecialchars($periodo_abierto['fecha_inicio_periodo']); ?></strong> al <strong><?php echo htmlspecialchars($periodo_abierto['fecha_fin_periodo']); ?></strong>
             </div>
             <hr>
             <form action="store.php" method="POST">
                 <!-- El ID de contrato ahora se pasa automáticamente desde la sesión -->
-                <input type="hidden" name="id_contrato" value="<?php echo $contrato_inspector_id; ?>">
+                <input type="hidden" name="id_contrato" value="<?php echo htmlspecialchars($contrato_inspector_id); ?>">
                 <div class="row g-3">
                     <div class="col-md-3">
                         <label for="fecha_trabajada" class="form-label">Fecha</label>
                         <input type="date" class="form-control" name="fecha_trabajada"
-                               min="<?php echo $periodo_abierto['fecha_inicio_periodo']; ?>"
-                               max="<?php echo $periodo_abierto['fecha_fin_periodo']; ?>" required>
+                               min="<?php echo htmlspecialchars($periodo_abierto['fecha_inicio_periodo']); ?>"
+                               max="<?php echo htmlspecialchars($periodo_abierto['fecha_fin_periodo']); ?>" required>
                     </div>
                     <div class="col-md-3">
                         <label for="hora_inicio" class="form-label">Hora Inicio</label>
@@ -73,7 +79,7 @@ $registros_recientes = $stmt_registros->fetchAll();
                         <select class="form-select" name="id_proyecto" required>
                             <option value="">Seleccionar...</option>
                             <?php foreach ($proyectos as $proyecto): ?>
-                                <option value="<?php echo $proyecto['id']; ?>"><?php echo htmlspecialchars($proyecto['nombre_proyecto']); ?></option>
+                                <option value="<?php echo htmlspecialchars($proyecto['id']); ?>"><?php echo htmlspecialchars($proyecto['nombre_proyecto']); ?></option>
                             <?php endforeach; ?>
                         </select>
                     </div>
@@ -82,7 +88,7 @@ $registros_recientes = $stmt_registros->fetchAll();
                         <select class="form-select" name="id_zona_trabajo" required>
                             <option value="">Seleccionar...</option>
                             <?php foreach ($zonas as $zona): ?>
-                                <option value="<?php echo $zona['id']; ?>"><?php echo htmlspecialchars($zona['nombre_zona_o_muelle']); ?></option>
+                                <option value="<?php echo htmlspecialchars($zona['id']); ?>"><?php echo htmlspecialchars($zona['nombre_zona_o_muelle']); ?></option>
                             <?php endforeach; ?>
                         </select>
                     </div>

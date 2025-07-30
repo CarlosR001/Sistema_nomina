@@ -1,10 +1,13 @@
 <?php
 // employees/create.php
-require_once '../config/init.php'; // Carga la sesión, DB y auth
-require_once '../includes/header.php'; // Muestra el header y protege la página
 
-// Opcional: Restringir acceso solo a Administradores
-// require_role('Admin');
+require_once '../auth.php'; // Carga el sistema de autenticación (incluye DB y sesión)
+require_login(); // Asegura que el usuario esté logueado
+require_role('Administrador'); // Solo Administradores pueden crear empleados
+
+// La conexión $pdo ya está disponible a través de auth.php
+
+require_once '../includes/header.php'; // Muestra el header después de la verificación de rol
 ?>
 
 <h1 class="mb-4">Añadir Nuevo Empleado</h1>

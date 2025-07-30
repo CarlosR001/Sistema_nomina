@@ -1,18 +1,11 @@
 <?php
-require_once '../config/init.php';
+// novedades/index.php
 
-// --- Verificación de Seguridad y Rol ---
-if (!isset($_SESSION['usuario_id'])) {
-    header('Location: ' . BASE_URL . 'login.php');
-    exit();
-}
-// Solo los Administradores o Supervisores pueden registrar novedades.
-if (!in_array($_SESSION['rol'], ['Administrador', 'Supervisor'])) {
-    die('Acceso Denegado. No tienes los permisos necesarios para acceder a esta página.');
-}
-// --- Fin de la verificación ---
+require_once '../auth.php'; // Carga el sistema de autenticación (incluye DB y sesión)
+require_login(); // Asegura que el usuario esté logueado
+require_role(['Administrador', 'Contabilidad']); // Roles permitidos para gestionar novedades
 
-require_once '../includes/header.php';
+// La conexión $pdo ya está disponible a través de auth.php
 
 // Obtener empleados y conceptos para los dropdowns
 $empleados = $pdo->query("SELECT c.id as id_contrato, e.nombres, e.primer_apellido FROM Contratos c JOIN Empleados e ON c.id_empleado = e.id WHERE c.estado_contrato = 'Vigente' ORDER BY e.nombres")->fetchAll();
@@ -25,6 +18,8 @@ $novedades = $pdo->query("SELECT n.*, e.nombres, e.primer_apellido, c.descripcio
                           JOIN Empleados e ON co.id_empleado = e.id
                           JOIN ConceptosNomina c ON n.id_concepto = c.id
                           ORDER BY n.id DESC LIMIT 10")->fetchAll();
+
+require_once '../includes/header.php';
 ?>
 
 <h1 class="mb-4">Registro de Novedades</h1>
@@ -34,8 +29,8 @@ $novedades = $pdo->query("SELECT n.*, e.nombres, e.primer_apellido, c.descripcio
 if (isset($_GET['status'])) {
     if ($_GET['status'] === 'success') {
         echo '<div class="alert alert-success">Novedad guardada correctamente.</div>';
-    } elseif ($_GET['status'] === 'error') {
-        echo '<div class="alert alert-danger">Error al guardar la novedad.</div>';
+    } elseif (isset($_GET['message'])) {
+        echo '<div class="alert alert-danger">Error: ' . htmlspecialchars($_GET['message']) . '</div>';
     }
 }
 ?>
@@ -50,7 +45,7 @@ if (isset($_GET['status'])) {
                     <select class="form-select" name="id_contrato" required>
                         <option value="">Seleccionar empleado...</option>
                         <?php foreach($empleados as $empleado): ?>
-                            <option value="<?php echo $empleado['id_contrato']; ?>"><?php echo htmlspecialchars($empleado['nombres'] . ' ' . $empleado['primer_apellido']); ?></option>
+                            <option value="<?php echo htmlspecialchars($empleado['id_contrato']); ?>"><?php echo htmlspecialchars($empleado['nombres'] . ' ' . $empleado['primer_apellido']); ?></option>
                         <?php endforeach; ?>
                     </select>
                 </div>
@@ -59,7 +54,7 @@ if (isset($_GET['status'])) {
                     <select class="form-select" name="id_concepto" required>
                         <option value="">Seleccionar concepto...</option>
                          <?php foreach($conceptos as $concepto): ?>
-                            <option value="<?php echo $concepto['id']; ?>"><?php echo htmlspecialchars($concepto['descripcion_publica']); ?></option>
+                            <option value="<?php echo htmlspecialchars($concepto['id']); ?>"><?php echo htmlspecialchars($concepto['descripcion_publica']); ?></option>
                         <?php endforeach; ?>
                     </select>
                 </div>

@@ -1,13 +1,16 @@
 <?php
 // employees/index.php
-require_once '../config/init.php'; // Carga la sesión, DB y auth
-require_once '../includes/header.php'; // Muestra el header y protege la página
 
-// Opcional: Restringir acceso por rol si es necesario
-// require_role('Admin'); 
+require_once '../auth.php'; // Carga el sistema de autenticación (incluye DB y sesión)
+require_login(); // Asegura que el usuario esté logueado
+require_role(['Administrador', 'Contabilidad', 'Supervisor']); // Roles permitidos para ver empleados
+
+// La conexión $pdo ya está disponible a través de auth.php
 
 $sql = 'SELECT id, cedula, nombres, primer_apellido, email_personal FROM Empleados ORDER BY nombres ASC';
 $stmt = $pdo->query($sql);
+
+require_once '../includes/header.php'; // Muestra el header después de la verificación de rol
 ?>
 
 <h1 class="mb-4">Gestión de Empleados</h1>
@@ -31,8 +34,8 @@ $stmt = $pdo->query($sql);
                 <td><?php echo htmlspecialchars($row['primer_apellido']); ?></td>
                 <td><?php echo htmlspecialchars($row['email_personal']); ?></td>
                 <td>
-                    <a href="../contracts/index.php?employee_id=<?php echo $row['id']; ?>" class="btn btn-sm btn-info">Ver Contratos</a>
-                    <a href="edit.php?id=<?php echo $row['id']; ?>" class="btn btn-sm btn-warning">Editar</a>
+                    <a href="<?php echo BASE_URL; ?>contracts/index.php?employee_id=<?php echo htmlspecialchars($row['id']); ?>" class="btn btn-sm btn-info">Ver Contratos</a>
+                    <a href="<?php echo BASE_URL; ?>employees/edit.php?id=<?php echo htmlspecialchars($row['id']); ?>" class="btn btn-sm btn-warning">Editar</a>
                 </td>
             </tr>
         <?php endwhile; ?>

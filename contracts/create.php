@@ -1,8 +1,11 @@
 <?php
 // contracts/create.php
 
-require_once '../config/init.php';
-require_once '../includes/header.php';
+require_once '../auth.php'; // Carga el sistema de autenticación
+require_login(); // Asegura que el usuario esté logueado
+require_role('Administrador'); // Solo Administradores pueden acceder a esta sección
+
+// La conexión $pdo ya está disponible a través de auth.php
 
 // Validar que se reciba un ID de empleado
 if (!isset($_GET['employee_id']) || !is_numeric($_GET['employee_id'])) {
@@ -12,6 +15,8 @@ $employee_id = $_GET['employee_id'];
 
 // Obtener todas las posiciones para el dropdown
 $posiciones = $pdo->query("SELECT id, nombre_posicion FROM Posiciones ORDER BY nombre_posicion")->fetchAll();
+
+require_once '../includes/header.php';
 ?>
 
 <h1 class="mb-4">Añadir Nuevo Contrato</h1>

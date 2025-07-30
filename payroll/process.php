@@ -1,21 +1,15 @@
 <?php
 // payroll/process.php
-require_once '../config/init.php';
 
-// --- Verificación de Seguridad y Rol ---
-if (!isset($_SESSION['usuario_id'])) {
-    header('Location: ' . BASE_URL . 'login.php');
-    exit();
-}
-// Solo los Administradores pueden ejecutar el proceso de nómina.
-if ($_SESSION['rol'] !== 'Administrador') {
-    die('Acceso Denegado. No tienes los permisos necesarios para realizar esta acción.');
-}
-// --- Fin de la verificación ---
+require_once '../auth.php'; // Carga el sistema de autenticación (incluye DB y sesión)
+require_login(); // Asegura que el usuario esté logueado
+require_role('Administrador'); // Solo Administradores pueden ejecutar el proceso de nómina.
+
+// La conexión $pdo ya está disponible a través de auth.php
 
 // 1. VERIFICACIÓN INICIAL
 if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !isset($_POST['periodo_id'])) {
-    header('Location: ' . BASE_URL . 'payroll/index.php');
+    header('Location: ' . BASE_URL . 'payroll/index.php?status=error&message=Solicitud%20inv%C3%A1lida.');
     exit();
 }
 
@@ -25,7 +19,8 @@ $stmt_periodo = $pdo->prepare("SELECT * FROM PeriodosDeReporte WHERE id = ?");
 $stmt_periodo->execute([$periodo_id]);
 $periodo = $stmt_periodo->fetch();
 if (!$periodo) {
-    die("Error: Período no encontrado.");
+    header('Location: ' . BASE_URL . 'payroll/index.php?status=error&message=Per%C3%ADodo%20no%20encontrado.');
+    exit();
 }
 
 $tipo_nomina = $periodo['tipo_nomina'];
@@ -45,7 +40,8 @@ try {
     // 3. CREAR EL REGISTRO MAESTRO DE LA NÓMINA
     $sql_nomina = "INSERT INTO NominasProcesadas (tipo_nomina_procesada, periodo_inicio, periodo_fin, id_usuario_ejecutor, estado_nomina) VALUES (?, ?, ?, ?, 'Pendiente de Aprobación')";
     $stmt_nomina = $pdo->prepare($sql_nomina);
-    $stmt_nomina->execute([$tipo_nomina, $fecha_inicio, $fecha_fin, $_SESSION['usuario_id']]);
+    // Usar $_SESSION['user_id'] en lugar de $_SESSION['usuario_id']
+    $stmt_nomina->execute([$tipo_nomina, $fecha_inicio, $fecha_fin, $_SESSION['user_id']]);
     $id_nomina_procesada = $pdo->lastInsertId();
 
     // 4. OBTENER CONTRATOS A PROCESAR
@@ -185,5 +181,6 @@ try {
 } catch (Exception $e) {
     $pdo->rollBack();
     // En producción, esto debería registrar el error en un log y mostrar una página de error amigable.
-    die("Error Crítico al procesar la nómina: " . $e->getMessage());
+    header('Location: ' . BASE_URL . 'payroll/index.php?status=error&message=' . urlencode("Error Cr%C3%ADtico al procesar la n%C3%B3mina: " . $e->getMessage()));
+    exit();
 }

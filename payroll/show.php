@@ -1,22 +1,26 @@
 <?php
 // payroll/show.php
-require_once '../config/init.php';
 
-if (!isset($_SESSION['usuario_id'])) {
-    header('Location: ' . BASE_URL . 'login.php');
-    exit();
-}
+require_once '../auth.php'; // Carga el sistema de autenticación (incluye DB y sesión)
+require_login(); // Asegura que el usuario esté logueado
+require_role('Administrador'); // Solo Administradores pueden ver el resumen de nómina.
 
-require_once '../includes/header.php';
+// La conexión $pdo ya está disponible a través de auth.php
 
 if (!isset($_GET['id']) || !is_numeric($_GET['id'])) {
-    die("ID de nómina no válido.");
+    header('Location: ' . BASE_URL . 'payroll/review.php?status=error&message=ID%20de%20n%C3%B3mina%20no%20v%C3%A1lido.');
+    exit();
 }
 $id_nomina = $_GET['id'];
 
 $stmt_nomina = $pdo->prepare("SELECT * FROM NominasProcesadas WHERE id = ?");
 $stmt_nomina->execute([$id_nomina]);
 $nomina = $stmt_nomina->fetch();
+
+if (!$nomina) {
+    header('Location: ' . BASE_URL . 'payroll/review.php?status=error&message=N%C3%B3mina%20no%20encontrada.');
+    exit();
+}
 
 $stmt_detalles = $pdo->prepare("
     SELECT c.id as id_contrato, e.nombres, e.primer_apellido, 
@@ -29,6 +33,8 @@ $stmt_detalles = $pdo->prepare("
     GROUP BY c.id, e.nombres, e.primer_apellido");
 $stmt_detalles->execute([$id_nomina, $id_nomina, $id_nomina]);
 $detalles = $stmt_detalles->fetchAll();
+
+require_once '../includes/header.php';
 ?>
 
 <h1 class="mb-4">Resultados de la Nómina Procesada</h1>
@@ -36,10 +42,10 @@ $detalles = $stmt_detalles->fetchAll();
 <div class="card mb-4">
     <div class="card-header">Resumen General</div>
     <div class="card-body">
-        <p><strong>ID de Nómina:</strong> <?php echo $nomina['id']; ?></p>
+        <p><strong>ID de Nómina:</strong> <?php echo htmlspecialchars($nomina['id']); ?></p>
         <p><strong>Tipo:</strong> <?php echo htmlspecialchars($nomina['tipo_nomina_procesada']); ?></p>
-        <p><strong>Período:</strong> <?php echo $nomina['periodo_inicio'] . " al " . $nomina['periodo_fin']; ?></p>
-        <p><strong>Estado:</strong> <span class="badge bg-warning text-dark"><?php echo $nomina['estado_nomina']; ?></span></p>
+        <p><strong>Período:</strong> <?php echo htmlspecialchars($nomina['periodo_inicio']) . " al " . htmlspecialchars($nomina['periodo_fin']); ?></p>
+        <p><strong>Estado:</strong> <span class="badge bg-warning text-dark"><?php echo htmlspecialchars($nomina['estado_nomina']); ?></span></p>
     </div>
 </div>
 
@@ -67,7 +73,7 @@ $detalles = $stmt_detalles->fetchAll();
             <td class="text-end">-$<?php echo number_format($detalle['total_deducciones'], 2); ?></td>
             <td class="text-end fw-bold">$<?php echo number_format($neto_pagar, 2); ?></td>
             <td>
-                <a href="payslip.php?nomina_id=<?php echo $id_nomina; ?>&contrato_id=<?php echo $detalle['id_contrato']; ?>" class="btn btn-sm btn-info">Ver Desglose</a>
+                <a href="payslip.php?nomina_id=<?php echo htmlspecialchars($id_nomina); ?>&contrato_id=<?php echo htmlspecialchars($detalle['id_contrato']); ?>" class="btn btn-sm btn-info">Ver Desglose</a>
             </td>
         </tr>
         <?php endforeach; ?>

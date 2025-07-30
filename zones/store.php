@@ -1,6 +1,11 @@
 <?php
 // zones/store.php
-require_once '../config/init.php';
+
+require_once '../auth.php'; // Carga el sistema de autenticación (incluye DB y sesión)
+require_login(); // Asegura que el usuario esté logueado
+require_role('Administrador'); // Solo Administradores pueden gestionar zonas de transporte
+
+// La conexión $pdo ya está disponible a través de auth.php
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $nombre_zona = trim($_POST['nombre_zona']);
@@ -11,12 +16,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $sql = "INSERT INTO ZonasTransporte (nombre_zona_o_muelle, monto_transporte_completo) VALUES (:nombre, :monto)";
             $stmt = $pdo->prepare($sql);
             $stmt->execute([':nombre' => $nombre_zona, ':monto' => $monto]);
-            header("Location: index.php?status=success");
+            header("Location: index.php?status=success&message=Zona%20guardada%20exitosamente.");
+            exit();
         } catch (PDOException $e) {
-            header("Location: index.php?status=error&message=" . urlencode($e->getMessage()));
+            header("Location: index.php?status=error&message=" . urlencode("Error al guardar la zona: " . $e->getMessage()));
+            exit();
         }
-        exit();
     }
+    header("Location: index.php?status=error&message=Faltan%20campos%20requeridos%20o%20son%20inv%C3%A1lidos.");
+    exit();
 }
 header("Location: index.php");
 exit();
