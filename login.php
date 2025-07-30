@@ -1,4 +1,6 @@
 <?php
+// hola que tal
+
 require_once 'config/init.php'; 
 
 if (isset($_SESSION['usuario_id'])) {
@@ -41,3 +43,4 @@ $error = $_GET['error'] ?? null;
     </main>
 </body>
 </html>
+
