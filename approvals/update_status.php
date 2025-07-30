@@ -1,13 +1,11 @@
 <?php
-session_start(); // Asegurarse de que la sesión esté iniciada
-require_once '../config/database.php';
+// approvals/update_status.php
 
-// Verificar si el usuario está logueado y tiene el rol correcto para aprobar/rechazar.
-// Esto se puede refinar, pero por ahora solo permitimos a 'Supervisor' y 'Admin'.
-if (!isset($_SESSION['user_id']) || ($_SESSION['user_rol'] !== 'Supervisor' && $_SESSION['user_rol'] !== 'Admin')) {
-    header('Location: /login.php'); // Redirigir al login o a una página de acceso denegado
-    exit();
-}
+require_once '../auth.php'; // Carga el sistema de autenticación, inicia la sesión y $pdo
+require_login(); // Asegura que el usuario esté logueado
+require_role(['Administrador', 'Supervisor']); // Solo Administradores y Supervisores pueden acceder
+
+// La conexión $pdo ya está disponible a través de auth.php
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['registros']) && isset($_POST['action'])) {
 
