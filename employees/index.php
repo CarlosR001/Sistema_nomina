@@ -1,65 +1,41 @@
 <?php
-// employees/index.php (CORREGIDO)
-require_once '../config/init.php';
+// employees/index.php
+require_once '../config/init.php'; // Carga la sesión, DB y auth
+require_once '../includes/header.php'; // Muestra el header y protege la página
 
-// Lógica de seguridad: verificar sesión y rol (ej. 'Administrador' o 'RRHH')
-if (!isset($_SESSION['usuario_id']) || $_SESSION['rol'] !== 'Administrador') {
-    // Si no es el rol correcto, puedes redirigir o mostrar un error.
-    // Por simplicidad, aquí solo detenemos la ejecución.
-    die('Acceso denegado. No tienes permiso para ver esta página.');
-}
+// Opcional: Restringir acceso por rol si es necesario
+// require_role('Admin'); 
 
-require_once '../includes/header.php';
-
-// Consulta para obtener todos los empleados
-$stmt = $pdo->query("SELECT id, cedula, nombres, primer_apellido, email_personal, estado_empleado FROM Empleados ORDER BY nombres, primer_apellido");
-$empleados = $stmt->fetchAll();
+$sql = 'SELECT id, cedula, nombres, primer_apellido, email_personal FROM Empleados ORDER BY nombres ASC';
+$stmt = $pdo->query($sql);
 ?>
 
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h1>Gestión de Empleados</h1>
-    <a href="create.php" class="btn btn-success">Añadir Nuevo Empleado</a>
-</div>
+<h1 class="mb-4">Gestión de Empleados</h1>
+<a href="create.php" class="btn btn-primary mb-3">Añadir Nuevo Empleado</a>
 
-<?php
-if (isset($_GET['status']) && $_GET['status'] === 'success') {
-    echo '<div class="alert alert-success">Empleado guardado correctamente.</div>';
-}
-?>
-
-<table class="table table-hover table-striped">
+<table class="table table-striped table-hover">
     <thead class="table-dark">
         <tr>
-            <th>Nombre Completo</th>
             <th>Cédula</th>
+            <th>Nombres</th>
+            <th>Apellido</th>
             <th>Email</th>
-            <th>Estado</th>
             <th>Acciones</th>
         </tr>
     </thead>
     <tbody>
-        <?php if ($empleados): ?>
-            <?php foreach ($empleados as $empleado): ?>
+        <?php while ($row = $stmt->fetch()): ?>
             <tr>
-                <td><?php echo htmlspecialchars($empleado['nombres'] . ' ' . $empleado['primer_apellido']); ?></td>
-                <td><?php echo htmlspecialchars($empleado['cedula']); ?></td>
-                <td><?php echo htmlspecialchars($empleado['email_personal']); ?></td>
+                <td><?php echo htmlspecialchars($row['cedula']); ?></td>
+                <td><?php echo htmlspecialchars($row['nombres']); ?></td>
+                <td><?php echo htmlspecialchars($row['primer_apellido']); ?></td>
+                <td><?php echo htmlspecialchars($row['email_personal']); ?></td>
                 <td>
-                    <span class="badge bg-<?php echo $empleado['estado_empleado'] == 'Activo' ? 'success' : 'secondary'; ?>">
-                        <?php echo htmlspecialchars($empleado['estado_empleado']); ?>
-                    </span>
-                </td>
-                <td>
-                    <a href="../contracts/index.php?employee_id=<?php echo $empleado['id']; ?>" class="btn btn-sm btn-info">Ver Contratos</a>
-                    <a href="edit.php?id=<?php echo $empleado['id']; ?>" class="btn btn-sm btn-warning">Editar</a>
+                    <a href="../contracts/index.php?employee_id=<?php echo $row['id']; ?>" class="btn btn-sm btn-info">Ver Contratos</a>
+                    <a href="edit.php?id=<?php echo $row['id']; ?>" class="btn btn-sm btn-warning">Editar</a>
                 </td>
             </tr>
-            <?php endforeach; ?>
-        <?php else: ?>
-            <tr>
-                <td colspan="5" class="text-center">No hay empleados registrados.</td>
-            </tr>
-        <?php endif; ?>
+        <?php endwhile; ?>
     </tbody>
 </table>
 

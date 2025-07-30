@@ -1,54 +1,55 @@
 <?php
-// approvals/update_status.php
-require_once '../config/init.php';
+session_start(); // Asegurarse de que la sesión esté iniciada
+require_once '../config/database.php';
 
-// --- Verificación de Seguridad y Rol ---
-if (!isset($_SESSION['usuario_id'])) {
-    header('Location: ' . BASE_URL . 'login.php');
+// Verificar si el usuario está logueado y tiene el rol correcto para aprobar/rechazar.
+// Esto se puede refinar, pero por ahora solo permitimos a 'Supervisor' y 'Admin'.
+if (!isset($_SESSION['user_id']) || ($_SESSION['user_rol'] !== 'Supervisor' && $_SESSION['user_rol'] !== 'Admin')) {
+    header('Location: /login.php'); // Redirigir al login o a una página de acceso denegado
     exit();
 }
-if (!in_array($_SESSION['rol'], ['Administrador', 'Supervisor'])) {
-    die('Acceso Denegado. No tienes los permisos necesarios para realizar esta acción.');
-}
-// --- Fin de la verificación ---
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['registros']) && isset($_POST['action'])) {
 
     $registros_ids = $_POST['registros'];
     $nuevo_estado = $_POST['action']; // 'Aprobado' o 'Rechazado'
+    $usuario_aprobador_id = $_SESSION['user_id']; // Obtener el ID del usuario logueado de la sesión
 
     // Validar que el nuevo estado sea uno de los permitidos
     if (!in_array($nuevo_estado, ['Aprobado', 'Rechazado'])) {
-        die("Acción no válida.");
+        header('Location: index.php?status=error&message=Acci%C3%B3n%20no%20v%C3%A1lida.');
+        exit();
     }
 
-    // Asegurarnos de que los IDs sean números para evitar inyección SQL
+    // Asegurarnos de que los IDs sean números y evitar inyección SQL en el IN clause
     $ids_filtrados = array_filter($registros_ids, 'is_numeric');
 
     if (!empty($ids_filtrados)) {
         // Crear una cadena de placeholders (?,?,?) para la consulta IN
         $placeholders = implode(',', array_fill(0, count($ids_filtrados), '?'));
 
-        $sql = "UPDATE RegistroHoras SET estado_registro = ? WHERE id IN ($placeholders)";
+        // Añadir id_usuario_aprobador y fecha_aprobacion a la actualización
+        $sql = "UPDATE RegistroHoras SET estado_registro = ?, id_usuario_aprobador = ?, fecha_aprobacion = NOW() WHERE id IN ($placeholders)";
 
         try {
             $stmt = $pdo->prepare($sql);
-
-            // Vincular el nuevo estado y luego todos los IDs en un solo array de parámetros
-            $params = array_merge([$nuevo_estado], $ids_filtrados);
+            // Los parámetros deben ir en el orden correcto: nuevo_estado, id_usuario_aprobador, y luego todos los IDs.
+            $params = array_merge([$nuevo_estado, $usuario_aprobador_id], $ids_filtrados);
             $stmt->execute($params);
 
             header("Location: index.php?status=success");
             exit();
 
         } catch (PDOException $e) {
-            // En un entorno de producción, sería mejor registrar el error que mostrarlo.
+            // Manejo de errores más detallado en un entorno de producción
             header("Location: index.php?status=error&message=" . urlencode($e->getMessage()));
             exit();
         }
+    } else {
+        header("Location: index.php?status=error&message=No%20se%20seleccionaron%20registros.");
+        exit();
     }
 }
 
-// Si no se seleccionó nada, no es POST, o no hay IDs válidos, redirigir.
 header("Location: index.php");
 exit();

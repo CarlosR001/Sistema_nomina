@@ -1,14 +1,17 @@
 <?php
 // config/init.php
 
-// Iniciar la sesión SOLO SI no hay una ya activa
+// 0. Definir la URL base para toda la aplicación
+// Esto soluciona los errores de redirección y hace los enlaces más robustos.
+define('BASE_URL', '/');
+
+// 1. Iniciar la sesión
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-// --- DEFINICIÓN FIJA DE LA RUTA BASE ---
-// Esta es la URL completa de tu proyecto. Asegúrate de que sea correcta.
-define('BASE_URL', 'http://localhost/sistema_nomina/');
+// 2. Cargar la conexión a la base de datos
+require_once __DIR__ . '/database.php';
 
-// Incluir la conexión a la base de datos
-require_once 'database.php';
+// 3. Cargar el sistema de autenticación
+require_once __DIR__ . '/../auth.php';
