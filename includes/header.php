@@ -72,6 +72,10 @@ if (session_status() === PHP_SESSION_NONE) {
                             <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>projects/index.php">Proyectos</a></li>
                             <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>reporting_periods/index.php">Períodos</a></li>
                             <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>zones/index.php">Zonas</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>calendario/index.php">Calendario Laboral</a></li>
+                            <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>configuracion/index.php">Parámetros Globales</a></li>
+                            <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>conceptos/index.php">Conceptos de Nómina</a></li>
                         </ul>
                     </li>
                 <?php endif; ?>

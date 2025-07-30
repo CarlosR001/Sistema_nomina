@@ -24,7 +24,6 @@ $empleado_id_del_contrato = $stmt_get_employee_id->fetchColumn();
 $user_rol = $_SESSION['user_rol'] ?? '';
 $user_empleado_id = $_SESSION['user_info']['id_empleado'] ?? null;
 
-// Cambiado de 'Administrador' a 'Admin'
 if ($user_rol !== 'Admin' && ($user_rol === 'Inspector' && $user_empleado_id !== $empleado_id_del_contrato)) {
     // Si no es administrador y es inspector pero no es su contrato
     header('HTTP/1.0 403 Forbidden');
