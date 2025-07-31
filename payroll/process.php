@@ -1,9 +1,17 @@
 <?php
-// payroll/process.php
+// payroll/process.php - v3.0 con Lógica de ISR Acumulativo Mensual
 
 require_once '../auth.php';
 require_login();
 require_role('Admin');
+
+// --- Helper Function ---
+function esUltimaSemanaDelMes($fecha_fin_periodo) {
+    $fecha = new DateTime($fecha_fin_periodo);
+    $dia = (int)$fecha->format('d');
+    $dias_en_mes = (int)$fecha->format('t');
+    return ($dias_en_mes - $dia) < 7;
+}
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !isset($_POST['periodo_id'])) {
     header('Location: ' . BASE_URL . 'payroll/index.php?status=error&message=Solicitud%20inv%C3%A1lida.');
@@ -23,6 +31,9 @@ if (!$periodo) {
 $tipo_nomina = $periodo['tipo_nomina'];
 $fecha_inicio = $periodo['fecha_inicio_periodo'];
 $fecha_fin = $periodo['fecha_fin_periodo'];
+$es_ultima_semana = esUltimaSemanaDelMes($fecha_fin);
+$mes_actual = date('m', strtotime($fecha_fin));
+$anio_actual = date('Y', strtotime($fecha_fin));
 
 try {
     $pdo->beginTransaction();
@@ -31,9 +42,9 @@ try {
     $tope_salarial_tss = (float)($configs_db['TSS_TOPE_SALARIAL'] ?? 265840.00);
     $porcentaje_afp = (float)($configs_db['TSS_PORCENTAJE_AFP'] ?? 0.0287);
     $porcentaje_sfs = (float)($configs_db['TSS_PORCENTAJE_SFS'] ?? 0.0304);
-    $isr_exento_anual = (float)($configs_db['ISR_EXENTO_ANUAL'] ?? 416220.00);
+    $escala_isr = $pdo->query("SELECT * FROM escalasisr WHERE anio_fiscal = {$anio_actual} ORDER BY desde_monto_anual ASC")->fetchAll();
 
-    // Limpiar nómina previa si se está reprocesando
+    // Limpieza de nómina previa...
     $stmt_find_nomina = $pdo->prepare("SELECT id FROM NominasProcesadas WHERE periodo_inicio = ? AND periodo_fin = ? AND tipo_nomina_procesada = ?");
     $stmt_find_nomina->execute([$fecha_inicio, $fecha_fin, $tipo_nomina]);
     $existing_nomina = $stmt_find_nomina->fetch();
@@ -48,122 +59,103 @@ try {
     $stmt_nomina->execute([$tipo_nomina, $fecha_inicio, $fecha_fin, $_SESSION['user_id']]);
     $id_nomina_procesada = $pdo->lastInsertId();
 
-    $sql_contratos = ($tipo_nomina === 'Inspectores')
-        ? "SELECT DISTINCT c.id, c.id_empleado, c.tarifa_por_hora FROM Contratos c JOIN RegistroHoras rh ON c.id = rh.id_contrato WHERE c.tipo_nomina = 'Inspectores' AND c.estado_contrato = 'Vigente' AND rh.estado_registro = 'Aprobado' AND rh.fecha_trabajada BETWEEN ? AND ?"
-        : "SELECT id, id_empleado, salario_mensual_bruto FROM Contratos WHERE tipo_nomina = 'Administrativa' AND estado_contrato = 'Vigente'";
-    
+    $sql_contratos = "SELECT DISTINCT c.id, c.id_empleado, c.tarifa_por_hora FROM Contratos c JOIN RegistroHoras rh ON c.id = rh.id_contrato WHERE c.tipo_nomina = 'Inspectores' AND c.estado_contrato = 'Vigente' AND rh.estado_registro = 'Aprobado' AND rh.fecha_trabajada BETWEEN ? AND ?";
     $stmt_contratos = $pdo->prepare($sql_contratos);
-    if ($tipo_nomina === 'Inspectores') $stmt_contratos->execute([$fecha_inicio, $fecha_fin]);
-    else $stmt_contratos->execute();
+    $stmt_contratos->execute([$fecha_inicio, $fecha_fin]);
     $contratos = $stmt_contratos->fetchAll();
 
     foreach ($contratos as $contrato) {
         $id_contrato = $contrato['id'];
-        $ingresos = [];
-        $deducciones = [];
-        $bases_calculo = [];
+        $conceptos = [];
 
-        if ($tipo_nomina === 'Inspectores') {
-            $feriados_stmt = $pdo->prepare("SELECT fecha FROM CalendarioLaboralRD WHERE fecha BETWEEN ? AND ?");
-            $feriados_stmt->execute([$fecha_inicio, $fecha_fin]);
-            $dias_feriados = $feriados_stmt->fetchAll(PDO::FETCH_COLUMN);
-            $tarifas_transporte = $pdo->query("SELECT id, monto_transporte_completo FROM ZonasTransporte")->fetchAll(PDO::FETCH_KEY_PAIR);
-            $tarifa_hora = (float)$contrato['tarifa_por_hora'];
-            $horas_stmt = $pdo->prepare("SELECT fecha_trabajada, hora_inicio, hora_fin, id_zona_trabajo FROM RegistroHoras WHERE id_contrato = ? AND estado_registro = 'Aprobado' AND fecha_trabajada BETWEEN ? AND ?");
-            $horas_stmt->execute([$id_contrato, $fecha_inicio, $fecha_fin]);
-            $registros_horas = $horas_stmt->fetchAll();
+        // Lógica de cálculo de horas (sin cambios)
+        $feriados_stmt = $pdo->prepare("SELECT fecha FROM CalendarioLaboralRD WHERE fecha BETWEEN ? AND ?");
+        $feriados_stmt->execute([$fecha_inicio, $fecha_fin]);
+        $dias_feriados = $feriados_stmt->fetchAll(PDO::FETCH_COLUMN);
+        $tarifa_hora = (float)$contrato['tarifa_por_hora'];
+        $horas_stmt = $pdo->prepare("SELECT fecha_trabajada, hora_inicio, hora_fin FROM RegistroHoras WHERE id_contrato = ? AND estado_registro = 'Aprobado' AND fecha_trabajada BETWEEN ? AND ?");
+        $horas_stmt->execute([$id_contrato, $fecha_inicio, $fecha_fin]);
+        $registros_horas = $horas_stmt->fetchAll();
+        if (empty($registros_horas)) continue;
 
-            if (empty($registros_horas)) continue;
-
-            $total_horas_laborales = 0; $total_horas_feriado = 0; $total_horas_nocturnas = 0; $zonas_por_dia = [];
-            foreach ($registros_horas as $registro) {
-                $inicio_dt = new DateTime($registro['fecha_trabajada'] . ' ' . $registro['hora_inicio']);
-                $fin_dt = new DateTime($registro['fecha_trabajada'] . ' ' . $registro['hora_fin']);
-                if ($fin_dt < $inicio_dt) $fin_dt->modify('+1 day');
-                $duracion_total_horas = ($fin_dt->getTimestamp() - $inicio_dt->getTimestamp()) / 3600;
-
-                if (in_array($registro['fecha_trabajada'], $dias_feriados)) $total_horas_feriado += $duracion_total_horas;
-                else $total_horas_laborales += $duracion_total_horas;
-
-                $inicio_nocturno_dia1 = (clone $inicio_dt)->setTime(21, 0); $fin_nocturno_dia1 = (clone $inicio_dt)->setTime(23, 59, 59);
-                $inicio_nocturno_dia2 = (clone $inicio_dt)->setTime(0, 0); $fin_nocturno_dia2 = (clone $inicio_dt)->setTime(7, 0);
-                $overlap1_start = max($inicio_dt, $inicio_nocturno_dia1); $overlap1_end = min($fin_dt, $fin_nocturno_dia1);
-                if ($overlap1_start < $overlap1_end) $total_horas_nocturnas += ($overlap1_end->getTimestamp() - $overlap1_start->getTimestamp()) / 3600;
-                $overlap2_start = max($inicio_dt, $inicio_nocturno_dia2); $overlap2_end = min($fin_dt, $fin_nocturno_dia2);
-                if ($overlap2_start < $overlap2_end) $total_horas_nocturnas += ($overlap2_end->getTimestamp() - $overlap2_start->getTimestamp()) / 3600;
-                
-                $zonas_por_dia[$registro['fecha_trabajada']][$registro['id_zona_trabajo']] = true;
-            }
-
-            $horas_normales = min($total_horas_laborales, 44);
-            $horas_extra_35 = max(0, min($total_horas_laborales - 44, 24));
-            $horas_extra_100 = max(0, $total_horas_laborales - 68);
-            $pago_transporte = 0;
-            foreach ($zonas_por_dia as $zonas) { $ids_zonas = array_keys($zonas); if (!empty($ids_zonas)) { $pago_transporte += $tarifas_transporte[$ids_zonas[0]] ?? 0; if (count($ids_zonas) > 1) { for ($i = 1; $i < count($ids_zonas); $i++) { $pago_transporte += ($tarifas_transporte[$ids_zonas[$i]] ?? 0) * 0.5; } } } }
-
-            $bases_calculo[] = ['BASE-H-NORM', 'Horas Normales', 'Base de Cálculo', $horas_normales];
-            $bases_calculo[] = ['BASE-H-EXT35', 'Horas Extras (35%)', 'Base de Cálculo', $horas_extra_35];
-            $bases_calculo[] = ['BASE-H-EXT100', 'Horas Extras (100%)', 'Base de Cálculo', $horas_extra_100];
-            $bases_calculo[] = ['BASE-H-FER', 'Horas Feriado', 'Base de Cálculo', $total_horas_feriado];
-            $bases_calculo[] = ['BASE-H-NOCT', 'Horas Nocturnas (Plus)', 'Base de Cálculo', $total_horas_nocturnas];
-            $bases_calculo[] = ['BASE-H-TOTAL', 'Total Horas Periodo', 'Base de Cálculo', $total_horas_laborales + $total_horas_feriado];
-
-            $ingresos[] = ['ING-HN', 'Ingreso Horas Normales', 'Ingreso', $horas_normales * $tarifa_hora];
-            $ingresos[] = ['ING-HE35', 'Ingreso Horas Extras 35%', 'Ingreso', $horas_extra_35 * $tarifa_hora * 1.35];
-            $ingresos[] = ['ING-HE100', 'Ingreso Horas Extras 100%', 'Ingreso', $horas_extra_100 * $tarifa_hora * 2.0];
-            $ingresos[] = ['ING-HFER', 'Ingreso Horas Feriados', 'Ingreso', $total_horas_feriado * $tarifa_hora * 2.0];
-            $ingresos[] = ['ING-HNOT', 'Bono Horas Nocturnas', 'Ingreso', $total_horas_nocturnas * $tarifa_hora * 0.15];
-            $ingresos[] = ['ING-TRANSP', 'Pago de Transporte', 'Ingreso', $pago_transporte];
-        } else {
-            $salario_mensual = (float)$contrato['salario_mensual_bruto'];
-            $ingresos[] = ['ING-SALARIO', 'Salario Base Quincenal', 'Ingreso', $salario_mensual / 2];
+        $total_horas_laborales = 0; $total_horas_feriado = 0; $total_horas_nocturnas = 0;
+        foreach ($registros_horas as $registro) {
+            $inicio_dt = new DateTime($registro['fecha_trabajada'] . ' ' . $registro['hora_inicio']);
+            $fin_dt = new DateTime($registro['fecha_trabajada'] . ' ' . $registro['hora_fin']);
+            if ($fin_dt < $inicio_dt) $fin_dt->modify('+1 day');
+            $duracion_total_horas = ($fin_dt->getTimestamp() - $inicio_dt->getTimestamp()) / 3600;
+            if (in_array($registro['fecha_trabajada'], $dias_feriados)) $total_horas_feriado += $duracion_total_horas; else $total_horas_laborales += $duracion_total_horas;
+            $inicio_nocturno_dia1 = (clone $inicio_dt)->setTime(21, 0); $fin_nocturno_dia1 = (clone $inicio_dt)->setTime(23, 59, 59);
+            $inicio_nocturno_dia2 = (clone $inicio_dt)->setTime(0, 0); $fin_nocturno_dia2 = (clone $inicio_dt)->setTime(7, 0);
+            $overlap1_start = max($inicio_dt, $inicio_nocturno_dia1); $overlap1_end = min($fin_dt, $fin_nocturno_dia1);
+            if ($overlap1_start < $overlap1_end) $total_horas_nocturnas += ($overlap1_end->getTimestamp() - $overlap1_start->getTimestamp()) / 3600;
+            $overlap2_start = max($inicio_dt, $inicio_nocturno_dia2); $overlap2_end = min($fin_dt, $fin_nocturno_dia2);
+            if ($overlap2_start < $overlap2_end) $total_horas_nocturnas += ($overlap2_end->getTimestamp() - $overlap2_start->getTimestamp()) / 3600;
         }
+        $horas_normales = min($total_horas_laborales, 44);
+        $horas_extra_35 = max(0, min($total_horas_laborales - 44, 24));
+        $horas_extra_100 = max(0, $total_horas_laborales - 68);
 
-        $stmt_novedades = $pdo->prepare("SELECT n.*, c.descripcion_publica, c.codigo_concepto, c.tipo_concepto FROM NovedadesPeriodo n JOIN ConceptosNomina c ON n.id_concepto = c.id WHERE n.id_contrato = ? AND n.estado_novedad = 'Pendiente' AND n.periodo_aplicacion BETWEEN ? AND ?");
+        // PASO A: CALCULAR TODOS LOS INGRESOS Y CARGAR NOVEDADES
+        $conceptos['ING-HN'] = ['desc' => 'Ingreso Horas Normales', 'monto' => $horas_normales * $tarifa_hora, 'aplica_tss' => true, 'aplica_isr' => true, 'tipo' => 'Ingreso'];
+        $conceptos['ING-HE35'] = ['desc' => 'Ingreso Horas Extras 35%', 'monto' => $horas_extra_35 * $tarifa_hora * 1.35, 'aplica_tss' => false, 'aplica_isr' => true, 'tipo' => 'Ingreso'];
+        $conceptos['ING-HE100'] = ['desc' => 'Ingreso Horas Extras 100%', 'monto' => $horas_extra_100 * $tarifa_hora * 2.0, 'aplica_tss' => false, 'aplica_isr' => true, 'tipo' => 'Ingreso'];
+        $conceptos['ING-HFER'] = ['desc' => 'Ingreso Horas Feriados', 'monto' => $total_horas_feriado * $tarifa_hora * 2.0, 'aplica_tss' => false, 'aplica_isr' => true, 'tipo' => 'Ingreso'];
+        $conceptos['ING-HNOT'] = ['desc' => 'Bono Horas Nocturnas', 'monto' => $total_horas_nocturnas * $tarifa_hora * 0.15, 'aplica_tss' => true, 'aplica_isr' => true, 'tipo' => 'Ingreso'];
+
+        $stmt_novedades = $pdo->prepare("SELECT n.*, c.* FROM NovedadesPeriodo n JOIN ConceptosNomina c ON n.id_concepto = c.id WHERE n.id_contrato = ? AND n.estado_novedad = 'Pendiente' AND n.periodo_aplicacion BETWEEN ? AND ?");
         $stmt_novedades->execute([$id_contrato, $fecha_inicio, $fecha_fin]);
-        foreach ($stmt_novedades->fetchAll() as $novedad) {
-            if ($novedad['tipo_concepto'] === 'Ingreso') {
-                $ingresos[] = [$novedad['codigo_concepto'], $novedad['descripcion_publica'], 'Ingreso', (float)$novedad['monto_valor']];
-            } else {
-                $deducciones[] = [$novedad['codigo_concepto'], $novedad['descripcion_publica'], 'Deducción', (float)$novedad['monto_valor']];
-            }
-            $pdo->prepare("UPDATE NovedadesPeriodo SET estado_novedad = 'Aplicada' WHERE id = ?")->execute([$novedad['id']]);
-        }
+        foreach ($stmt_novedades->fetchAll() as $novedad) { $conceptos[$novedad['codigo_concepto']] = ['desc' => $novedad['descripcion_publica'], 'monto' => (float)$novedad['monto_valor'], 'aplica_tss' => (bool)$novedad['afecta_tss'], 'aplica_isr' => (bool)$novedad['afecta_isr'], 'tipo' => $novedad['tipo_concepto']]; $pdo->prepare("UPDATE NovedadesPeriodo SET estado_novedad = 'Aplicada' WHERE id = ?")->execute([$novedad['id']]); }
 
-        $total_ingresos_bruto = 0; $salario_para_tss = 0;
-        foreach ($ingresos as $ingreso) { $total_ingresos_bruto += $ingreso[3]; if (!in_array($ingreso[0], ['ING-TRANSP'])) { $salario_para_tss += $ingreso[3]; } }
-        
-        if ($total_ingresos_bruto <= 0) continue;
-        
-        $proyeccion_mensual_tss = $salario_para_tss * (52/12);
-        $salario_cotizable_tss_final = min($proyeccion_mensual_tss, $tope_salarial_tss);
-        $deduccion_afp = ($salario_cotizable_tss_final * $porcentaje_afp) / (52/12);
-        $deduccion_sfs = ($salario_cotizable_tss_final * $porcentaje_sfs) / (52/12);
-        
-        $deducciones[] = ['DED-AFP', 'Aporte AFP (2.87%)', 'Deducción', $deduccion_afp];
-        $deducciones[] = ['DED-SFS', 'Aporte SFS (3.04%)', 'Deducción', $deduccion_sfs];
+        // PASO B: CALCULAR BASE TSS y DEDUCCIONES TSS
+        $salario_cotizable_tss = 0;
+        foreach ($conceptos as $data) { if ($data['tipo'] === 'Ingreso' && $data['aplica_tss']) { $salario_cotizable_tss += $data['monto']; } }
+        $proyeccion_mensual_tss = $salario_cotizable_tss * (52/12);
+        $salario_cotizable_final = min($proyeccion_mensual_tss, $tope_salarial_tss);
+        $deduccion_afp = ($salario_cotizable_final * $porcentaje_afp) / (52/12);
+        $deduccion_sfs = ($salario_cotizable_final * $porcentaje_sfs) / (52/12);
+        $conceptos['DED-AFP'] = ['desc' => 'Aporte AFP (2.87%)', 'monto' => $deduccion_afp, 'tipo' => 'Deducción'];
+        $conceptos['DED-SFS'] = ['desc' => 'Aporte SFS (3.04%)', 'monto' => $deduccion_sfs, 'tipo' => 'Deducción'];
 
-        $total_deducciones_previas = 0;
-        foreach($deducciones as $ded) { $total_deducciones_previas += $ded[3];}
-
-        $base_para_isr = $total_ingresos_bruto - $total_deducciones_previas;
-        $ingreso_anual_proyectado = $base_para_isr * 52;
+        // PASO C y D: CALCULAR BASE ISR Y LA DEDUCCIÓN (SOLO EN LA ÚLTIMA SEMANA)
         $deduccion_isr = 0;
-        
-        if ($ingreso_anual_proyectado > $isr_exento_anual) {
-            if ($ingreso_anual_proyectado <= 624329) { $isr_anual = ($ingreso_anual_proyectado - 416220.01) * 0.15; }
-            elseif ($ingreso_anual_proyectado <= 867123) { $isr_anual = 31216.00 + ($ingreso_anual_proyectado - 624329.01) * 0.20; }
-            else { $isr_anual = 79776.00 + ($ingreso_anual_proyectado - 867123.01) * 0.25; }
-            $deduccion_isr = max(0, $isr_anual / 52);
-        }
-        $deducciones[] = ['DED-ISR', 'Impuesto Sobre la Renta (ISR)', 'Deducción', $deduccion_isr];
+        if ($es_ultima_semana) {
+            // C.1: Calcular la base ISR de la semana actual
+            $base_isr_semana_actual = 0;
+            foreach ($conceptos as $data) { if ($data['tipo'] === 'Ingreso' && $data['aplica_isr']) { $base_isr_semana_actual += $data['monto']; } }
+            $base_isr_semana_actual -= ($deduccion_afp + $deduccion_sfs);
 
-        $todos_los_conceptos = array_merge($bases_calculo, $ingresos, $deducciones);
+            // C.2: Buscar y sumar las bases ISR de semanas anteriores en el mismo mes
+            $sql_prev_nominas = "SELECT nd.monto_resultado FROM NominaDetalle nd JOIN NominasProcesadas np ON nd.id_nomina_procesada = np.id WHERE np.id_empleado = ? AND MONTH(np.periodo_fin) = ? AND YEAR(np.periodo_fin) = ? AND nd.codigo_concepto LIKE 'BASE-ISR-SEMANAL'";
+            $stmt_prev_nominas = $pdo->prepare($sql_prev_nominas);
+            $stmt_prev_nominas->execute([$contrato['id_empleado'], $mes_actual, $anio_actual]);
+            $base_isr_acumulada_previa = (float)$stmt_prev_nominas->fetchColumn();
+
+            // C.3: Consolidar la base ISR del mes completo
+            $base_isr_mensual_total = $base_isr_semana_actual + $base_isr_acumulada_previa;
+
+            // D.1: Calcular el ISR mensual
+            $ingreso_anual_proyectado = $base_isr_mensual_total * 12;
+            $isr_anual = 0;
+            foreach ($escala_isr as $tramo) {
+                if ($ingreso_anual_proyectado >= $tramo['desde_monto_anual'] && ($tramo['hasta_monto_anual'] === null || $ingreso_anual_proyectado <= $tramo['hasta_monto_anual'])) {
+                    $excedente = $ingreso_anual_proyectado - $tramo['desde_monto_anual'];
+                    $isr_anual = ($excedente * ($tramo['tasa_porcentaje']/100)) + $tramo['monto_fijo_adicional']; // Tasa es %
+                    break;
+                }
+            }
+            $deduccion_isr = max(0, $isr_anual / 12);
+        }
+        
+        // Se guarda el resultado, sea 0 o el cálculo mensual.
+        $conceptos['DED-ISR'] = ['desc' => 'Impuesto Sobre la Renta (ISR)', 'monto' => $deduccion_isr, 'tipo' => 'Deducción'];
+
+        // PASO E: GUARDAR TODO
         $sql_detalle = "INSERT INTO NominaDetalle (id_nomina_procesada, id_contrato, codigo_concepto, descripcion_concepto, tipo_concepto, monto_resultado) VALUES (?, ?, ?, ?, ?, ?)";
         $stmt_detalle = $pdo->prepare($sql_detalle);
-        foreach ($todos_los_conceptos as $item) {
-            if ($item[3] > 0.001) {
-                $stmt_detalle->execute([$id_nomina_procesada, $id_contrato, $item[0], $item[1], $item[2], $item[3]]);
+        foreach ($conceptos as $codigo => $data) {
+            if ($data['monto'] > 0.001) {
+                $stmt_detalle->execute([$id_nomina_procesada, $id_contrato, $codigo, $data['desc'], $data['tipo'], $data['monto']]);
             }
         }
     }
