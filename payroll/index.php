@@ -14,7 +14,6 @@ $stmt_periodos = $pdo->prepare("SELECT * FROM PeriodosDeReporte WHERE estado_per
 $stmt_periodos->execute([$tipo_nomina_seleccionada]);
 $periodos_abiertos = $stmt_periodos->fetchAll();
 
-// Si se ha enviado el formulario de previsualización
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['periodo_id'])) {
     $periodo_seleccionado_id = $_POST['periodo_id'];
     
@@ -24,49 +23,49 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['periodo_id'])) {
     $fecha_inicio = $periodo_sel['fecha_inicio_periodo'];
     $fecha_fin = $periodo_sel['fecha_fin_periodo'];
 
-    // Obtener todos los contratos relevantes
-    $sql_contratos = "SELECT DISTINCT c.id, e.id as empleado_id, e.nombres, e.primer_apellido, c.tarifa_por_hora 
-                      FROM Contratos c 
-                      JOIN Empleados e ON c.id_empleado = e.id
+    // CORRECCIÓN: Agrupar por empleado para evitar duplicados
+    $sql_empleados = "SELECT e.id as empleado_id, e.nombres, e.primer_apellido
+                      FROM Empleados e
+                      JOIN Contratos c ON e.id = c.id_empleado
                       JOIN RegistroHoras rh ON c.id = rh.id_contrato
-                      WHERE c.tipo_nomina = 'Inspectores' AND rh.estado_registro = 'Aprobado' AND rh.fecha_trabajada BETWEEN ? AND ?";
-    $stmt_contratos = $pdo->prepare($sql_contratos);
-    $stmt_contratos->execute([$fecha_inicio, $fecha_fin]);
-    $empleados_a_procesar = $stmt_contratos->fetchAll();
+                      WHERE c.tipo_nomina = 'Inspectores'
+                        AND rh.estado_registro = 'Aprobado'
+                        AND rh.fecha_trabajada BETWEEN ? AND ?
+                      GROUP BY e.id, e.nombres, e.primer_apellido
+                      ORDER BY e.nombres, e.primer_apellido";
+    $stmt_empleados = $pdo->prepare($sql_empleados);
+    $stmt_empleados->execute([$fecha_inicio, $fecha_fin]);
+    $empleados_a_procesar = $stmt_empleados->fetchAll();
 
-    // Preparar consultas para detalles
-    $horas_stmt = $pdo->prepare("SELECT rh.*, p.nombre_proyecto FROM RegistroHoras rh JOIN Proyectos p ON rh.id_proyecto = p.id WHERE rh.id_contrato = ? AND rh.fecha_trabajada BETWEEN ? AND ? AND rh.estado_registro = 'Aprobado' ORDER BY rh.fecha_trabajada");
-    $novedades_stmt = $pdo->prepare("SELECT np.*, cn.descripcion_publica FROM NovedadesPeriodo np JOIN ConceptosNomina cn ON np.id_concepto = cn.id WHERE np.id_contrato = ? AND np.periodo_aplicacion BETWEEN ? AND ?");
+    // Preparar consultas para detalles por empleado_id
+    $horas_stmt = $pdo->prepare("SELECT rh.*, p.nombre_proyecto, c.tarifa_por_hora FROM RegistroHoras rh JOIN Proyectos p ON rh.id_proyecto = p.id JOIN Contratos c ON rh.id_contrato = c.id WHERE c.id_empleado = ? AND rh.fecha_trabajada BETWEEN ? AND ? AND rh.estado_registro = 'Aprobado' ORDER BY rh.fecha_trabajada");
+    $novedades_stmt = $pdo->prepare("SELECT np.*, cn.descripcion_publica FROM NovedadesPeriodo np JOIN ConceptosNomina cn ON np.id_concepto = cn.id JOIN Contratos c ON np.id_contrato = c.id WHERE c.id_empleado = ? AND np.periodo_aplicacion BETWEEN ? AND ?");
 
-    // Lógica de Pre-Cálculo de Ingreso Bruto
     foreach ($empleados_a_procesar as &$empleado) {
-        $id_contrato = $empleado['id'];
-        $tarifa_hora = (float)$empleado['tarifa_por_hora'];
+        $empleado_id = $empleado['empleado_id'];
         
-        $horas_stmt->execute([$id_contrato, $fecha_inicio, $fecha_fin]);
+        $horas_stmt->execute([$empleado_id, $fecha_inicio, $fecha_fin]);
         $registros_horas = $horas_stmt->fetchAll();
-        $detalles_por_empleado[$empleado['empleado_id']]['horas'] = $registros_horas;
+        $detalles_por_empleado[$empleado_id]['horas'] = $registros_horas;
 
-        $novedades_stmt->execute([$id_contrato, $fecha_inicio, $fecha_fin]);
+        $novedades_stmt->execute([$empleado_id, $fecha_inicio, $fecha_fin]);
         $novedades = $novedades_stmt->fetchAll();
-        $detalles_por_empleado[$empleado['empleado_id']]['novedades'] = $novedades;
+        $detalles_por_empleado[$empleado_id]['novedades'] = $novedades;
         
-        // Simulación de cálculo de ingresos
-        $total_horas_laborales = 0; $total_horas_feriado = 0; $total_horas_nocturnas = 0; $pago_transporte = 0;
-        // ... (Aquí iría la lógica de cálculo de horas, simplificada o completa)
-        // Por simplicidad, calculamos solo el total de horas para la vista principal
         $total_horas_semana = 0;
+        $ingreso_bruto_estimado = 0;
         foreach ($registros_horas as $reg) {
             $inicio = new DateTime($reg['hora_inicio']);
             $fin = new DateTime($reg['hora_fin']);
             if ($fin < $inicio) $fin->modify('+1 day');
-            $total_horas_semana += ($fin->getTimestamp() - $inicio->getTimestamp()) / 3600;
+            $duracion = ($fin->getTimestamp() - $inicio->getTimestamp()) / 3600;
+            $total_horas_semana += $duracion;
+            // Estimación simple del ingreso por horas para la previsualización
+            $ingreso_bruto_estimado += $duracion * (float)$reg['tarifa_por_hora'];
         }
         
         $empleado['total_horas_calculadas'] = $total_horas_semana;
-
-        // Aquí se podría añadir una simulación más completa del ingreso bruto
-        $empleado['ingreso_bruto_estimado'] = ($total_horas_semana * $tarifa_hora) + array_sum(array_column($novedades, 'monto_valor'));
+        $empleado['ingreso_bruto_estimado'] = $ingreso_bruto_estimado + array_sum(array_column($novedades, 'monto_valor'));
     }
 }
 
