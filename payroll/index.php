@@ -3,7 +3,7 @@
 
 require_once '../auth.php';
 require_login();
-require_role('Admin'); // O ['Admin', 'Contabilidad'] si se define ese rol
+require_role('Admin');
 
 $empleados_a_procesar = [];
 $periodo_seleccionado_id = null;
@@ -23,15 +23,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['periodo_id'])) {
     $fecha_inicio = $periodo_sel['fecha_inicio_periodo'];
     $fecha_fin = $periodo_sel['fecha_fin_periodo'];
 
-    // CORRECCIÓN: Agrupar por empleado para evitar duplicados
+    // CORRECCIÓN DEFINITIVA: Usar subconsulta para garantizar empleados únicos
     $sql_empleados = "SELECT e.id as empleado_id, e.nombres, e.primer_apellido
                       FROM Empleados e
-                      JOIN Contratos c ON e.id = c.id_empleado
-                      JOIN RegistroHoras rh ON c.id = rh.id_contrato
-                      WHERE c.tipo_nomina = 'Inspectores'
-                        AND rh.estado_registro = 'Aprobado'
-                        AND rh.fecha_trabajada BETWEEN ? AND ?
-                      GROUP BY e.id, e.nombres, e.primer_apellido
+                      WHERE e.id IN (
+                          SELECT DISTINCT c.id_empleado
+                          FROM Contratos c
+                          JOIN RegistroHoras rh ON c.id = rh.id_contrato
+                          WHERE c.tipo_nomina = 'Inspectores'
+                            AND rh.estado_registro = 'Aprobado'
+                            AND rh.fecha_trabajada BETWEEN ? AND ?
+                      )
                       ORDER BY e.nombres, e.primer_apellido";
     $stmt_empleados = $pdo->prepare($sql_empleados);
     $stmt_empleados->execute([$fecha_inicio, $fecha_fin]);
@@ -60,7 +62,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['periodo_id'])) {
             if ($fin < $inicio) $fin->modify('+1 day');
             $duracion = ($fin->getTimestamp() - $inicio->getTimestamp()) / 3600;
             $total_horas_semana += $duracion;
-            // Estimación simple del ingreso por horas para la previsualización
             $ingreso_bruto_estimado += $duracion * (float)$reg['tarifa_por_hora'];
         }
         
