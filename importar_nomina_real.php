@@ -1,12 +1,12 @@
 <?php
-// importar_nomina_real.php - v4.0 DEFINITIVA
-// Simula turnos diarios realistas y carga el escenario completo.
+// importar_nomina_real.php - v4.1 DEFINITIVA
+// Corrige el manejo de transacciones para evitar el commit implícito.
 
 set_time_limit(300);
 echo "<pre style='font-family: monospace; background-color: #111; color: #0f0; padding: 15px; border-radius: 5px; font-size: 14px;'>";
 echo "=====================================================
 ";
-echo "INICIANDO PROCESO DE IMPORTACIÓN REAL (v4.0)
+echo "INICIANDO PROCESO DE IMPORTACIÓN REAL (v4.1)
 ";
 echo "=====================================================
 
@@ -30,18 +30,20 @@ function parse_csv_to_array($filepath) {
 }
 
 try {
-    $pdo->beginTransaction();
-
+    // --- PASO 1: LIMPIEZA (Fuera de la transacción) ---
     echo "PASO 1: Limpiando tablas...
 ";
     $pdo->exec("SET FOREIGN_KEY_CHECKS = 0;");
-    $tables = ['nominadetalle', 'nominasprocesadas', 'registrohoras', 'novedadesperiodo', 'periodosdereporte', 'calendariolaboralrd', 'contratos', 'proyectos', 'zonastransporte', 'conceptosnomina'];
-    foreach ($tables as $table) $pdo->exec("TRUNCATE TABLE `{$table}`");
+    $tables_to_truncate = ['nominadetalle', 'nominasprocesadas', 'registrohoras', 'novedadesperiodo', 'periodosdereporte', 'calendariolaboralrd', 'contratos', 'proyectos', 'zonastransporte', 'conceptosnomina'];
+    foreach ($tables_to_truncate as $table) $pdo->exec("TRUNCATE TABLE `{$table}`");
     $pdo->exec("DELETE FROM `empleados` WHERE id NOT IN (SELECT id_empleado FROM usuarios WHERE rol = 'Admin')");
     $pdo->exec("DELETE FROM `usuarios` WHERE `rol` = 'Inspector';");
     echo "-> Limpieza completada.
 
 ";
+
+    // --- INICIO DE LA TRANSACCIÓN (Solo para inserciones) ---
+    $pdo->beginTransaction();
 
     echo "PASO 2: Creando catálogos base...
 ";
@@ -69,7 +71,7 @@ try {
     $stmt_empleado = $pdo->prepare("INSERT INTO `empleados` (id, cedula, nombres, primer_apellido) VALUES (?, ?, ?, ?)");
     $stmt_usuario = $pdo->prepare("INSERT INTO `usuarios` (id_empleado, nombre_usuario, contrasena, rol) VALUES (?, ?, ?, 'Inspector')");
     $stmt_contrato = $pdo->prepare("INSERT INTO `contratos` (id, id_empleado, id_posicion, tipo_nomina, tarifa_por_hora, frecuencia_pago, estado_contrato) VALUES (?, ?, 1, 'Inspectores', 150.75, 'Quincenal', 'Vigente')");
-
+    
     foreach ($csv_files as $filepath) {
         $data = parse_csv_to_array($filepath);
         if ($data === null) continue;
@@ -86,11 +88,9 @@ try {
             $stmt_usuario->execute([$id, $user_name, '$2y$10$I0a/I.Y29.Q9t0p1c5B.CO1sJ9V5o2mC8yU7l9r3F6mQ5o7n5D7sK']);
             $stmt_contrato->execute([$id, $id]);
             $empleados_map[$id] = true;
-            echo "  - Creado: {$nombre_completo} (ID: {$id})
-";
         }
     }
-    echo "-> Empleados creados.
+    echo "-> Empleados, usuarios y contratos creados.
 
 ";
 
@@ -100,24 +100,16 @@ try {
     $id_concepto_otros_ingresos = $pdo->query("SELECT id FROM conceptosnomina WHERE codigo_concepto = 'ING-OTROS'")->fetchColumn();
     $id_concepto_cxc = $pdo->query("SELECT id FROM conceptosnomina WHERE codigo_concepto = 'DED-CXC'")->fetchColumn();
     $stmt_novedad = $pdo->prepare("INSERT INTO `novedadesperiodo` (id_contrato, id_concepto, periodo_aplicacion, monto_valor) VALUES (?, ?, ?, ?)");
-    $stmt_horas = $pdo->prepare("INSERT INTO `registrohoras` (id_contrato, id_proyecto, id_zona_trabajo, fecha_trabajada, hora_inicio, hora_fin, estado_registro, id_usuario_aprobador) VALUES (?, ?, ?, ?, ?, ?, 'Aprobado', 4)");
-
+    $stmt_horas = $pdo->prepare("INSERT INTO `registrohoras` (id_contrato, id_proyecto, id_zona_trabajo, fecha_trabajada, hora_inicio, hora_fin, estado_registro, id_usuario_aprobador) VALUES (?, ?, ?, ?, '08:00:00', ?, 'Aprobado', 4)");
+    
     foreach ($csv_files as $periodo_fecha_inicio => $filepath) {
         $data = parse_csv_to_array($filepath);
         foreach ($data as $row) {
             $id = (int)$row[1];
-            $total_horas_semana = (float)str_replace(',', '.', $row[12] ?? '0');
-            if ($total_horas_semana > 0) {
-                // Simulación de turnos diarios
-                $horas_restantes = $total_horas_semana;
-                for ($i = 0; $i < 5; $i++) {
-                    if ($horas_restantes <= 0) break;
-                    $horas_dia = min($horas_restantes, 9); // Turnos de max 9 horas
-                    $fecha_dia = date('Y-m-d', strtotime($periodo_fecha_inicio . " +{$i} days"));
-                    $hora_fin = date('H:i:s', strtotime("08:00:00") + ($horas_dia * 3600));
-                    $stmt_horas->execute([$id, $id_proyecto_generico, $id_zona_generica, $fecha_dia, '08:00:00', $hora_fin]);
-                    $horas_restantes -= $horas_dia;
-                }
+            $total_horas = (float)str_replace(',', '.', $row[12] ?? '0');
+            if ($total_horas > 0) {
+                $seconds = (int)($total_horas * 3600);
+                $stmt_horas->execute([$id, $id_proyecto_generico, $id_zona_generica, $periodo_fecha_inicio, date("H:i:s", strtotime("08:00:00") + $seconds)]);
             }
             $incentivo = (float)str_replace(',', '.', $row[10] ?? '0');
             $otros_ingresos = (float)str_replace(',', '.', $row[8] ?? '0');
