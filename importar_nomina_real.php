@@ -1,28 +1,24 @@
 <?php
-// importar_nomina_real.php - v3.1 DEFINITIVA
+// importar_nomina_real.php - v3.2 ROBUSTA
 // Lee los 4 archivos CSV y carga el escenario de nómina real completo.
 
 set_time_limit(300);
-echo "<pre style='font-family: monospace; background-color: #111; color: #0f0; padding: 15px; border-radius: 5px;'>";
+echo "<pre style='font-family: monospace; background-color: #111; color: #0f0; padding: 15px; border-radius: 5px; font-size: 14px;'>";
 echo "=====================================================
 ";
-echo "INICIANDO PROCESO DE IMPORTACIÓN REAL (v3.1)
+echo "INICIANDO PROCESO DE IMPORTACIÓN REAL (v3.2)
 ";
 echo "=====================================================
 
 ";
 
-require_once __DIR__ . '/auth.php'; // Usamos la conexión $pdo
+require_once __DIR__ . '/auth.php';
 
 function parse_csv_to_array($filepath) {
     $data = [];
-    if (!file_exists($filepath)) {
-        echo "[ERROR] No se encontró el archivo: {$filepath}
-";
-        return null;
-    }
+    if (!file_exists($filepath)) { return null; }
     if (($handle = fopen($filepath, "r")) !== FALSE) {
-        for ($i = 0; $i < 6; $i++) { fgetcsv($handle, 2000, ";"); } // Skip headers
+        for ($i = 0; $i < 6; $i++) { fgetcsv($handle, 2000, ";"); }
         while (($row = fgetcsv($handle, 2000, ";")) !== FALSE) {
             if (isset($row[1]) && is_numeric($row[1]) && !empty(trim($row[2]))) {
                 $data[] = $row;
@@ -34,9 +30,7 @@ function parse_csv_to_array($filepath) {
 }
 
 try {
-    $pdo->beginTransaction();
-
-    echo "PASO 1: Limpiando tablas para un inicio limpio...
+    echo "PASO 1: Limpiando tablas...
 ";
     $pdo->exec("SET FOREIGN_KEY_CHECKS = 0;");
     $tables_to_truncate = ['nominadetalle', 'nominasprocesadas', 'registrohoras', 'novedadesperiodo', 'periodosdereporte', 'calendariolaboralrd', 'contratos', 'proyectos', 'zonastransporte', 'conceptosnomina'];
@@ -57,10 +51,10 @@ try {
         ('ING-OTROS', 'Otros Ingresos', 'Ingreso', 'Novedad', 1, 1),
         ('DED-CXC', 'Abono a Cuenta por Cobrar', 'Deducción', 'Novedad', 0, 0);");
     $pdo->exec("INSERT INTO `proyectos` (nombre_proyecto) VALUES ('Proyecto Genérico Simulación')");
-    $id_proyecto_generico = $pdo->lastInsertId(); // CORRECCIÓN: Capturar ID aquí
+    $id_proyecto_generico = $pdo->lastInsertId();
     $pdo->exec("INSERT INTO `zonastransporte` (nombre_zona_o_muelle, monto_transporte_completo) VALUES ('Zona Genérica Simulación', 0.00)");
-    $id_zona_generica = $pdo->lastInsertId(); // CORRECCIÓN: Capturar ID aquí
-    echo "-> Catálogos creados (Períodos, Conceptos, Proyecto y Zona Genéricos).
+    $id_zona_generica = $pdo->lastInsertId();
+    echo "-> Catálogos creados.
 
 ";
 
@@ -91,41 +85,56 @@ Procesando archivo: {$filepath}...
         $data = parse_csv_to_array($filepath);
         if ($data === null) continue;
 
-        foreach ($data as $row) {
-            $id = (int)$row[1];
-            $nombre_completo = preg_replace('/\s+/', ' ', trim($row[2]));
-            $parts = explode(' ', $nombre_completo);
-            $apellido = array_pop($parts);
-            $nombres = implode(' ', $parts);
+        foreach ($data as $row_num => $row) {
+            $pdo->beginTransaction();
+            try {
+                $id = (int)$row[1];
+                $nombre_completo = preg_replace('/\s+/', ' ', trim($row[2]));
+                $parts = explode(' ', $nombre_completo);
+                $apellido = array_pop($parts);
+                $nombres = implode(' ', $parts);
 
-            if (!isset($empleados_map[$id])) {
-                $stmt_empleado->execute([$id, $nombres, $apellido]);
-                $user_name = strtolower(substr($nombres, 0, 1) . preg_replace('/\s+/', '', $apellido));
-                $stmt_usuario->execute([$id, $user_name, '$2y$10$I0a/I.Y29.Q9t0p1c5B.CO1sJ9V5o2mC8yU7l9r3F6mQ5o7n5D7sK']);
-                $stmt_contrato->execute([$id, $id]);
-                $empleados_map[$id] = true;
-                echo "  - Creado nuevo empleado: {$nombre_completo} (ID: {$id})
+                if (!isset($empleados_map[$id])) {
+                    $stmt_empleado->execute([$id, $nombres, $apellido]);
+                    $user_name = strtolower(substr($nombres, 0, 1) . preg_replace('/\s+/', '', $apellido));
+                    $stmt_usuario->execute([$id, $user_name, '$2y$10$I0a/I.Y29.Q9t0p1c5B.CO1sJ9V5o2mC8yU7l9r3F6mQ5o7n5D7sK']);
+                    $stmt_contrato->execute([$id, $id]);
+                    $empleados_map[$id] = true;
+                }
+                
+                $total_horas = (float)str_replace(',', '.', $row[12] ?? '0');
+                if ($total_horas > 0) {
+                    $seconds = (int)($total_horas * 3600);
+                    $stmt_horas->execute([$id, $id_proyecto_generico, $id_zona_generica, $periodo_fecha_inicio, date("H:i:s", strtotime("08:00:00") + $seconds)]);
+                }
+
+                $incentivo = (float)str_replace(',', '.', $row[10] ?? '0');
+                $otros_ingresos = (float)str_replace(',', '.', $row[8] ?? '0');
+                $cxc = (float)str_replace(',', '.', $row[18] ?? '0');
+
+                if ($incentivo > 0) $stmt_novedad->execute([$id, $id_concepto_incentivo, $periodo_fecha_inicio, $incentivo]);
+                if ($otros_ingresos > 0) $stmt_novedad->execute([$id, $id_concepto_otros_ingresos, $periodo_fecha_inicio, $otros_ingresos]);
+                if ($cxc > 0) $stmt_novedad->execute([$id, $id_concepto_cxc, $periodo_fecha_inicio, $cxc]);
+
+                $pdo->commit();
+            } catch (Exception $e) {
+                $pdo->rollBack();
+                echo "
+<strong style='color: #f00;'>[ERROR] Falló al procesar la fila #".($row_num+7)." del archivo {$filepath}.</strong>
 ";
+                echo "  - Empleado: {$nombre_completo}
+";
+                echo "  - Mensaje: " . $e->getMessage() . "
+";
+                echo "  - La importación se ha detenido. Por favor, revise el CSV.
+";
+                exit;
             }
-            
-            $total_horas = (float)str_replace(',', '.', $row[12] ?? '0');
-            if ($total_horas > 0) {
-                $seconds = (int)($total_horas * 3600);
-                $hora_fin = gmdate("H:i:s", $seconds);
-                $stmt_horas->execute([$id, $id_proyecto_generico, $id_zona_generica, $periodo_fecha_inicio, date("H:i:s", strtotime("08:00:00") + $seconds)]);
-            }
-
-            $incentivo = (float)str_replace(',', '.', $row[10] ?? '0');
-            $otros_ingresos = (float)str_replace(',', '.', $row[8] ?? '0'); // OTROS INGRESOS
-            $cxc = (float)str_replace(',', '.', $row[18] ?? '0'); // CXC
-
-            if ($incentivo > 0) $stmt_novedad->execute([$id, $id_concepto_incentivo, $periodo_fecha_inicio, $incentivo]);
-            if ($otros_ingresos > 0) $stmt_novedad->execute([$id, $id_concepto_otros_ingresos, $periodo_fecha_inicio, $otros_ingresos]);
-            if ($cxc > 0) $stmt_novedad->execute([$id, $id_concepto_cxc, $periodo_fecha_inicio, $cxc]);
         }
+        echo "-> Archivo procesado con éxito.
+";
     }
     
-    $pdo->commit();
     $pdo->exec("SET FOREIGN_KEY_CHECKS = 1;");
 
     echo "
@@ -141,16 +150,8 @@ Procesando archivo: {$filepath}...
 ";
 
 } catch (Exception $e) {
-    $pdo->rollBack();
-    $pdo->exec("SET FOREIGN_KEY_CHECKS = 1;");
     echo "
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-";
-    echo "ERROR CRÍTICO DURANTE LA IMPORTACIÓN: " . $e->getMessage() . "
-";
-    echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-";
-    echo "Se ha revertido la transacción. La base de datos está en su estado anterior.
+<strong style='color: #f00;'>[ERROR CRÍTICO] " . $e->getMessage() . "</strong>
 ";
 }
 
