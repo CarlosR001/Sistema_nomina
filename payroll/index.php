@@ -23,7 +23,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['periodo_id'])) {
     $fecha_inicio = $periodo_sel['fecha_inicio_periodo'];
     $fecha_fin = $periodo_sel['fecha_fin_periodo'];
 
-    // CORRECCIÓN DEFINITIVA: Usar subconsulta para garantizar empleados únicos
+    // Consulta robusta para obtener empleados únicos
     $sql_empleados = "SELECT e.id as empleado_id, e.nombres, e.primer_apellido
                       FROM Empleados e
                       WHERE e.id IN (
@@ -39,7 +39,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['periodo_id'])) {
     $stmt_empleados->execute([$fecha_inicio, $fecha_fin]);
     $empleados_a_procesar = $stmt_empleados->fetchAll();
 
-    // Preparar consultas para detalles por empleado_id
     $horas_stmt = $pdo->prepare("SELECT rh.*, p.nombre_proyecto, c.tarifa_por_hora FROM RegistroHoras rh JOIN Proyectos p ON rh.id_proyecto = p.id JOIN Contratos c ON rh.id_contrato = c.id WHERE c.id_empleado = ? AND rh.fecha_trabajada BETWEEN ? AND ? AND rh.estado_registro = 'Aprobado' ORDER BY rh.fecha_trabajada");
     $novedades_stmt = $pdo->prepare("SELECT np.*, cn.descripcion_publica FROM NovedadesPeriodo np JOIN ConceptosNomina cn ON np.id_concepto = cn.id JOIN Contratos c ON np.id_contrato = c.id WHERE c.id_empleado = ? AND np.periodo_aplicacion BETWEEN ? AND ?");
 
@@ -68,6 +67,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['periodo_id'])) {
         $empleado['total_horas_calculadas'] = $total_horas_semana;
         $empleado['ingreso_bruto_estimado'] = $ingreso_bruto_estimado + array_sum(array_column($novedades, 'monto_valor'));
     }
+    // CORRECCIÓN DEFINITIVA: Romper la referencia del bucle para evitar duplicados fantasma.
+    unset($empleado);
 }
 
 require_once '../includes/header.php';
