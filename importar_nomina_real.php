@@ -1,12 +1,12 @@
 <?php
-// importar_nomina_real.php - v3.2 ROBUSTA
+// importar_nomina_real.php - v3.3 Cédulas Ficticias
 // Lee los 4 archivos CSV y carga el escenario de nómina real completo.
 
 set_time_limit(300);
 echo "<pre style='font-family: monospace; background-color: #111; color: #0f0; padding: 15px; border-radius: 5px; font-size: 14px;'>";
 echo "=====================================================
 ";
-echo "INICIANDO PROCESO DE IMPORTACIÓN REAL (v3.2)
+echo "INICIANDO PROCESO DE IMPORTACIÓN REAL (v3.3)
 ";
 echo "=====================================================
 
@@ -72,7 +72,7 @@ try {
     $id_concepto_otros_ingresos = $pdo->query("SELECT id FROM conceptosnomina WHERE codigo_concepto = 'ING-OTROS'")->fetchColumn();
     $id_concepto_cxc = $pdo->query("SELECT id FROM conceptosnomina WHERE codigo_concepto = 'DED-CXC'")->fetchColumn();
 
-    $stmt_empleado = $pdo->prepare("INSERT INTO `empleados` (id, nombres, primer_apellido) VALUES (?, ?, ?)");
+    $stmt_empleado = $pdo->prepare("INSERT INTO `empleados` (id, cedula, nombres, primer_apellido) VALUES (?, ?, ?, ?)");
     $stmt_usuario = $pdo->prepare("INSERT INTO `usuarios` (id_empleado, nombre_usuario, contrasena, rol) VALUES (?, ?, ?, 'Inspector')");
     $stmt_contrato = $pdo->prepare("INSERT INTO `contratos` (id, id_empleado, id_posicion, tipo_nomina, tarifa_por_hora, frecuencia_pago, estado_contrato) VALUES (?, ?, 1, 'Inspectores', 150.75, 'Quincenal', 'Vigente')");
     $stmt_novedad = $pdo->prepare("INSERT INTO `novedadesperiodo` (id_contrato, id_concepto, periodo_aplicacion, monto_valor) VALUES (?, ?, ?, ?)");
@@ -93,9 +93,10 @@ Procesando archivo: {$filepath}...
                 $parts = explode(' ', $nombre_completo);
                 $apellido = array_pop($parts);
                 $nombres = implode(' ', $parts);
+                $cedula_ficticia = '000-0000000-' . str_pad($id, 4, '0', STR_PAD_LEFT);
 
                 if (!isset($empleados_map[$id])) {
-                    $stmt_empleado->execute([$id, $nombres, $apellido]);
+                    $stmt_empleado->execute([$id, $cedula_ficticia, $nombres, $apellido]);
                     $user_name = strtolower(substr($nombres, 0, 1) . preg_replace('/\s+/', '', $apellido));
                     $stmt_usuario->execute([$id, $user_name, '$2y$10$I0a/I.Y29.Q9t0p1c5B.CO1sJ9V5o2mC8yU7l9r3F6mQ5o7n5D7sK']);
                     $stmt_contrato->execute([$id, $id]);
