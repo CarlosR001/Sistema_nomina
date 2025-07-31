@@ -1,5 +1,5 @@
 <?php
-// payroll/index.php - v3.0 con Diagnóstico y Lógica Robusta
+// payroll/index.php - v3.1 Corregido
 
 require_once '../auth.php';
 require_login();
@@ -11,7 +11,6 @@ $detalles_por_empleado = [];
 $error_message = null;
 $tipo_nomina_seleccionada = $_POST['tipo_nomina'] ?? 'Inspectores';
 
-// Siempre obtener los períodos abiertos para el dropdown
 try {
     $stmt_periodos = $pdo->prepare("SELECT * FROM PeriodosDeReporte WHERE estado_periodo = 'Abierto' AND tipo_nomina = ?");
     $stmt_periodos->execute([$tipo_nomina_seleccionada]);
@@ -20,7 +19,6 @@ try {
     $error_message = "Error al cargar los períodos: " . $e->getMessage();
     $periodos_abiertos = [];
 }
-
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['periodo_id'])) {
     $periodo_seleccionado_id = $_POST['periodo_id'];
@@ -51,10 +49,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['periodo_id'])) {
         $empleados_a_procesar = $stmt_empleados->fetchAll();
 
         if (empty($empleados_a_procesar)) {
-            $error_message = "No se encontraron empleados con datos de nómina (horas o novedades) para el período seleccionado.";
+            $error_message = "No se encontraron empleados con datos de nómina para el período seleccionado.";
         }
-
-        $novedades_stmt = $pdo->prepare("SELECT np.*, cn.descripcion_publica FROM NovedadesPeriodo np JOIN ConceptosNomina cn ON np.id_concepto = cn.id JOIN Contratos c ON np.id_contrato = c.id WHERE c.id_empleado = ? AND np.periodo_aplicacion BETWEEN ? AND ?");
+        
+        // CORRECCIÓN: Se añadió `cn.tipo_concepto` a la consulta
+        $novedades_stmt = $pdo->prepare("SELECT np.*, cn.descripcion_publica, cn.tipo_concepto FROM NovedadesPeriodo np JOIN ConceptosNomina cn ON np.id_concepto = cn.id JOIN Contratos c ON np.id_contrato = c.id WHERE c.id_empleado = ? AND np.periodo_aplicacion BETWEEN ? AND ?");
 
         foreach ($empleados_a_procesar as &$empleado) {
             $empleado_id = $empleado['empleado_id'];
@@ -63,11 +62,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['periodo_id'])) {
             $novedades = $novedades_stmt->fetchAll();
             $detalles_por_empleado[$empleado_id]['novedades'] = $novedades;
             
-            // Simulación del ingreso bruto basado en las novedades cargadas
             $ingreso_bruto_estimado = 0;
             foreach ($novedades as $novedad) {
-                // Asumimos que todos los conceptos de ingreso suman al bruto
-                if ($novedad['tipo_concepto'] === 'Ingreso') {
+                if ($novedad['tipo_concepto'] === 'Ingreso') { // Esta es la línea 70
                     $ingreso_bruto_estimado += $novedad['monto_valor'];
                 }
             }
