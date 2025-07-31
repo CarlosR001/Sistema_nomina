@@ -85,18 +85,10 @@ require_once '../includes/header.php';
         <?php endforeach; ?>
     </tbody>
     <tfoot class="table-group-divider">
-        <tr>
-            <td colspan="3" class="text-end"><strong>Total General de Ingresos:</strong></td>
+        <tr class="table-secondary">
+            <td class="text-end"><strong>TOTAIS GERAIS:</strong></td>
             <td class="text-end"><strong>$<?php echo number_format($total_general_ingresos, 2); ?></strong></td>
-            <td></td>
-        </tr>
-        <tr>
-            <td colspan="3" class="text-end"><strong>Total General de Deducciones:</strong></td>
             <td class="text-end"><strong>-$<?php echo number_format($total_general_deducciones, 2); ?></strong></td>
-            <td></td>
-        </tr>
-        <tr>
-            <td colspan="3" class="text-end"><strong>Total General Neto de la Nómina:</strong></td>
             <td class="text-end"><strong>$<?php echo number_format($total_general_neto, 2); ?></strong></td>
             <td></td>
         </tr>
