@@ -86,7 +86,7 @@ require_once '../includes/header.php';
     </tbody>
     <tfoot class="table-group-divider">
         <tr class="table-secondary">
-            <td class="text-end"><strong>TOTAIS GERAIS:</strong></td>
+            <td class="text-end"><strong>TOTALES GENERALES:</strong></td>
             <td class="text-end"><strong>$<?php echo number_format($total_general_ingresos, 2); ?></strong></td>
             <td class="text-end"><strong>-$<?php echo number_format($total_general_deducciones, 2); ?></strong></td>
             <td class="text-end"><strong>$<?php echo number_format($total_general_neto, 2); ?></strong></td>
