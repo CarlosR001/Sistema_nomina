@@ -1,18 +1,13 @@
 <?php
-// index.php (Página principal) - v2.0
-// Redirige a los inspectores a su portal y muestra un dashboard mejorado para los demás roles.
+// index.php (Página principal) - v2.1
+// Se elimina la lógica de redirección. Su única función es ser el dashboard para roles de gestión.
 
 require_once 'auth.php';
 require_login(); 
 
-// --- Redirección por Rol ---
-// Si el usuario es un inspector, su única página es el registro de horas. Lo enviamos allí directamente.
-if ($_SESSION['user_rol'] === 'Inspector') {
-    header('Location: ' . BASE_URL . 'time_tracking/index.php');
-    exit();
-}
+// Ya no es necesario comprobar el rol aquí, porque el login en auth.php ya habría redirigido a los inspectores.
+// Si llegamos a este punto, es porque el rol es Admin, Supervisor o Contabilidad.
 
-// Cargar el header de la página.
 require_once 'includes/header.php'; 
 ?>
 
@@ -27,9 +22,9 @@ require_once 'includes/header.php';
     </div>
 </div>
 
-<div class="row">
-    <div class="col-md-4">
-        <div class="card">
+<div class="row row-cols-1 row-cols-md-3 g-4">
+    <div class="col">
+        <div class="card h-100">
             <div class="card-body">
                 <h5 class="card-title">Procesar Nómina</h5>
                 <p class="card-text">Inicie el cálculo de la nómina para un período de reporte abierto.</p>
@@ -37,8 +32,8 @@ require_once 'includes/header.php';
             </div>
         </div>
     </div>
-    <div class="col-md-4">
-        <div class="card">
+    <div class="col">
+        <div class="card h-100">
             <div class="card-body">
                 <h5 class="card-title">Aprobaciones</h5>
                 <p class="card-text">Revise y apruebe las horas registradas por los inspectores.</p>
@@ -46,11 +41,11 @@ require_once 'includes/header.php';
             </div>
         </div>
     </div>
-    <div class="col-md-4">
-        <div class="card">
+    <div class="col">
+        <div class="card h-100">
             <div class="card-body">
                 <h5 class="card-title">Gestión de Empleados</h5>
-                <p class="card-text">Añada, vea o modifique la información de los empleados.</p>
+                <p class="card-text">Añada, vea o modifique la información de los empleados y sus contratos.</p>
                 <a href="<?php echo BASE_URL; ?>employees/index.php" class="btn btn-info">Ir a Empleados</a>
             </div>
         </div>
@@ -58,6 +53,5 @@ require_once 'includes/header.php';
 </div>
 
 <?php
-// Incluir el footer
 require_once 'includes/footer.php';
 ?>
