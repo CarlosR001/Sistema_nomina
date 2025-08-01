@@ -1,14 +1,13 @@
 <?php
 // includes/header.php
-// v1.3 - Revertido al funcionamiento original para eliminar errores, manteniendo el nuevo menú.
+// v1.4 - Solución definitiva al error de función no definida.
 
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
-if (!defined('BASE_URL')) {
-    // Esta definición es un respaldo, pero se espera que init.php la defina primero.
-    define('BASE_URL', '/');
-}
+// La ruta se construye desde la ubicación de este archivo (includes) para encontrar auth.php en la raíz.
+// Esto ahora es seguro gracias a que auth.php fue modificado para prevenir re-declaración de funciones.
+require_once __DIR__ . '/../auth.php';
+
+// session_start() ya es manejado por auth.php
+// BASE_URL ya es definido en init.php (incluido por auth.php)
 ?>
 <!DOCTYPE html>
 <html lang="es">
