@@ -1,6 +1,6 @@
 <?php
 // employees/update.php
-// Procesa la actualización de un empleado existente.
+// v1.1 - Corrige el nombre de la tabla de 'Empleados' a 'empleados'.
 
 require_once '../auth.php';
 require_login();
@@ -36,48 +36,30 @@ if (empty($id) || empty($cedula) || empty($nombres) || empty($primer_apellido) |
 
 
 try {
-    // Verificar que la cédula o el nss no estén duplicados (excluyendo al propio empleado)
-    $stmt_check = $pdo->prepare("SELECT id FROM Empleados WHERE (cedula = ? OR nss = ?) AND id != ?");
+    // CORRECCIÓN: El nombre de la tabla es 'empleados', no 'Empleados'.
+    $stmt_check = $pdo->prepare("SELECT id FROM empleados WHERE (cedula = ? OR nss = ?) AND id != ?");
     $stmt_check->execute([$cedula, $nss, $id]);
     if ($stmt_check->fetch()) {
         header('Location: edit.php?id=' . $id . '&status=error&message=La cédula o el NSS ya están registrados para otro empleado.');
         exit();
     }
 
-    $sql = "UPDATE Empleados SET 
-                cedula = :cedula,
-                nss = :nss,
-                nombres = :nombres,
-                primer_apellido = :primer_apellido,
-                segundo_apellido = :segundo_apellido,
-                fecha_nacimiento = :fecha_nacimiento,
-                sexo = :sexo,
-                direccion_completa = :direccion_completa,
-                telefono_principal = :telefono_principal,
-                email_personal = :email_personal,
-                id_banco = :id_banco,
-                tipo_cuenta_bancaria = :tipo_cuenta_bancaria,
-                numero_cuenta_bancaria = :numero_cuenta_bancaria,
-                estado_empleado = :estado_empleado
+    $sql = "UPDATE empleados SET 
+                cedula = :cedula, nss = :nss, nombres = :nombres, primer_apellido = :primer_apellido,
+                segundo_apellido = :segundo_apellido, fecha_nacimiento = :fecha_nacimiento, sexo = :sexo,
+                direccion_completa = :direccion_completa, telefono_principal = :telefono_principal,
+                email_personal = :email_personal, id_banco = :id_banco, tipo_cuenta_bancaria = :tipo_cuenta_bancaria,
+                numero_cuenta_bancaria = :numero_cuenta_bancaria, estado_empleado = :estado_empleado
             WHERE id = :id";
             
     $stmt = $pdo->prepare($sql);
     
     $stmt->execute([
-        ':cedula' => $cedula,
-        ':nss' => $nss,
-        ':nombres' => $nombres,
-        ':primer_apellido' => $primer_apellido,
-        ':segundo_apellido' => $segundo_apellido,
-        ':fecha_nacimiento' => $fecha_nacimiento,
-        ':sexo' => $sexo,
-        ':direccion_completa' => $direccion_completa,
-        ':telefono_principal' => $telefono_principal,
-        ':email_personal' => $email_personal,
-        ':id_banco' => $id_banco,
-        ':tipo_cuenta_bancaria' => $tipo_cuenta_bancaria,
-        ':numero_cuenta_bancaria' => $numero_cuenta_bancaria,
-        ':estado_empleado' => $estado_empleado,
+        ':cedula' => $cedula, ':nss' => $nss, ':nombres' => $nombres, ':primer_apellido' => $primer_apellido,
+        ':segundo_apellido' => $segundo_apellido, ':fecha_nacimiento' => $fecha_nacimiento, ':sexo' => $sexo,
+        ':direccion_completa' => $direccion_completa, ':telefono_principal' => $telefono_principal,
+        ':email_personal' => $email_personal, ':id_banco' => $id_banco, ':tipo_cuenta_bancaria' => $tipo_cuenta_bancaria,
+        ':numero_cuenta_bancaria' => $numero_cuenta_bancaria, ':estado_empleado' => $estado_empleado,
         ':id' => $id
     ]);
 

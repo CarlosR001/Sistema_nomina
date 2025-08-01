@@ -1,16 +1,16 @@
 <?php
 // employees/index.php
+// v1.1 - Corrige el nombre de la tabla de 'Empleados' a 'empleados'.
 
-require_once '../auth.php'; // Carga el sistema de autenticación (incluye DB y sesión)
-require_login(); // Asegura que el usuario esté logueado
-require_role(['Admin', 'Contabilidad', 'Supervisor']); // Roles permitidos para ver empleados
+require_once '../auth.php';
+require_login();
+require_role(['Admin', 'Contabilidad', 'Supervisor']);
 
-// La conexión $pdo ya está disponible a través de auth.php
-
-$sql = 'SELECT id, cedula, nombres, primer_apellido, email_personal FROM Empleados ORDER BY nombres ASC';
+// CORRECCIÓN: El nombre de la tabla es 'empleados', no 'Empleados'.
+$sql = 'SELECT id, cedula, nombres, primer_apellido, email_personal FROM empleados ORDER BY nombres ASC';
 $stmt = $pdo->query($sql);
 
-require_once '../includes/header.php'; // Muestra el header después de la verificación de rol
+require_once '../includes/header.php';
 ?>
 
 <h1 class="mb-4">Gestión de Empleados</h1>

@@ -1,44 +1,59 @@
 <?php
 // employees/store.php
+// v1.1 - Corrige el nombre de la tabla y mejora las validaciones.
 
-require_once '../auth.php'; // Carga el sistema de autenticación (incluye DB y sesión)
-require_login(); // Asegura que el usuario esté logueado
-require_role('Admin'); // Solo Admin pueden crear empleados
+require_once '../auth.php';
+require_login();
+require_role('Admin');
 
-// La conexión $pdo ya está disponible a través de auth.php
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    header("Location: index.php");
+    exit();
+}
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $cedula = trim($_POST['cedula']);
-    $nombres = trim($_POST['nombres']);
-    $primer_apellido = trim($_POST['primer_apellido']);
-    $email_personal = trim($_POST['email_personal']);
+// Recoger todos los datos del formulario (create.php envía más campos)
+$cedula = trim($_POST['cedula']);
+$nombres = trim($_POST['nombres']);
+$primer_apellido = trim($_POST['primer_apellido']);
+$email_personal = trim($_POST['email_personal']);
 
-    if (!empty($cedula) && !empty($nombres) && !empty($primer_apellido) && !empty($email_personal)) {
-        $sql = "INSERT INTO Empleados (cedula, nombres, primer_apellido, email_personal, estado_empleado) VALUES (:cedula, :nombres, :primer_apellido, :email_personal, 'Activo')";
-        $stmt = $pdo->prepare($sql);
-        
-        $params = [
-            ':cedula' => $cedula,
-            ':nombres' => $nombres,
-            ':primer_apellido' => $primer_apellido,
-            ':email_personal' => $email_personal
-        ];
+// Datos opcionales
+$segundo_apellido = trim($_POST['segundo_apellido'] ?? '');
+$nss = trim($_POST['nss'] ?? '');
 
-        try {
-            $stmt->execute($params);
-            header("Location: " . BASE_URL . "employees/index.php?status=success&message=Empleado%20creado%20exitosamente.");
-            exit();
-        } catch (PDOException $e) {
-            // Error al insertar (ej. duplicado de cédula o email)
-            header("Location: " . BASE_URL . "employees/create.php?status=error&message=" . urlencode("Error al crear el empleado: " . $e->getMessage()));
-            exit();
-        }
-    } else {
-        header("Location: " . BASE_URL . "employees/create.php?status=error&message=Faltan%20campos%20requeridos.");
+if (empty($cedula) || empty($nombres) || empty($primer_apellido)) {
+    header("Location: create.php?status=error&message=" . urlencode("Los campos Cédula, Nombres y Primer Apellido son obligatorios."));
+    exit();
+}
+
+try {
+    // Verificar duplicados
+    $stmt_check = $pdo->prepare("SELECT id FROM empleados WHERE cedula = ? OR nss = ?");
+    $stmt_check->execute([$cedula, $nss]);
+    if ($stmt_check->fetch()) {
+        header("Location: create.php?status=error&message=" . urlencode("La Cédula o el NSS ya están registrados."));
         exit();
     }
-} else {
-    // Si no es una solicitud POST, redirigir al listado de empleados
-    header("Location: " . BASE_URL . "employees/index.php");
+
+    // CORRECCIÓN: El nombre de la tabla es 'empleados', no 'Empleados'.
+    $sql = "INSERT INTO empleados (cedula, nss, nombres, primer_apellido, segundo_apellido, email_personal, estado_empleado) 
+            VALUES (:cedula, :nss, :nombres, :primer_apellido, :segundo_apellido, :email_personal, 'Activo')";
+    
+    $stmt = $pdo->prepare($sql);
+    
+    $stmt->execute([
+        ':cedula' => $cedula,
+        ':nss' => $nss,
+        ':nombres' => $nombres,
+        ':primer_apellido' => $primer_apellido,
+        ':segundo_apellido' => $segundo_apellido,
+        ':email_personal' => $email_personal
+    ]);
+
+    header("Location: index.php?status=success&message=Empleado creado exitosamente.");
+    exit();
+
+} catch (PDOException $e) {
+    header("Location: create.php?status=error&message=" . urlencode("Error de base de datos al crear el empleado."));
     exit();
 }
