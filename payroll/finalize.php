@@ -1,24 +1,39 @@
 <?php
 // payroll/finalize.php
+// Este script maneja la finalización de una nómina.
 
-require_once '../auth.php'; // Carga el sistema de autenticación (incluye DB y sesión)
-require_login(); // Asegura que el usuario esté logueado
-require_role('Admin'); // Solo Admin pueden finalizar la nómina.
+require_once '../auth.php';
+require_login();
+require_role('Admin');
 
-// La conexión $pdo ya está disponible a través de auth.php
-
-if (isset($_GET['id']) && is_numeric($_GET['id'])) {
-    $id_nomina = $_GET['id'];
-    try {
-        $sql = "UPDATE NominasProcesadas SET estado_nomina = 'Aprobada y Finalizada' WHERE id = ?";
-        $pdo->prepare($sql)->execute([$id_nomina]);
-        header('Location: ' . BASE_URL . 'payroll/review.php?status=finalized');
-        exit();
-    } catch (PDOException $e) {
-        header('Location: ' . BASE_URL . 'payroll/review.php?status=error&message=' . urlencode("Error al finalizar la n%C3%B3mina: " . $e->getMessage()));
-        exit();
-    }
-} else {
-    header('Location: ' . BASE_URL . 'payroll/review.php?status=error&message=ID%20de%20n%C3%B3mina%20no%20v%C3%A1lido.');
+if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !isset($_POST['nomina_id'])) {
+    header('Location: ' . BASE_URL . 'payroll/review.php?status=error&message=Solicitud%20inv%C3%A1lida.');
     exit();
 }
+
+$id_nomina = $_POST['nomina_id'];
+
+try {
+    $pdo->beginTransaction();
+
+    // Actualizar el estado de la nómina a "Aprobada y Finalizada"
+    $stmt_update_nomina = $pdo->prepare("UPDATE NominasProcesadas SET estado_nomina = 'Aprobada y Finalizada' WHERE id = ?");
+    $stmt_update_nomina->execute([$id_nomina]);
+    
+    // Opcional: Podríamos añadir lógica adicional aquí, como marcar las novedades como 'Pagadas',
+    // o cambiar el estado del período de reporte si fuera necesario.
+    // Por ahora, solo actualizamos el estado de la nómina.
+
+    $pdo->commit();
+
+    header('Location: ' . BASE_URL . 'payroll/show.php?id=' . $id_nomina . '&status=finalized');
+    exit();
+
+} catch (Exception $e) {
+    if ($pdo->inTransaction()) {
+        $pdo->rollBack();
+    }
+    header('Location: ' . BASE_URL . 'payroll/show.php?id=' . $id_nomina . '&status=error&message=' . urlencode('Error al finalizar la nómina.'));
+    exit();
+}
+?>
