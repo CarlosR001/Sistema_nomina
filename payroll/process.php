@@ -1,7 +1,6 @@
 <?php
-// payroll/process.php - v8.3 DEFINITIVA
-// Corrige el cálculo de ISR con una estructura if/elseif explícita y robusta.
-// Mejora la sumarización de conceptos para evitar errores.
+// payroll/process.php - v8.4 DEBUG
+// Añade un bloque de depuración para volcar los valores del cálculo de ISR y diagnosticar el problema.
 
 require_once '../auth.php';
 require_login();
@@ -72,17 +71,10 @@ try {
         $stmt_novedades = $pdo->prepare("SELECT n.id as novedad_id, n.monto_valor, c.* FROM NovedadesPeriodo n JOIN ConceptosNomina c ON n.id_concepto = c.id WHERE n.id_contrato = ? AND n.estado_novedad = 'Pendiente' AND n.periodo_aplicacion = ?");
         $stmt_novedades->execute([$id_contrato, $fecha_inicio]);
         
-        // Cargar y sumarizar las novedades correctamente
         foreach ($stmt_novedades->fetchAll(PDO::FETCH_ASSOC) as $novedad) {
             $codigo = $novedad['codigo_concepto'];
             if (!isset($conceptos[$codigo])) {
-                $conceptos[$codigo] = [
-                    'desc' => $novedad['descripcion_publica'], 
-                    'monto' => 0, 
-                    'aplica_tss' => (bool)$novedad['afecta_tss'], 
-                    'aplica_isr' => (bool)$novedad['afecta_isr'], 
-                    'tipo' => $novedad['tipo_concepto']
-                ];
+                $conceptos[$codigo] = ['desc' => $novedad['descripcion_publica'], 'monto' => 0, 'aplica_tss' => (bool)$novedad['afecta_tss'], 'aplica_isr' => (bool)$novedad['afecta_isr'], 'tipo' => $novedad['tipo_concepto']];
             }
             $conceptos[$codigo]['monto'] += floatval($novedad['monto_valor']);
             $pdo->prepare("UPDATE NovedadesPeriodo SET estado_novedad = 'Aplicada' WHERE id = ?")->execute([$novedad['novedad_id']]);
@@ -102,8 +94,7 @@ try {
         $base_para_isr_semanal = 0;
         foreach ($conceptos as $data) { if ($data['tipo'] === 'Ingreso' && $data['aplica_isr']) { $base_para_isr_semanal += $data['monto']; } }
         $base_para_isr_semanal -= ($deduccion_afp + $deduccion_sfs);
-        $conceptos['BASE-ISR-SEMANAL'] = ['desc' => 'Base ISR Semanal', 'monto' => $base_para_isr_semanal, 'tipo' => 'Base de Cálculo'];
-
+        
         $deduccion_isr = 0;
         if ($es_ultima_semana) {
             $sql_prev_base = "SELECT SUM(nd.monto_resultado) FROM NominaDetalle nd JOIN NominasProcesadas np ON nd.id_nomina_procesada = np.id WHERE nd.id_contrato = ? AND MONTH(np.periodo_fin) = ? AND YEAR(np.periodo_fin) = ? AND nd.codigo_concepto = 'BASE-ISR-SEMANAL'";
@@ -112,47 +103,122 @@ try {
             $base_isr_acumulada_previa = (float)$stmt_prev_base->fetchColumn();
             
             $base_isr_mensual_total = $base_para_isr_semanal + $base_isr_acumulada_previa;
-            $conceptos['BASE-ISR-MENSUAL'] = ['desc' => 'Base ISR Mensual Acumulada', 'monto' => $base_isr_mensual_total, 'tipo' => 'Base de Cálculo'];
             
-            // --- BLOQUE DE CÁLCULO DE ISR CORREGIDO Y EXPLÍCITO ---
-            $ingreso_anual_proyectado = $base_isr_mensual_total * 12;
-            $isr_anual = 0;
+            // =================== INICIO DEL BLOQUE DE DEPURACIÓN ===================
+            // Vamos a analizar el caso de ARIALDY (id_empleado=2) ya que es el primero en dar error
+            if ($id_empleado == 2) {
+                echo "<pre style='font-family: monospace; border: 2px solid #f00; padding: 10px; background-color: #fff;'>";
+                echo "<strong>--- INICIO DE DEBUG PARA EMPLEADO ID: 2 (ARIALDY PAULINO) ---</strong>
 
-            // Aseguramos que la escala tiene los 4 tramos esperados antes de calcular
-            if (count($escala_isr) === 4) {
-                // Tramos de la DGII (los valores se leen de la DB)
-                $tramo1_hasta = (float)$escala_isr[0]['hasta_monto_anual']; //  416,220.00
-                $tramo2_hasta = (float)$escala_isr[1]['hasta_monto_anual']; //  624,329.00
-                $tramo3_hasta = (float)$escala_isr[2]['hasta_monto_anual']; //  867,123.00
+";
+                
+                echo "Base ISR Semanal (Semana 4): " . $base_para_isr_semanal . "
+";
+                echo "Base ISR Acumulada Previa (Semanas 1-3): " . $base_isr_acumulada_previa . "
+";
+                echo "<strong>Base ISR Mensual Total: " . $base_isr_mensual_total . "</strong>
 
-                // Escala 4: Más de 867,123.01
-                if ($ingreso_anual_proyectado > $tramo3_hasta) {
-                    $excedente = $ingreso_anual_proyectado - $tramo3_hasta;
-                    $tasa = (float)$escala_isr[3]['tasa_porcentaje'] / 100; // 25%
-                    $monto_fijo = (float)$escala_isr[3]['monto_fijo_adicional']; // 79,776.00
-                    $isr_anual = $monto_fijo + ($excedente * $tasa);
-                } 
-                // Escala 3: De 624,329.01 a 867,123.00
-                elseif ($ingreso_anual_proyectado > $tramo2_hasta) {
-                    $excedente = $ingreso_anual_proyectado - $tramo2_hasta;
-                    $tasa = (float)$escala_isr[2]['tasa_porcentaje'] / 100; // 20%
-                    $monto_fijo = (float)$escala_isr[2]['monto_fijo_adicional']; // 31,216.00
-                    $isr_anual = $monto_fijo + ($excedente * $tasa);
-                } 
-                // Escala 2: De 416,220.01 a 624,329.00
-                elseif ($ingreso_anual_proyectado > $tramo1_hasta) {
-                    $excedente = $ingreso_anual_proyectado - $tramo1_hasta;
-                    $tasa = (float)$escala_isr[1]['tasa_porcentaje'] / 100; // 15%
-                    $monto_fijo = (float)$escala_isr[1]['monto_fijo_adicional']; // 0
-                    $isr_anual = $monto_fijo + ($excedente * $tasa);
-                } 
-                // Escala 1: Exento
-                else {
-                    $isr_anual = 0; 
+";
+
+                $ingreso_anual_proyectado = $base_isr_mensual_total * 12;
+                echo "<strong>Ingreso Anual Proyectado: " . $ingreso_anual_proyectado . "</strong>
+
+";
+
+                echo "--- Escala ISR Leída de la Base de Datos ---
+";
+                print_r($escala_isr);
+                echo "
+--- Lógica de Cálculo ---
+";
+
+                $isr_anual = 0;
+                if (count($escala_isr) === 4) {
+                    $tramo1_hasta = (float)$escala_isr[0]['hasta_monto_anual'];
+                    $tramo2_hasta = (float)$escala_isr[1]['hasta_monto_anual'];
+                    $tramo3_hasta = (float)$escala_isr[2]['hasta_monto_anual'];
+
+                    if ($ingreso_anual_proyectado > $tramo3_hasta) {
+                        echo "Ha entrado en TRAMO 4 (25%)
+";
+                        $excedente = $ingreso_anual_proyectado - $tramo3_hasta;
+                        $tasa = (float)$escala_isr[3]['tasa_porcentaje'] / 100;
+                        $monto_fijo = (float)$escala_isr[3]['monto_fijo_adicional'];
+                        $isr_anual = $monto_fijo + ($excedente * $tasa);
+                        echo "Cálculo: $monto_fijo + ($excedente * $tasa) = $isr_anual
+";
+                    } elseif ($ingreso_anual_proyectado > $tramo2_hasta) {
+                        echo "Ha entrado en TRAMO 3 (20%)
+";
+                        $excedente = $ingreso_anual_proyectado - $tramo2_hasta;
+                        $tasa = (float)$escala_isr[2]['tasa_porcentaje'] / 100;
+                        $monto_fijo = (float)$escala_isr[2]['monto_fijo_adicional'];
+                        $isr_anual = $monto_fijo + ($excedente * $tasa);
+                        echo "Cálculo: $monto_fijo + ($excedente * $tasa) = $isr_anual
+";
+                    } elseif ($ingreso_anual_proyectado > $tramo1_hasta) {
+                        echo "Ha entrado en TRAMO 2 (15%)
+";
+                        $excedente = $ingreso_anual_proyectado - $tramo1_hasta;
+                        $tasa = (float)$escala_isr[1]['tasa_porcentaje'] / 100;
+                        $monto_fijo = (float)$escala_isr[1]['monto_fijo_adicional'];
+                        $isr_anual = $monto_fijo + ($excedente * $tasa);
+                        echo "Cálculo: $monto_fijo + ($excedente * $tasa) = $isr_anual
+";
+                    } else {
+                        echo "Ha entrado en TRAMO 1 (Exento)
+";
+                        $isr_anual = 0;
+                    }
                 }
+                
+                $deduccion_isr = max(0, $isr_anual / 12);
+
+                echo "
+--- Resultado Final ---
+";
+                echo "<strong>ISR Anual Calculado: " . $isr_anual . "</strong>
+";
+                echo "<strong>Deducción ISR Mensual (ISR Anual / 12): " . $deduccion_isr . "</strong>
+
+";
+                echo "<strong>--- FIN DE DEBUG ---</strong>";
+                echo "</pre>";
+                die(); // Detenemos la ejecución para ver solo este output
             }
-            $deduccion_isr = max(0, $isr_anual / 12);
-            // --- FIN DEL BLOQUE CORREGIDO ---
+            // =================== FIN DEL BLOQUE DE DEPURACIÓN ===================
+            else {
+                 // Cálculo normal para los otros empleados
+                if (count($escala_isr) === 4) {
+                    $tramo1_hasta = (float)$escala_isr[0]['hasta_monto_anual'];
+                    $tramo2_hasta = (float)$escala_isr[1]['hasta_monto_anual'];
+                    $tramo3_hasta = (float)$escala_isr[2]['hasta_monto_anual'];
+                    if ($ingreso_anual_proyectado > $tramo3_hasta) {
+                        $excedente = $ingreso_anual_proyectado - $tramo3_hasta;
+                        $tasa = (float)$escala_isr[3]['tasa_porcentaje'] / 100;
+                        $monto_fijo = (float)$escala_isr[3]['monto_fijo_adicional'];
+                        $isr_anual = $monto_fijo + ($excedente * $tasa);
+                    } elseif ($ingreso_anual_proyectado > $tramo2_hasta) {
+                        $excedente = $ingreso_anual_proyectado - $tramo2_hasta;
+                        $tasa = (float)$escala_isr[2]['tasa_porcentaje'] / 100;
+                        $monto_fijo = (float)$escala_isr[2]['monto_fijo_adicional'];
+                        $isr_anual = $monto_fijo + ($excedente * $tasa);
+                    } elseif ($ingreso_anual_proyectado > $tramo1_hasta) {
+                        $excedente = $ingreso_anual_proyectado - $tramo1_hasta;
+                        $tasa = (float)$escala_isr[1]['tasa_porcentaje'] / 100;
+                        $monto_fijo = (float)$escala_isr[1]['monto_fijo_adicional'];
+                        $isr_anual = $monto_fijo + ($excedente * $tasa);
+                    } else {
+                        $isr_anual = 0;
+                    }
+                }
+                $deduccion_isr = max(0, $isr_anual / 12);
+            }
+        }
+        
+        $conceptos['BASE-ISR-SEMANAL'] = ['desc' => 'Base ISR Semanal', 'monto' => $base_para_isr_semanal, 'tipo' => 'Base de Cálculo'];
+        if($es_ultima_semana) {
+            $conceptos['BASE-ISR-MENSUAL'] = ['desc' => 'Base ISR Mensual Acumulada', 'monto' => $base_isr_mensual_total, 'tipo' => 'Base de Cálculo'];
         }
         $conceptos['DED-ISR'] = ['desc' => 'Impuesto Sobre la Renta (ISR)', 'monto' => $deduccion_isr, 'tipo' => 'Deducción'];
         
