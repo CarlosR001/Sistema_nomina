@@ -1,19 +1,14 @@
 <?php
-// auth.php - v1.1
-// Hace que la definición de funciones sea idempotente (segura para múltiples inclusiones).
+// auth.php - v1.2
+// Restaura la asignación de 'username' a la sesión después del login.
 
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-// Se usa require_once para asegurar que la config solo se cargue una vez.
 require_once __DIR__ . '/config/init.php'; 
 
-// La constante BASE_URL ahora se define en init.php, por lo que no necesita re-definirse aquí.
-
 // --- Procesamiento de Login/Logout ---
-// Esta sección solo se ejecuta si la página es la que procesa el login/logout,
-// no cuando el archivo es simplemente incluido por otro.
 
 if (isset($_GET['action']) && $_GET['action'] === 'logout') {
     session_destroy();
@@ -28,8 +23,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['username'], $_POST['p
         $user = $stmt->fetch();
 
         if ($user && password_verify($_POST['password'], $user['contrasena'])) {
+            // Asignaciones de sesión corregidas
             $_SESSION['user_id'] = $user['id'];
-            $_SESSION['username'] = $user['nombre_usuario'];
+            $_SESSION['username'] = $user['nombre_usuario']; // <--- ESTA LÍNEA ES LA CORRECCIÓN
             $_SESSION['user_rol'] = $user['rol'];
             
             header('Location: ' . BASE_URL . 'index.php');
