@@ -1,6 +1,6 @@
 <?php
 // includes/header.php
-// v1.7 - Reorganiza el menú en bloques lógicos y funcionales para una mejor experiencia de usuario.
+// v1.8 - Añade enlace a "Generar Novedades desde Horas" en el menú.
 
 require_once __DIR__ . '/../auth.php';
 ?>
@@ -47,7 +47,9 @@ require_once __DIR__ . '/../auth.php';
                             </a>
                             <ul class="dropdown-menu" aria-labelledby="navbarDropdownNovedades">
                                 <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>reporting_periods/index.php">Períodos de Reporte</a></li>
-                                <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>novedades/index.php">Gestión de Novedades</a></li>
+                                <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>payroll/generar_novedades.php">Generar Novedades desde Horas</a></li>
+                                <hr>
+                                <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>novedades/index.php">Gestión de Novedades Manuales</a></li>
                                 <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>novedades/ajuste_isr.php">Ajuste Manual de ISR</a></li>
                             </ul>
                         </li>
