@@ -1,7 +1,5 @@
 <?php
-// payroll/process.php - v6.1 DEFINITIVA
-// Lógica de Carga y Cálculo 100% basada en Novedades para la simulación.
-// Compatible con el futuro registro de horas.
+// payroll/process.php - v5.1 FINAL con ISR Acumulativo en Última Semana
 
 require_once '../auth.php';
 require_login();
@@ -46,24 +44,18 @@ try {
     $porcentaje_sfs = (float)($configs_db['TSS_PORCENTAJE_SFS'] ?? 0.0304);
     $escala_isr = $pdo->query("SELECT * FROM escalasisr WHERE anio_fiscal = {$anio_actual} ORDER BY desde_monto_anual ASC")->fetchAll();
 
-    $stmt_find_nomina = $pdo->prepare("SELECT id FROM NominasProcesadas WHERE periodo_inicio = ? AND periodo_fin = ? AND tipo_nomina_procesada = ?");
-    $stmt_find_nomina->execute([$fecha_inicio, $fecha_fin, $tipo_nomina]);
+    $stmt_find_nomina = $pdo->prepare("SELECT id FROM NominasProcesadas WHERE periodo_inicio = ? AND periodo_fin = ?");
+    $stmt_find_nomina->execute([$fecha_inicio, $fecha_fin]);
     if ($existing_nomina = $stmt_find_nomina->fetch()) {
         $pdo->prepare("DELETE FROM NominaDetalle WHERE id_nomina_procesada = ?")->execute([$existing_nomina['id']]);
         $pdo->prepare("DELETE FROM NominasProcesadas WHERE id = ?")->execute([$existing_nomina['id']]);
         $pdo->prepare("UPDATE NovedadesPeriodo SET estado_novedad = 'Pendiente' WHERE periodo_aplicacion BETWEEN ? AND ?")->execute([$fecha_inicio, $fecha_fin]);
     }
 
-    $sql_nomina = "INSERT INTO NominasProcesadas (tipo_nomina_procesada, periodo_inicio, periodo_fin, id_usuario_ejecutor, estado_nomina) VALUES (?, ?, ?, ?, 'Pendiente de Aprobación')";
+    $sql_nomina = "INSERT INTO NominasProcesadas (tipo_nomina_procesada, periodo_inicio, periodo_fin, id_usuario_ejecutor, id_empleado, estado_nomina) VALUES (?, ?, ?, ?, ?, 'Pendiente de Aprobación')";
     $stmt_nomina = $pdo->prepare($sql_nomina);
-    $stmt_nomina->execute([$tipo_nomina, $fecha_inicio, $fecha_fin, $_SESSION['user_id']]);
-    $id_nomina_procesada = $pdo->lastInsertId();
-
-    // CORRECCIÓN: Obtener empleados basado en QUIÉNES TIENEN NOVEDADES en el período.
-    $sql_contratos = "SELECT DISTINCT c.id, c.id_empleado 
-                      FROM Contratos c 
-                      JOIN NovedadesPeriodo np ON c.id = np.id_contrato 
-                      WHERE c.tipo_nomina = 'Inspectores' AND np.periodo_aplicacion BETWEEN ? AND ?";
+    
+    $sql_contratos = "SELECT DISTINCT c.id, c.id_empleado FROM Contratos c JOIN NovedadesPeriodo np ON c.id = np.id_contrato WHERE np.periodo_aplicacion BETWEEN ? AND ?";
     $stmt_contratos = $pdo->prepare($sql_contratos);
     $stmt_contratos->execute([$fecha_inicio, $fecha_fin]);
     $contratos = $stmt_contratos->fetchAll();
@@ -73,35 +65,32 @@ try {
         $id_empleado = $contrato['id_empleado'];
         $conceptos = [];
 
-        // PASO A: CARGAR TODAS LAS NOVEDADES DE LA SEMANA
-        $stmt_novedades = $pdo->prepare("SELECT n.*, c.* FROM NovedadesPeriodo n JOIN ConceptosNomina c ON n.id_concepto = c.id WHERE n.id_contrato = ? AND n.estado_novedad = 'Pendiente' AND n.periodo_aplicacion BETWEEN ? AND ?");
-        $stmt_novedades->execute([$id_contrato, $fecha_inicio, $fecha_fin]);
+        if (empty($id_nomina_procesada)) {
+             $stmt_nomina->execute([$tipo_nomina, $fecha_inicio, $fecha_fin, $_SESSION['user_id'], $id_empleado]);
+             $id_nomina_procesada = $pdo->lastInsertId();
+        }
+
+        $stmt_novedades = $pdo->prepare("SELECT n.*, c.* FROM NovedadesPeriodo n JOIN ConceptosNomina c ON n.id_concepto = c.id WHERE n.id_contrato = ? AND n.estado_novedad = 'Pendiente' AND n.periodo_aplicacion = ?");
+        $stmt_novedades->execute([$id_contrato, $fecha_inicio]);
         foreach ($stmt_novedades->fetchAll() as $novedad) {
-            $conceptos[$novedad['codigo_concepto']] = [
-                'desc' => $novedad['descripcion_publica'], 'monto' => (float)$novedad['monto_valor'],
-                'aplica_tss' => (bool)$novedad['afecta_tss'], 'aplica_isr' => (bool)$novedad['afecta_isr'],
-                'tipo' => $novedad['tipo_concepto']
-            ];
+            $conceptos[$novedad['codigo_concepto']] = ['desc' => $novedad['descripcion_publica'], 'monto' => (float)$novedad['monto_valor'], 'aplica_tss' => (bool)$novedad['afecta_tss'], 'aplica_isr' => (bool)$novedad['afecta_isr'], 'tipo' => $novedad['tipo_concepto']];
             $pdo->prepare("UPDATE NovedadesPeriodo SET estado_novedad = 'Aplicada' WHERE id = ?")->execute([$novedad['id']]);
         }
 
-        // PASO B: CALCULAR BASE TSS y DEDUCCIONES TSS
         $salario_cotizable_tss = 0;
         foreach ($conceptos as $data) { if ($data['tipo'] === 'Ingreso' && $data['aplica_tss']) { $salario_cotizable_tss += $data['monto']; } }
         $proyeccion_mensual_tss = $salario_cotizable_tss * (52/12);
         $salario_cotizable_final = min($proyeccion_mensual_tss, $tope_salarial_tss);
         $deduccion_afp = ($salario_cotizable_final * $porcentaje_afp) / (52/12);
         $deduccion_sfs = ($salario_cotizable_final * $porcentaje_sfs) / (52/12);
-        $conceptos['DED-AFP'] = ['desc' => 'Aporte AFP (2.87%)', 'monto' => $deduccion_afp, 'tipo' => 'Deducción', 'aplica_tss' => false, 'aplica_isr' => false];
-        $conceptos['DED-SFS'] = ['desc' => 'Aporte SFS (3.04%)', 'monto' => $deduccion_sfs, 'tipo' => 'Deducción', 'aplica_tss' => false, 'aplica_isr' => false];
+        $conceptos['DED-AFP'] = ['desc' => 'Aporte AFP (2.87%)', 'monto' => $deduccion_afp, 'tipo' => 'Deducción'];
+        $conceptos['DED-SFS'] = ['desc' => 'Aporte SFS (3.04%)', 'monto' => $deduccion_sfs, 'tipo' => 'Deducción'];
 
-        // PASO C: CALCULAR BASE ISR
         $base_para_isr_semanal = 0;
         foreach ($conceptos as $data) { if ($data['tipo'] === 'Ingreso' && $data['aplica_isr']) { $base_para_isr_semanal += $data['monto']; } }
         $base_para_isr_semanal -= ($deduccion_afp + $deduccion_sfs);
-        $conceptos['BASE-ISR-SEMANAL'] = ['desc' => 'Base ISR Semanal', 'monto' => $base_para_isr_semanal, 'tipo' => 'Base de Cálculo', 'aplica_tss' => false, 'aplica_isr' => false];
+        $conceptos['BASE-ISR-SEMANAL'] = ['desc' => 'Base ISR Semanal', 'monto' => $base_para_isr_semanal, 'tipo' => 'Base de Cálculo'];
 
-        // PASO D: CALCULAR ISR (ACUMULATIVO, SOLO EN ÚLTIMA SEMANA)
         $deduccion_isr = 0;
         if ($es_ultima_semana) {
             $sql_prev_base = "SELECT SUM(nd.monto_resultado) FROM NominaDetalle nd JOIN NominasProcesadas np ON nd.id_nomina_procesada = np.id JOIN Contratos c ON nd.id_contrato = c.id WHERE c.id_empleado = ? AND MONTH(np.periodo_fin) = ? AND YEAR(np.periodo_fin) = ? AND nd.codigo_concepto = 'BASE-ISR-SEMANAL'";
@@ -110,7 +99,7 @@ try {
             $base_isr_acumulada_previa = (float)$stmt_prev_base->fetchColumn();
             
             $base_isr_mensual_total = $base_para_isr_semanal + $base_isr_acumulada_previa;
-            $conceptos['BASE-ISR-MENSUAL'] = ['desc' => 'Base ISR Mensual Acumulada', 'monto' => $base_isr_mensual_total, 'tipo' => 'Base de Cálculo', 'aplica_tss' => false, 'aplica_isr' => false];
+            $conceptos['BASE-ISR-MENSUAL'] = ['desc' => 'Base ISR Mensual Acumulada', 'monto' => $base_isr_mensual_total, 'tipo' => 'Base de Cálculo'];
             
             $ingreso_anual_proyectado = $base_isr_mensual_total * 12;
             $isr_anual = 0;
@@ -123,9 +112,8 @@ try {
             }
             $deduccion_isr = max(0, $isr_anual / 12);
         }
-        $conceptos['DED-ISR'] = ['desc' => 'Impuesto Sobre la Renta (ISR)', 'monto' => $deduccion_isr, 'tipo' => 'Deducción', 'aplica_tss' => false, 'aplica_isr' => false];
+        $conceptos['DED-ISR'] = ['desc' => 'Impuesto Sobre la Renta (ISR)', 'monto' => $deduccion_isr, 'tipo' => 'Deducción'];
         
-        // PASO E: GUARDAR TODO
         $sql_detalle = "INSERT INTO NominaDetalle (id_nomina_procesada, id_contrato, codigo_concepto, descripcion_concepto, tipo_concepto, monto_resultado) VALUES (?, ?, ?, ?, ?, ?)";
         $stmt_detalle = $pdo->prepare($sql_detalle);
         foreach ($conceptos as $codigo => $data) {
