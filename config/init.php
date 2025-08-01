@@ -1,17 +1,26 @@
 <?php
-// config/init.php
-
-// 0. Definir la URL base para toda la aplicación
-// Esto soluciona los errores de redirección y hace los enlaces más robustos.
-define('BASE_URL', '/');
+// config/init.php - v1.1
+// Implementa la detección automática de BASE_URL para funcionar en cualquier entorno.
 
 // 1. Iniciar la sesión
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-// 2. Cargar la conexión a la base de datos
-require_once __DIR__ . '/database.php';
+// 2. Definir la URL base automáticamente
+if (!defined('BASE_URL')) {
+    // Obtiene el nombre de la carpeta del proyecto (ej. /Sistema_nomina/)
+    $project_folder = basename(dirname(__DIR__)); 
+    
+    // Lo construye como /nombre_proyecto/
+    $base_url = "/" . $project_folder . "/";
+    
+    // Si tu proyecto está en la raíz de XAMPP (htdocs), descomenta la siguiente línea:
+    // $base_url = '/';
 
-// 3. El sistema de autenticación (`auth.php`) ahora se carga bajo demanda
-// en las páginas que lo necesitan, en lugar de cargarse aquí.
+    define('BASE_URL', $base_url);
+}
+
+
+// 3. Cargar la conexión a la base de datos
+require_once __DIR__ . '/database.php';
