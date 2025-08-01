@@ -1,6 +1,7 @@
 <?php
-// payroll/process.php - v8.1 DEFINITIVA
-// Corrige la lógica del cálculo de ISR para mayor precisión y robustez.
+// payroll/process.php - v8.3 DEFINITIVA
+// Corrige el cálculo de ISR con una estructura if/elseif explícita y robusta.
+// Mejora la sumarización de conceptos para evitar errores.
 
 require_once '../auth.php';
 require_login();
@@ -39,7 +40,6 @@ try {
     $tope_salarial_tss = (float)($configs_db['TSS_TOPE_SALARIAL'] ?? 265840.00);
     $porcentaje_afp = (float)($configs_db['TSS_PORCENTAJE_AFP'] ?? 0.0287);
     $porcentaje_sfs = (float)($configs_db['TSS_PORCENTAJE_SFS'] ?? 0.0304);
-    // Aseguramos que la escala venga ordenada de menor a mayor para la lógica de cálculo
     $escala_isr = $pdo->query("SELECT * FROM escalasisr WHERE anio_fiscal = {$anio_actual} ORDER BY desde_monto_anual ASC")->fetchAll(PDO::FETCH_ASSOC);
 
     $stmt_find_nomina = $pdo->prepare("SELECT id FROM NominasProcesadas WHERE periodo_inicio = ? AND periodo_fin = ?");
@@ -71,8 +71,20 @@ try {
 
         $stmt_novedades = $pdo->prepare("SELECT n.id as novedad_id, n.monto_valor, c.* FROM NovedadesPeriodo n JOIN ConceptosNomina c ON n.id_concepto = c.id WHERE n.id_contrato = ? AND n.estado_novedad = 'Pendiente' AND n.periodo_aplicacion = ?");
         $stmt_novedades->execute([$id_contrato, $fecha_inicio]);
-        foreach ($stmt_novedades->fetchAll() as $novedad) {
-            $conceptos[$novedad['codigo_concepto']] = ['desc' => $novedad['descripcion_publica'], 'monto' => floatval($novedad['monto_valor']), 'aplica_tss' => (bool)$novedad['afecta_tss'], 'aplica_isr' => (bool)$novedad['afecta_isr'], 'tipo' => $novedad['tipo_concepto']];
+        
+        // Cargar y sumarizar las novedades correctamente
+        foreach ($stmt_novedades->fetchAll(PDO::FETCH_ASSOC) as $novedad) {
+            $codigo = $novedad['codigo_concepto'];
+            if (!isset($conceptos[$codigo])) {
+                $conceptos[$codigo] = [
+                    'desc' => $novedad['descripcion_publica'], 
+                    'monto' => 0, 
+                    'aplica_tss' => (bool)$novedad['afecta_tss'], 
+                    'aplica_isr' => (bool)$novedad['afecta_isr'], 
+                    'tipo' => $novedad['tipo_concepto']
+                ];
+            }
+            $conceptos[$codigo]['monto'] += floatval($novedad['monto_valor']);
             $pdo->prepare("UPDATE NovedadesPeriodo SET estado_novedad = 'Aplicada' WHERE id = ?")->execute([$novedad['novedad_id']]);
         }
 
@@ -102,20 +114,41 @@ try {
             $base_isr_mensual_total = $base_para_isr_semanal + $base_isr_acumulada_previa;
             $conceptos['BASE-ISR-MENSUAL'] = ['desc' => 'Base ISR Mensual Acumulada', 'monto' => $base_isr_mensual_total, 'tipo' => 'Base de Cálculo'];
             
-            // --- BLOQUE DE CÁLCULO DE ISR CORREGIDO ---
+            // --- BLOQUE DE CÁLCULO DE ISR CORREGIDO Y EXPLÍCITO ---
             $ingreso_anual_proyectado = $base_isr_mensual_total * 12;
             $isr_anual = 0;
-            
-            // Se recorre la escala (ordenada de menor a mayor) para encontrar el tramo correcto
-            foreach (array_reverse($escala_isr) as $tramo) {
-                $desde_monto = floatval($tramo['desde_monto_anual']);
-                if ($ingreso_anual_proyectado > $desde_monto) {
-                    $excedente = $ingreso_anual_proyectado - $desde_monto;
-                    $tasa_porcentaje = floatval($tramo['tasa_porcentaje']) / 100;
-                    $monto_fijo = floatval($tramo['monto_fijo_adicional']);
-                    
-                    $isr_anual = ($excedente * $tasa_porcentaje) + $monto_fijo;
-                    break; // Se encontró el tramo correcto, se detiene el bucle
+
+            // Aseguramos que la escala tiene los 4 tramos esperados antes de calcular
+            if (count($escala_isr) === 4) {
+                // Tramos de la DGII (los valores se leen de la DB)
+                $tramo1_hasta = (float)$escala_isr[0]['hasta_monto_anual']; //  416,220.00
+                $tramo2_hasta = (float)$escala_isr[1]['hasta_monto_anual']; //  624,329.00
+                $tramo3_hasta = (float)$escala_isr[2]['hasta_monto_anual']; //  867,123.00
+
+                // Escala 4: Más de 867,123.01
+                if ($ingreso_anual_proyectado > $tramo3_hasta) {
+                    $excedente = $ingreso_anual_proyectado - $tramo3_hasta;
+                    $tasa = (float)$escala_isr[3]['tasa_porcentaje'] / 100; // 25%
+                    $monto_fijo = (float)$escala_isr[3]['monto_fijo_adicional']; // 79,776.00
+                    $isr_anual = $monto_fijo + ($excedente * $tasa);
+                } 
+                // Escala 3: De 624,329.01 a 867,123.00
+                elseif ($ingreso_anual_proyectado > $tramo2_hasta) {
+                    $excedente = $ingreso_anual_proyectado - $tramo2_hasta;
+                    $tasa = (float)$escala_isr[2]['tasa_porcentaje'] / 100; // 20%
+                    $monto_fijo = (float)$escala_isr[2]['monto_fijo_adicional']; // 31,216.00
+                    $isr_anual = $monto_fijo + ($excedente * $tasa);
+                } 
+                // Escala 2: De 416,220.01 a 624,329.00
+                elseif ($ingreso_anual_proyectado > $tramo1_hasta) {
+                    $excedente = $ingreso_anual_proyectado - $tramo1_hasta;
+                    $tasa = (float)$escala_isr[1]['tasa_porcentaje'] / 100; // 15%
+                    $monto_fijo = (float)$escala_isr[1]['monto_fijo_adicional']; // 0
+                    $isr_anual = $monto_fijo + ($excedente * $tasa);
+                } 
+                // Escala 1: Exento
+                else {
+                    $isr_anual = 0; 
                 }
             }
             $deduccion_isr = max(0, $isr_anual / 12);
@@ -126,7 +159,7 @@ try {
         $sql_detalle = "INSERT INTO NominaDetalle (id_nomina_procesada, id_contrato, codigo_concepto, descripcion_concepto, tipo_concepto, monto_resultado) VALUES (?, ?, ?, ?, ?, ?)";
         $stmt_detalle = $pdo->prepare($sql_detalle);
         foreach ($conceptos as $codigo => $data) {
-            if (isset($data['monto']) && abs($data['monto']) > 0.001) { // Usar abs() para incluir deducciones negativas
+            if (isset($data['monto']) && abs($data['monto']) > 0.001) {
                 $stmt_detalle->execute([$id_nomina_procesada, $id_contrato, $codigo, $data['desc'], $data['tipo'], $data['monto']]);
             }
         }
@@ -141,9 +174,8 @@ try {
 
 } catch (Exception $e) {
     if($pdo->inTransaction()) { $pdo->rollBack(); }
-    // Mostrar un error más amigable en producción
     error_log("Error al procesar la nómina: " . $e->getMessage());
-    header('Location: ' . BASE_URL . 'payroll/index.php?status=error&message=' . urlencode('Error crítico al procesar la nómina. Revise el log del sistema.'));
+    header('Location: ' . BASE_URL . 'payroll/index.php?status=error&message=' . urlencode('Error crítico al procesar la nómina: ' . $e->getMessage()));
     exit();
 }
 ?>
