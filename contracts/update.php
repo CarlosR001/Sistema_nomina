@@ -1,17 +1,23 @@
 <?php
-// contracts/update.php - v1.1 FINAL
-// Restaura la lógica de guardado, ahora corregida y funcional.
+// contracts/update.php - v2.0 DEFINITIVA
+// Corrige el error de guardado e implementa la regla de negocio para salarios.
 
 require_once '../auth.php';
 require_login();
 require_role('Admin');
 
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    header('Location: ' . BASE_URL . 'employees/index.php?status=error&message=Método no permitido.');
+// -- Función para redirigir con mensajes claros --
+function redirect_with_error($employee_id, $message) {
+    $url = BASE_URL . 'contracts/index.php?employee_id=' . urlencode($employee_id) . '&status=error&message=' . urlencode($message);
+    header('Location: ' . $url);
     exit();
 }
 
-// Recoger y validar los datos del formulario
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    redirect_with_error($_POST['employee_id'] ?? 0, 'Método no permitido.');
+}
+
+// --- Recoger y validar los datos del formulario ---
 $id = $_POST['id'] ?? null;
 $employee_id = $_POST['employee_id'] ?? null;
 $id_posicion = $_POST['id_posicion'] ?? null;
@@ -21,27 +27,37 @@ $frecuencia_pago = $_POST['frecuencia_pago'] ?? null;
 $fecha_inicio = $_POST['fecha_inicio'] ?? null;
 $estado_contrato = $_POST['estado_contrato'] ?? null;
 
-// Campos opcionales (convertir cadenas vacías a null para la base de datos)
+// Campos opcionales
 $fecha_fin = !empty($_POST['fecha_fin']) ? $_POST['fecha_fin'] : null;
 $salario_mensual_bruto = !empty($_POST['salario_mensual_bruto']) ? (float)$_POST['salario_mensual_bruto'] : null;
 $tarifa_por_hora = !empty($_POST['tarifa_por_hora']) ? (float)$_POST['tarifa_por_hora'] : null;
 
-
 if (empty($id) || empty($employee_id) || empty($id_posicion) || empty($tipo_contrato) || empty($tipo_nomina) || empty($frecuencia_pago) || empty($fecha_inicio) || empty($estado_contrato)) {
-    $error_url = 'index.php?employee_id=' . urlencode($employee_id) . '&status=error&message=Faltan campos obligatorios.';
-    header('Location: ' . $error_url);
-    exit();
+    redirect_with_error($employee_id, 'Faltan campos obligatorios.');
 }
 
+
+// --- APLICAR LA NUEVA REGLA DE NEGOCIO ---
+if ($tipo_nomina === 'Inspectores') {
+    $salario_mensual_bruto = null; // Un inspector solo puede tener tarifa por hora.
+    if (empty($tarifa_por_hora)) {
+        redirect_with_error($employee_id, 'Para la nómina de Inspectores, la Tarifa por Hora es obligatoria.');
+    }
+} else { // Para Administrativa, Directiva, etc.
+    $tarifa_por_hora = null; // El personal administrativo solo puede tener salario mensual.
+    if (empty($salario_mensual_bruto)) {
+        redirect_with_error($employee_id, 'Para este tipo de nómina, el Salario Mensual es obligatorio.');
+    }
+}
+
+
 try {
-    // Lógica de negocio: No puede haber más de un contrato 'Vigente' para el mismo empleado.
+    // Verificar que no haya otro contrato vigente para el mismo empleado
     if ($estado_contrato === 'Vigente') {
         $stmt_check = $pdo->prepare("SELECT id FROM Contratos WHERE id_empleado = ? AND estado_contrato = 'Vigente' AND id != ?");
         $stmt_check->execute([$employee_id, $id]);
         if ($stmt_check->fetch()) {
-            $error_url = 'index.php?employee_id=' . urlencode($employee_id) . '&status=error&message=Ya existe otro contrato vigente para este empleado.';
-            header('Location: ' . $error_url);
-            exit();
+            redirect_with_error($employee_id, 'Ya existe otro contrato vigente para este empleado. Por favor, finalice el anterior primero.');
         }
     }
     
@@ -72,13 +88,14 @@ try {
         ':id' => $id
     ]);
 
-    $success_url = 'index.php?employee_id=' . urlencode($employee_id) . '&status=success&message=Contrato actualizado correctamente.';
+    $success_url = BASE_URL . 'contracts/index.php?employee_id=' . urlencode($employee_id) . '&status=success&message=Contrato actualizado correctamente.';
     header('Location: ' . $success_url);
     exit();
 
 } catch (PDOException $e) {
-    $error_url = 'index.php?employee_id=' . urlencode($employee_id) . '&status=error&message=' . urlencode('Error de base de datos: ' . $e->getMessage());
-    header('Location: ' . $error_url);
-    exit();
+    // Para depuración: registrar el error real en el log del servidor
+    error_log('Error al actualizar contrato: ' . $e->getMessage());
+    // Mostrar un mensaje de error genérico al usuario
+    redirect_with_error($employee_id, 'Ocurrió un error de base de datos al guardar el contrato.');
 }
 ?>
