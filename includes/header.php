@@ -1,6 +1,6 @@
 <?php
 // includes/header.php
-// v1.8 - Añade enlace a "Generar Novedades desde Horas" en el menú.
+// v1.9 - Añade enlace a "Gestión de Usuarios" en el menú de Sistema.
 
 require_once __DIR__ . '/../auth.php';
 ?>
@@ -28,7 +28,6 @@ require_once __DIR__ . '/../auth.php';
                             <a class="nav-link" href="<?php echo BASE_URL; ?>index.php">Dashboard</a>
                         </li>
                         
-                        <!-- Módulo de Nómina (Procesos) -->
                         <li class="nav-item dropdown">
                             <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownNomina" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                                 Nómina
@@ -40,7 +39,6 @@ require_once __DIR__ . '/../auth.php';
                             </ul>
                         </li>
 
-                        <!-- Módulo de Entrada de Datos -->
                         <li class="nav-item dropdown">
                              <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownNovedades" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                                 Entrada de Datos
@@ -49,12 +47,11 @@ require_once __DIR__ . '/../auth.php';
                                 <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>reporting_periods/index.php">Períodos de Reporte</a></li>
                                 <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>payroll/generar_novedades.php">Generar Novedades desde Horas</a></li>
                                 <hr>
-                                <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>novedades/index.php">Gestión de Novedades Manuales</a></li>
+                                <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>novedades/index.php">Novedades Manuales</a></li>
                                 <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>novedades/ajuste_isr.php">Ajuste Manual de ISR</a></li>
                             </ul>
                         </li>
 
-                        <!-- Módulo de Catálogos -->
                         <li class="nav-item dropdown">
                             <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownCatalogos" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                                 Catálogos
@@ -70,12 +67,12 @@ require_once __DIR__ . '/../auth.php';
                             </ul>
                         </li>
 
-                        <!-- Módulo de Sistema/Configuración -->
                          <li class="nav-item dropdown">
                             <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownConfig" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                                 Sistema
                             </a>
                             <ul class="dropdown-menu" aria-labelledby="navbarDropdownConfig">
+                                <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>users/index.php">Gestión de Usuarios</a></li>
                                 <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>conceptos/index.php">Conceptos de Nómina</a></li>
                                 <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>calendario/index.php">Calendario Laboral</a></li>
                                 <li><hr class="dropdown-divider"></li>
