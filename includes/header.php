@@ -1,6 +1,6 @@
 <?php
 // includes/header.php
-// v1.5 - Corrige el enlace de "Cerrar Sesión" para que apunte a la lógica correcta en auth.php
+// v1.6 - Restaura las opciones del menú faltantes (Aprobaciones, Calendario, Conceptos) y organiza Configuración.
 
 // La ruta se construye desde la ubicación de este archivo (includes) para encontrar auth.php en la raíz.
 require_once __DIR__ . '/../auth.php';
@@ -50,6 +50,12 @@ require_once __DIR__ . '/../auth.php';
                                 <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>novedades/ajuste_isr.php">Ajuste Manual de ISR</a></li>
                             </ul>
                         </li>
+                         <li class="nav-item">
+                            <a class="nav-link" href="<?php echo BASE_URL; ?>approvals/index.php">Aprobaciones</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="<?php echo BASE_URL; ?>calendario/index.php">Calendario</a>
+                        </li>
                         <li class="nav-item dropdown">
                             <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownNomina" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                                 Nómina
@@ -60,15 +66,21 @@ require_once __DIR__ . '/../auth.php';
                                 <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>payroll/review.php">Revisión de Nóminas</a></li>
                             </ul>
                         </li>
-                         <li class="nav-item">
-                            <a class="nav-link" href="<?php echo BASE_URL; ?>configuracion/index.php">Configuración</a>
+                         <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownConfig" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                Configuración
+                            </a>
+                            <ul class="dropdown-menu" aria-labelledby="navbarDropdownConfig">
+                                <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>conceptos/index.php">Conceptos de Nómina</a></li>
+                                <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>configuracion/index.php">Configuración Global</a></li>
+                            </ul>
                         </li>
                     <?php endif; ?>
                 </ul>
                 <ul class="navbar-nav ms-auto">
                      <?php if (is_logged_in()): ?>
                         <li class="nav-item">
-                            <a class="nav-link">Hola, <?php echo htmlspecialchars($_SESSION['username']); ?></a>
+                            <span class="navbar-text">Hola, <?php echo htmlspecialchars($_SESSION['username']); ?></span>
                         </li>
                          <li class="nav-item">
                             <a class="nav-link" href="<?php echo BASE_URL; ?>auth.php?action=logout">Cerrar Sesión</a>

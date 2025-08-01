@@ -1,6 +1,6 @@
 <?php
-// payroll/process.php - v8.3 DEFINITIVA
-// Esta versión es funcional una vez que los datos en la tabla `escalasisr` son correctos.
+// payroll/process.php - v8.4 DEFINITIVA
+// Aplica redondeo a 2 decimales en todos los cálculos financieros para evitar errores de precisión.
 
 require_once '../auth.php';
 require_login();
@@ -53,19 +53,13 @@ try {
     $stmt_nomina->execute([$tipo_nomina, $fecha_inicio, $fecha_fin, $_SESSION['user_id']]);
     $id_nomina_procesada = $pdo->lastInsertId();
 
-    $sql_contratos = "SELECT DISTINCT c.id, c.id_empleado, c.tarifa_por_hora 
-                      FROM Contratos c 
-                      JOIN NovedadesPeriodo np ON c.id = np.id_contrato
-                      WHERE c.tipo_nomina = 'Inspectores' 
-                      AND np.periodo_aplicacion = :fecha_inicio
-                      AND c.estado_contrato = 'Vigente'";
+    $sql_contratos = "SELECT DISTINCT c.id, c.id_empleado FROM Contratos c JOIN NovedadesPeriodo np ON c.id = np.id_contrato WHERE c.tipo_nomina = ? AND np.periodo_aplicacion = ? AND c.estado_contrato = 'Vigente'";
     $stmt_contratos = $pdo->prepare($sql_contratos);
-    $stmt_contratos->execute([':fecha_inicio' => $fecha_inicio]);
+    $stmt_contratos->execute([$tipo_nomina, $fecha_inicio]);
     $contratos = $stmt_contratos->fetchAll();
 
     foreach ($contratos as $contrato) {
         $id_contrato = $contrato['id'];
-        $id_empleado = $contrato['id_empleado'];
         $conceptos = [];
 
         $stmt_novedades = $pdo->prepare("SELECT n.id as novedad_id, n.monto_valor, c.* FROM NovedadesPeriodo n JOIN ConceptosNomina c ON n.id_concepto = c.id WHERE n.id_contrato = ? AND n.estado_novedad = 'Pendiente' AND n.periodo_aplicacion = ?");
@@ -83,11 +77,12 @@ try {
         $salario_cotizable_tss = 0;
         foreach ($conceptos as $data) { if ($data['tipo'] === 'Ingreso' && $data['aplica_tss']) { $salario_cotizable_tss += $data['monto']; } }
         
-        $tope_salarial_semanal = $tope_salarial_tss / 4.333333;
+        $tope_salarial_semanal = round($tope_salarial_tss / 4.333333, 2);
         $salario_cotizable_final_semanal = min($salario_cotizable_tss, $tope_salarial_semanal);
         
-        $deduccion_afp = $salario_cotizable_final_semanal * $porcentaje_afp;
-        $deduccion_sfs = $salario_cotizable_final_semanal * $porcentaje_sfs;
+        // --- CÁLCULOS CON REDONDEO ---
+        $deduccion_afp = round($salario_cotizable_final_semanal * $porcentaje_afp, 2);
+        $deduccion_sfs = round($salario_cotizable_final_semanal * $porcentaje_sfs, 2);
         $conceptos['DED-AFP'] = ['desc' => 'Aporte AFP (2.87%)', 'monto' => $deduccion_afp, 'tipo' => 'Deducción'];
         $conceptos['DED-SFS'] = ['desc' => 'Aporte SFS (3.04%)', 'monto' => $deduccion_sfs, 'tipo' => 'Deducción'];
 
@@ -127,11 +122,9 @@ try {
                     $tasa = (float)$escala_isr[1]['tasa_porcentaje'] / 100;
                     $monto_fijo = (float)$escala_isr[1]['monto_fijo_adicional'];
                     $isr_anual = $monto_fijo + ($excedente * $tasa);
-                } else {
-                    $isr_anual = 0;
                 }
             }
-            $deduccion_isr = max(0, $isr_anual / 12);
+            $deduccion_isr = round(max(0, $isr_anual / 12), 2); // REDONDEO APLICADO
         }
         
         $conceptos['BASE-ISR-SEMANAL'] = ['desc' => 'Base ISR Semanal', 'monto' => $base_para_isr_semanal, 'tipo' => 'Base de Cálculo'];
@@ -144,7 +137,7 @@ try {
         $stmt_detalle = $pdo->prepare($sql_detalle);
         foreach ($conceptos as $codigo => $data) {
             if (isset($data['monto']) && abs($data['monto']) > 0.001) {
-                $stmt_detalle->execute([$id_nomina_procesada, $id_contrato, $codigo, $data['desc'], $data['tipo'], $data['monto']]);
+                $stmt_detalle->execute([$id_nomina_procesada, $id_contrato, $codigo, $data['desc'], $data['monto']]);
             }
         }
     }
