@@ -1,6 +1,9 @@
 <?php
 // includes/header.php
-// v1.1 - Añade submenú de Novedades con enlace a Ajuste Manual de ISR
+// v1.2 - Añade require_once para auth.php para resolver el error de función no definida.
+
+// La ruta se construye desde la ubicación de este archivo (includes) para encontrar auth.php en la raíz.
+require_once __DIR__ . '/../auth.php';
 
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
