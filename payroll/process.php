@@ -1,5 +1,6 @@
 <?php
-// payroll/process.php - v7.1 CORRECCIÓN FINAL
+// payroll/process.php - v8.0 DEFINITIVA
+// Corrige la consulta de selección de empleados y la lógica de cálculo de TSS.
 
 require_once '../auth.php';
 require_login();
@@ -19,15 +20,11 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !isset($_POST['periodo_id'])) {
 
 try {
     $periodo_id = $_POST['periodo_id'];
-    
-    // BLOQUE DE CÓDIGO RESTAURADO
     $stmt_periodo = $pdo->prepare("SELECT * FROM PeriodosDeReporte WHERE id = ?");
     $stmt_periodo->execute([$periodo_id]);
     $periodo = $stmt_periodo->fetch();
 
-    if (!$periodo) {
-        throw new Exception("Período no encontrado.");
-    }
+    if (!$periodo) { throw new Exception("Período no encontrado."); }
 
     $tipo_nomina = $periodo['tipo_nomina'];
     $fecha_inicio = $periodo['fecha_inicio_periodo'];
@@ -35,7 +32,6 @@ try {
     $es_ultima_semana = esUltimaSemanaDelMes($fecha_fin);
     $mes_actual = date('m', strtotime($fecha_fin));
     $anio_actual = date('Y', strtotime($fecha_fin));
-    // FIN DEL BLOQUE RESTAURADO
 
     $pdo->beginTransaction();
 
@@ -46,21 +42,23 @@ try {
     $escala_isr = $pdo->query("SELECT * FROM escalasisr WHERE anio_fiscal = {$anio_actual} ORDER BY desde_monto_anual ASC")->fetchAll();
 
     $stmt_find_nomina = $pdo->prepare("SELECT id FROM NominasProcesadas WHERE periodo_inicio = ? AND periodo_fin = ?");
-    $stmt_find_nomina->execute([$fecha_inicio, $fecha_fin]);
-    if ($existing_nomina = $stmt_find_nomina->fetch()) {
+    if ($stmt_find_nomina->execute([$fecha_inicio, $fecha_fin]) && $existing_nomina = $stmt_find_nomina->fetch()) {
         $pdo->prepare("DELETE FROM NominaDetalle WHERE id_nomina_procesada = ?")->execute([$existing_nomina['id']]);
         $pdo->prepare("DELETE FROM NominasProcesadas WHERE id = ?")->execute([$existing_nomina['id']]);
-        $pdo->prepare("UPDATE NovedadesPeriodo SET estado_novedad = 'Pendiente' WHERE periodo_aplicacion BETWEEN ? AND ?")->execute([$fecha_inicio, $fecha_fin]);
+        $pdo->prepare("UPDATE NovedadesPeriodo SET estado_novedad = 'Pendiente' WHERE periodo_aplicacion = ?")->execute([$fecha_inicio]);
     }
 
     $sql_nomina = "INSERT INTO NominasProcesadas (tipo_nomina_procesada, periodo_inicio, periodo_fin, id_usuario_ejecutor, estado_nomina) VALUES (?, ?, ?, ?, 'Pendiente de Aprobación')";
     $stmt_nomina = $pdo->prepare($sql_nomina);
     $stmt_nomina->execute([$tipo_nomina, $fecha_inicio, $fecha_fin, $_SESSION['user_id']]);
     $id_nomina_procesada = $pdo->lastInsertId();
-    
-    $sql_contratos = "SELECT DISTINCT c.id, c.id_empleado FROM Contratos c JOIN NovedadesPeriodo np ON c.id = np.id_contrato WHERE np.periodo_aplicacion BETWEEN ? AND ?";
+
+    $sql_contratos = "SELECT DISTINCT c.id, c.id_empleado, c.tarifa_por_hora 
+                      FROM Contratos c 
+                      LEFT JOIN NovedadesPeriodo np ON c.id = np.id_contrato AND np.periodo_aplicacion = :fecha_inicio
+                      WHERE c.tipo_nomina = 'Inspectores' AND np.id IS NOT NULL";
     $stmt_contratos = $pdo->prepare($sql_contratos);
-    $stmt_contratos->execute([$fecha_inicio, $fecha_fin]);
+    $stmt_contratos->execute([':fecha_inicio' => $fecha_inicio]);
     $contratos = $stmt_contratos->fetchAll();
 
     foreach ($contratos as $contrato) {
