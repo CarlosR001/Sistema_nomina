@@ -1,5 +1,5 @@
 <?php
-// payroll/process.php - v5.1 FINAL con ISR Acumulativo en Última Semana
+// payroll/process.php - v5.2 CORRECCIÓN FINAL
 
 require_once '../auth.php';
 require_login();
@@ -52,8 +52,11 @@ try {
         $pdo->prepare("UPDATE NovedadesPeriodo SET estado_novedad = 'Pendiente' WHERE periodo_aplicacion BETWEEN ? AND ?")->execute([$fecha_inicio, $fecha_fin]);
     }
 
-    $sql_nomina = "INSERT INTO NominasProcesadas (tipo_nomina_procesada, periodo_inicio, periodo_fin, id_usuario_ejecutor, id_empleado, estado_nomina) VALUES (?, ?, ?, ?, ?, 'Pendiente de Aprobación')";
+    // CORRECCIÓN: Se eliminó id_empleado de esta consulta
+    $sql_nomina = "INSERT INTO NominasProcesadas (tipo_nomina_procesada, periodo_inicio, periodo_fin, id_usuario_ejecutor, estado_nomina) VALUES (?, ?, ?, ?, 'Pendiente de Aprobación')";
     $stmt_nomina = $pdo->prepare($sql_nomina);
+    $stmt_nomina->execute([$tipo_nomina, $fecha_inicio, $fecha_fin, $_SESSION['user_id']]);
+    $id_nomina_procesada = $pdo->lastInsertId();
     
     $sql_contratos = "SELECT DISTINCT c.id, c.id_empleado FROM Contratos c JOIN NovedadesPeriodo np ON c.id = np.id_contrato WHERE np.periodo_aplicacion BETWEEN ? AND ?";
     $stmt_contratos = $pdo->prepare($sql_contratos);
@@ -64,11 +67,6 @@ try {
         $id_contrato = $contrato['id'];
         $id_empleado = $contrato['id_empleado'];
         $conceptos = [];
-
-        if (empty($id_nomina_procesada)) {
-             $stmt_nomina->execute([$tipo_nomina, $fecha_inicio, $fecha_fin, $_SESSION['user_id'], $id_empleado]);
-             $id_nomina_procesada = $pdo->lastInsertId();
-        }
 
         $stmt_novedades = $pdo->prepare("SELECT n.*, c.* FROM NovedadesPeriodo n JOIN ConceptosNomina c ON n.id_concepto = c.id WHERE n.id_contrato = ? AND n.estado_novedad = 'Pendiente' AND n.periodo_aplicacion = ?");
         $stmt_novedades->execute([$id_contrato, $fecha_inicio]);
@@ -106,7 +104,7 @@ try {
             foreach ($escala_isr as $tramo) {
                 if ($ingreso_anual_proyectado >= (float)$tramo['desde_monto_anual'] && ($tramo['hasta_monto_anual'] === null || $ingreso_anual_proyectado <= (float)$tramo['hasta_monto_anual'])) {
                     $excedente = $ingreso_anual_proyectado - (float)$tramo['desde_monto_anual'];
-                    $isr_anual = ($excedente * (float)$tramo['tasa_porcentaje']) + (float)$tramo['monto_fijo_adicional'];
+                    $isr_anual = ($excedente * ((float)$tramo['tasa_porcentaje']/100)) + (float)$tramo['monto_fijo_adicional'];
                     break;
                 }
             }
