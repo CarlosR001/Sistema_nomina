@@ -1,6 +1,6 @@
 <?php
-// auth.php - v1.3
-// Centraliza la lógica de redirección post-login para eliminar bucles.
+// auth.php - v1.4 DEFINITIVA
+// Restaura la lógica para buscar y guardar el ID del contrato del inspector en la sesión.
 
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
@@ -28,12 +28,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['username'], $_POST['p
             $_SESSION['username'] = $user['nombre_usuario'];
             $_SESSION['user_rol'] = $user['rol'];
 
-            // --- LÓGICA DE REDIRECCIÓN CENTRALIZADA ---
+            // --- LÓGICA DE CONTRATO RESTAURADA (LA CORRECCIÓN) ---
+            if ($user['rol'] === 'Inspector' && $user['id_empleado']) {
+                $stmt_contrato = $pdo->prepare("SELECT id FROM contratos WHERE id_empleado = ? AND tipo_nomina = 'Inspectores' AND estado_contrato = 'Vigente' LIMIT 1");
+                $stmt_contrato->execute([$user['id_empleado']]);
+                $contrato = $stmt_contrato->fetch();
+                if ($contrato) {
+                    $_SESSION['contrato_inspector_id'] = $contrato['id'];
+                }
+            }
+            // --- FIN DE LA CORRECCIÓN ---
+
+            // Redirección centralizada
             if ($user['rol'] === 'Inspector') {
-                // Si es inspector, va directo a su portal.
                 header('Location: ' . BASE_URL . 'time_tracking/index.php');
             } else {
-                // Cualquier otro rol, va al dashboard principal.
                 header('Location: ' . BASE_URL . 'index.php');
             }
             exit();
