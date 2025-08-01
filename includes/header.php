@@ -1,8 +1,9 @@
 <?php
 // includes/header.php
-// v1.9 - Añade enlace a "Gestión de Usuarios" en el menú de Sistema.
+// v2.0 - Implementa lógica de roles para mostrar/ocultar menús.
 
 require_once __DIR__ . '/../auth.php';
+$user_rol = $_SESSION['user_rol'] ?? null; // Obtener el rol del usuario
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -24,61 +25,56 @@ require_once __DIR__ . '/../auth.php';
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto">
                     <?php if (is_logged_in()): ?>
-                        <li class="nav-item">
-                            <a class="nav-link" href="<?php echo BASE_URL; ?>index.php">Dashboard</a>
-                        </li>
                         
-                        <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownNomina" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                Nómina
-                            </a>
-                            <ul class="dropdown-menu" aria-labelledby="navbarDropdownNomina">
-                                <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>payroll/index.php">Procesar Nómina</a></li>
-                                <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>payroll/review.php">Revisión de Nóminas</a></li>
-                                <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>approvals/index.php">Aprobaciones</a></li>
-                            </ul>
-                        </li>
-
-                        <li class="nav-item dropdown">
-                             <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownNovedades" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                Entrada de Datos
-                            </a>
-                            <ul class="dropdown-menu" aria-labelledby="navbarDropdownNovedades">
-                                <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>reporting_periods/index.php">Períodos de Reporte</a></li>
-                                <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>payroll/generar_novedades.php">Generar Novedades desde Horas</a></li>
-                                <hr>
-                                <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>novedades/index.php">Novedades Manuales</a></li>
-                                <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>novedades/ajuste_isr.php">Ajuste Manual de ISR</a></li>
-                            </ul>
-                        </li>
-
-                        <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownCatalogos" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                Catálogos
-                            </a>
-                            <ul class="dropdown-menu" aria-labelledby="navbarDropdownCatalogos">
-                                <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>employees/index.php">Empleados y Contratos</a></li>
-                                <li><hr class="dropdown-divider"></li>
-                                <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>departments/index.php">Departamentos</a></li>
-                                <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>positions/index.php">Posiciones</a></li>
-                                <li><hr class="dropdown-divider"></li>
-                                <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>projects/index.php">Proyectos</a></li>
-                                <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>zones/index.php">Zonas de Transporte</a></li>
-                            </ul>
-                        </li>
-
-                         <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownConfig" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                Sistema
-                            </a>
-                            <ul class="dropdown-menu" aria-labelledby="navbarDropdownConfig">
-                                <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>users/index.php">Gestión de Usuarios</a></li>
-                                <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>conceptos/index.php">Conceptos de Nómina</a></li>
-                                <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>calendario/index.php">Calendario Laboral</a></li>
-                                <li><hr class="dropdown-divider"></li>
-                                <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>configuracion/index.php">Configuración Global</a></li>
-                            </ul>
-                        </li>
+                        <?php if ($user_rol === 'Inspector'): ?>
+                            <li class="nav-item">
+                                <a class="nav-link" href="<?php echo BASE_URL; ?>time_tracking/index.php">Portal de Registro de Horas</a>
+                            </li>
+                        <?php else: // Para Admin, Supervisor, Contabilidad ?>
+                            <li class="nav-item">
+                                <a class="nav-link" href="<?php echo BASE_URL; ?>index.php">Dashboard</a>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownNomina" role="button" data-bs-toggle="dropdown" aria-expanded="false">Nómina</a>
+                                <ul class="dropdown-menu" aria-labelledby="navbarDropdownNomina">
+                                    <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>payroll/index.php">Procesar Nómina</a></li>
+                                    <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>payroll/review.php">Revisión de Nóminas</a></li>
+                                    <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>approvals/index.php">Aprobaciones</a></li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownNovedades" role="button" data-bs-toggle="dropdown" aria-expanded="false">Entrada de Datos</a>
+                                <ul class="dropdown-menu" aria-labelledby="navbarDropdownNovedades">
+                                    <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>reporting_periods/index.php">Períodos de Reporte</a></li>
+                                    <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>payroll/generar_novedades.php">Generar Novedades desde Horas</a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>novedades/index.php">Novedades Manuales</a></li>
+                                    <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>novedades/ajuste_isr.php">Ajuste Manual de ISR</a></li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownCatalogos" role="button" data-bs-toggle="dropdown" aria-expanded="false">Catálogos</a>
+                                <ul class="dropdown-menu" aria-labelledby="navbarDropdownCatalogos">
+                                    <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>employees/index.php">Empleados y Contratos</a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>departments/index.php">Departamentos</a></li>
+                                    <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>positions/index.php">Posiciones</a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>projects/index.php">Proyectos</a></li>
+                                    <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>zones/index.php">Zonas de Transporte</a></li>
+                                </ul>
+                            </li>
+                             <li class="nav-item dropdown">
+                                <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownConfig" role="button" data-bs-toggle="dropdown" aria-expanded="false">Sistema</a>
+                                <ul class="dropdown-menu" aria-labelledby="navbarDropdownConfig">
+                                    <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>users/index.php">Gestión de Usuarios</a></li>
+                                    <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>conceptos/index.php">Conceptos de Nómina</a></li>
+                                    <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>calendario/index.php">Calendario Laboral</a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>configuracion/index.php">Configuración Global</a></li>
+                                </ul>
+                            </li>
+                        <?php endif; ?>
                     <?php endif; ?>
                 </ul>
                 <ul class="navbar-nav ms-auto">

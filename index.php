@@ -1,9 +1,16 @@
 <?php
-// index.php (Página principal)
+// index.php (Página principal) - v2.0
+// Redirige a los inspectores a su portal y muestra un dashboard mejorado para los demás roles.
 
-// Cargar el sistema de autenticación y la configuración de la BD.
 require_once 'auth.php';
-require_login(); // Asegurarse de que el usuario ha iniciado sesión.
+require_login(); 
+
+// --- Redirección por Rol ---
+// Si el usuario es un inspector, su única página es el registro de horas. Lo enviamos allí directamente.
+if ($_SESSION['user_rol'] === 'Inspector') {
+    header('Location: ' . BASE_URL . 'time_tracking/index.php');
+    exit();
+}
 
 // Cargar el header de la página.
 require_once 'includes/header.php'; 
@@ -14,22 +21,39 @@ require_once 'includes/header.php';
         <h1 class="display-5 fw-bold">Bienvenido a NóminaSYS</h1>
         <p class="col-md-8 fs-4">
             Ha iniciado sesión como <strong><?php echo htmlspecialchars($_SESSION['user_rol']); ?></strong>.
-            Utilice la barra de navegación para acceder a los módulos disponibles.
         </p>
-        
-        <?php if ($_SESSION['user_rol'] === 'Inspector'): ?>
-            <div class="alert alert-info mt-4">
-                <p><strong>Módulo de Inspector:</strong></p>
-                <p>Como inspector, puede registrar el tiempo de trabajo en la sección de <strong>Partes de Horas</strong>. 
-                Esto es fundamental para el cálculo de su nómina.</p>
-                <a class="btn btn-primary" href="time_tracking/index.php">Ir a Partes de Horas</a>
+        <hr>
+        <p>Utilice la barra de navegación superior para acceder a los diferentes módulos del sistema.</p>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Procesar Nómina</h5>
+                <p class="card-text">Inicie el cálculo de la nómina para un período de reporte abierto.</p>
+                <a href="<?php echo BASE_URL; ?>payroll/index.php" class="btn btn-primary">Ir a Procesar</a>
             </div>
-        <?php elseif ($_SESSION['user_rol'] === 'Administrador'): ?>
-            <div class="alert alert-info mt-4">
-                <p><strong>Panel de Administrador:</strong></p>
-                <p>Tiene acceso completo a todos los módulos del sistema. Puede gestionar empleados, contratos, nóminas y más.</p>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Aprobaciones</h5>
+                <p class="card-text">Revise y apruebe las horas registradas por los inspectores.</p>
+                <a href="<?php echo BASE_URL; ?>approvals/index.php" class="btn btn-success">Ir a Aprobaciones</a>
             </div>
-        <?php endif; ?>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">Gestión de Empleados</h5>
+                <p class="card-text">Añada, vea o modifique la información de los empleados.</p>
+                <a href="<?php echo BASE_URL; ?>employees/index.php" class="btn btn-info">Ir a Empleados</a>
+            </div>
+        </div>
     </div>
 </div>
 
