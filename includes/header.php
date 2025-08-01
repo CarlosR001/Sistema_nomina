@@ -1,13 +1,9 @@
 <?php
 // includes/header.php
-// v1.4 - Solución definitiva al error de función no definida.
+// v1.5 - Corrige el enlace de "Cerrar Sesión" para que apunte a la lógica correcta en auth.php
 
 // La ruta se construye desde la ubicación de este archivo (includes) para encontrar auth.php en la raíz.
-// Esto ahora es seguro gracias a que auth.php fue modificado para prevenir re-declaración de funciones.
 require_once __DIR__ . '/../auth.php';
-
-// session_start() ya es manejado por auth.php
-// BASE_URL ya es definido en init.php (incluido por auth.php)
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -72,10 +68,10 @@ require_once __DIR__ . '/../auth.php';
                 <ul class="navbar-nav ms-auto">
                      <?php if (is_logged_in()): ?>
                         <li class="nav-item">
-                            <a class="nav-link" href="#">Hola, <?php echo htmlspecialchars($_SESSION['username']); ?></a>
+                            <a class="nav-link">Hola, <?php echo htmlspecialchars($_SESSION['username']); ?></a>
                         </li>
                          <li class="nav-item">
-                            <a class="nav-link" href="<?php echo BASE_URL; ?>logout.php">Cerrar Sesión</a>
+                            <a class="nav-link" href="<?php echo BASE_URL; ?>auth.php?action=logout">Cerrar Sesión</a>
                         </li>
                     <?php else: ?>
                         <li class="nav-item">
