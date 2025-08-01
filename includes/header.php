@@ -1,14 +1,12 @@
 <?php
 // includes/header.php
-// v1.2 - Añade require_once para auth.php para resolver el error de función no definida.
-
-// La ruta se construye desde la ubicación de este archivo (includes) para encontrar auth.php en la raíz.
-require_once __DIR__ . '/../auth.php';
+// v1.3 - Revertido al funcionamiento original para eliminar errores, manteniendo el nuevo menú.
 
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 if (!defined('BASE_URL')) {
+    // Esta definición es un respaldo, pero se espera que init.php la defina primero.
     define('BASE_URL', '/');
 }
 ?>
