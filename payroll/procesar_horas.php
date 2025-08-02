@@ -106,24 +106,62 @@ try {
         exit();
     } 
     elseif ($mode === 'final') {
-        $codigos_a_borrar_placeholders = implode(',', array_fill(0, 5, '?'));
-        $codigos_a_borrar_valores = ['ING-NORMAL', 'ING-EXTRA', 'ING-FERIADO', 'ING-NOCTURNO', 'ING-TRANSP'];
-        $sql_delete = "DELETE n FROM NovedadesPeriodo n JOIN ConceptosNomina c ON n.id_concepto = c.id WHERE n.periodo_aplicacion = ? AND c.codigo_concepto IN ($codigos_a_borrar_placeholders)";
-        $stmt_delete = $pdo->prepare($sql_delete);
-        $stmt_delete->execute(array_merge([$fecha_inicio], $codigos_a_borrar_valores));
+        // **INICIO DE LA LÓGICA DE BORRADO Y RE-INSERCIÓN SEGURA**
         
+        // 1. Identificar los contratos que se van a procesar en este lote.
+        $contratos_a_procesar = array_keys($results);
+        if (empty($contratos_a_procesar)) {
+            if ($pdo->inTransaction()) $pdo->commit(); // Asegurarse de cerrar la transacción si no hay nada que hacer.
+            header('Location: generar_novedades.php?status=info&message=' . urlencode('No se encontraron horas aprobadas para generar novedades.'));
+            exit();
+        }
+        $contratos_placeholders = implode(',', array_fill(0, count($contratos_a_procesar), '?'));
+
+        // 2. Rescatar (guardar en memoria) TODAS las novedades MANUALES existentes para estos contratos en este período.
+        $codigos_automaticos = ['ING-NORMAL', 'ING-EXTRA', 'ING-FERIADO', 'ING-NOCTURNO', 'ING-TRANSP'];
+        $codigos_auto_placeholders = implode(',', array_fill(0, count($codigos_automaticos), '?'));
+        
+        $sql_rescate = "SELECT np.id_contrato, np.id_concepto, np.periodo_aplicacion, np.monto_valor FROM NovedadesPeriodo np JOIN ConceptosNomina cn ON np.id_concepto = cn.id WHERE np.id_contrato IN ($contratos_placeholders) AND np.periodo_aplicacion BETWEEN ? AND ? AND cn.codigo_concepto NOT IN ($codigos_auto_placeholders)";
+        
+        $stmt_rescate = $pdo->prepare($sql_rescate);
+        $params_rescate = array_merge($contratos_a_procesar, [$fecha_inicio, $fecha_fin], $codigos_automaticos);
+        $stmt_rescate->execute($params_rescate);
+        $novedades_manuales_rescatadas = $stmt_rescate->fetchAll(PDO::FETCH_ASSOC);
+
+        // 3. Borrar TODAS las novedades (automáticas Y manuales) de los empleados procesados en este período.
+        // Esto limpia el "pizarrón" y previene duplicados.
+        $sql_delete_total = "DELETE FROM NovedadesPeriodo WHERE id_contrato IN ($contratos_placeholders) AND periodo_aplicacion BETWEEN ? AND ?";
+        $stmt_delete_total = $pdo->prepare($sql_delete_total);
+        $stmt_delete_total->execute(array_merge($contratos_a_procesar, [$fecha_inicio, $fecha_fin]));
+
+        // 4. Insertar las novedades recién calculadas a partir de las horas.
         $stmt_insert = $pdo->prepare("INSERT INTO NovedadesPeriodo (id_contrato, id_concepto, periodo_aplicacion, monto_valor, estado_novedad) VALUES (?, ?, ?, ?, 'Pendiente')");
         foreach ($results as $contrato_id => $res) {
+            // Usamos la fecha de inicio del período para consistencia con los reportes.
             if ($res['pago_normal'] > 0) $stmt_insert->execute([$contrato_id, $conceptos['ING-NORMAL'], $fecha_inicio, $res['pago_normal']]);
             if ($res['pago_extra'] > 0) $stmt_insert->execute([$contrato_id, $conceptos['ING-EXTRA'], $fecha_inicio, $res['pago_extra']]);
             if ($res['pago_feriado'] > 0) $stmt_insert->execute([$contrato_id, $conceptos['ING-FERIADO'], $fecha_inicio, $res['pago_feriado']]);
             if ($res['pago_nocturno'] > 0) $stmt_insert->execute([$contrato_id, $conceptos['ING-NOCTURNO'], $fecha_inicio, $res['pago_nocturno']]);
             if ($res['pago_transporte'] > 0) $stmt_insert->execute([$contrato_id, $conceptos['ING-TRANSP'], $fecha_inicio, $res['pago_transporte']]);
         }
+
+        // 5. Re-insertar las novedades manuales que fueron rescatadas.
+        foreach ($novedades_manuales_rescatadas as $novedad_manual) {
+            $stmt_insert->execute([
+                $novedad_manual['id_contrato'],
+                $novedad_manual['id_concepto'],
+                $novedad_manual['periodo_aplicacion'], // Se preserva la fecha original de la novedad manual
+                $novedad_manual['monto_valor'],
+            ]);
+        }
+        
+        // **FIN DE LA LÓGICA DE BORRADO Y RE-INSERCIÓN SEGURA**
         
         $pdo->commit();
-        header('Location: generar_novedades.php?status=success&message=' . urlencode('Proceso completado. Las novedades de horas han sido generadas y las novedades manuales (incentivos) han sido preservadas.'));
+        header('Location: generar_novedades.php?status=success&message=' . urlencode('Proceso completado. Las novedades de horas han sido generadas y las novedades manuales han sido preservadas.'));
         exit();
+    }
+
     }
 } catch (Exception $e) {
     if (isset($pdo) && $pdo->inTransaction()) { $pdo->rollBack(); }
