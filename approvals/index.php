@@ -1,6 +1,6 @@
 <?php
-// approvals/index.php - v2.3 (CORREGIDO)
-// Construye correctamente la tabla de resultados para la pestaña "Aprobados Recientemente".
+// approvals/index.php - v2.4 (Definitivo y Corregido)
+// Restaura el código HTML y JavaScript del modal de edición que fue eliminado por error.
 
 require_once '../auth.php';
 require_login();
@@ -40,19 +40,17 @@ require_once '../includes/header.php';
 
 <?php if (isset($_GET['message'])): ?>
     <div class="alert alert-<?php echo ($_GET['status'] === 'success') ? 'success' : 'danger'; ?> alert-dismissible fade show" role="alert">
-        <?php echo htmlspecialchars($_GET['message']); ?>
+        <?php echo htmlspecialchars(urldecode($_GET['message'])); ?>
         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
     </div>
 <?php endif; ?>
 
-<!-- Pestañas de Navegación -->
 <ul class="nav nav-tabs mb-3">
     <li class="nav-item"><a class="nav-link <?php echo ($view === 'pendientes') ? 'active' : ''; ?>" href="?view=pendientes">Pendientes de Aprobación</a></li>
     <li class="nav-item"><a class="nav-link <?php echo ($view === 'aprobados') ? 'active' : ''; ?>" href="?view=aprobados">Aprobados Recientemente</a></li>
 </ul>
 
 <?php if ($view === 'pendientes'): ?>
-    <!-- Contenido de la Pestaña PENDIENTES -->
     <form action="update_status.php" method="POST">
         <div class="table-responsive">
             <table class="table table-striped table-hover">
@@ -75,7 +73,7 @@ require_once '../includes/header.php';
                             </td>
                             <td class="text-center">
                                 <button type="button" class="btn btn-sm btn-warning btn-edit" data-bs-toggle="modal" data-bs-target="#editModal"
-                                        data-id="<?php echo $row['id']; ?>" data-fecha="<?php echo $row['fecha_trabajada']; ?>" data-inicio="<?php echo date('H', strtotime($row['hora_inicio'])); ?>" data-fin="<?php echo (date('H', strtotime($row['hora_fin'])) == 23) ? 24 : date('H', strtotime($row['hora_fin'])); ?>"
+                                        data-id="<?php echo $row['id']; ?>" data-fecha="<?php echo $row['fecha_trabajada']; ?>" data-inicio="<?php echo date('H', strtotime($row['hora_inicio'])); ?>" data-fin="<?php echo (date('H:i', strtotime($row['hora_fin'])) == '23:59') ? 24 : date('H', strtotime($row['hora_fin'])); ?>"
                                         data-proyecto-id="<?php echo $row['proyecto_id']; ?>" data-zona-id="<?php echo $row['id_zona_trabajo']; ?>">Editar</button>
                             </td>
                         </tr>
@@ -85,20 +83,15 @@ require_once '../includes/header.php';
         </div>
         <?php if (!empty($registros)): ?>
         <div class="d-flex justify-content-end mt-3">
-            <button type="submit" name="action" value="Aprobado" class="btn btn-success me-2"><i class="bi bi-check-all"></i> Aprobar Seleccionados</button>
-            <button type="submit" name="action" value="Rechazado" class="btn btn-danger"><i class="bi bi-x-circle"></i> Rechazar Seleccionados</button>
+            <button type="submit" name="action" value="Aprobado" class="btn btn-success me-2"><i class="bi bi-check-all"></i> Aprobar</button>
+            <button type="submit" name="action" value="Rechazado" class="btn btn-danger"><i class="bi bi-x-circle"></i> Rechazar</button>
         </div>
         <?php endif; ?>
     </form>
 <?php elseif ($view === 'aprobados'): ?>
-    <!-- Contenido de la Pestaña APROBADOS (AHORA CONSTRUIDO) -->
     <div class="table-responsive">
         <table class="table table-striped table-hover">
-            <thead class="table-dark">
-                <tr>
-                    <th>Empleado</th><th>Fecha</th><th>Horario</th><th>Proyecto</th><th>Aprobado Por</th><th>Fecha Aprobación</th><th class="text-center">Acciones</th>
-                </tr>
-            </thead>
+            <thead class="table-dark"><tr><th>Empleado</th><th>Fecha</th><th>Horario</th><th>Proyecto</th><th>Aprobado Por</th><th>Fecha Aprobación</th><th class="text-center">Acciones</th></tr></thead>
             <tbody>
                  <?php foreach ($registros as $row): ?>
                     <tr>
@@ -121,8 +114,64 @@ require_once '../includes/header.php';
     </div>
 <?php endif; ?>
 
-<!-- Modal y Script (sin cambios) -->
-<div class="modal fade" id="editModal" tabindex="-1"> ... </div>
-<script> ... </script>
+<!-- INICIO DEL CÓDIGO RESTAURADO -->
+<div class="modal fade" id="editModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Editar Registro de Horas</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <form id="editForm" action="update_record.php" method="POST">
+            <input type="hidden" name="registro_id" id="edit-registro-id">
+            <div class="mb-3"><label for="edit-fecha" class="form-label">Fecha</label><input type="date" class="form-control" id="edit-fecha" name="fecha_trabajada" required></div>
+            <div class="row">
+                <div class="col"><label for="edit-inicio" class="form-label">Hora Inicio (Formato 24h)</label><input type="number" class="form-control" id="edit-inicio" name="hora_inicio" min="0" max="24" required></div>
+                <div class="col"><label for="edit-fin" class="form-label">Hora Fin (Formato 24h)</label><input type="number" class="form-control" id="edit-fin" name="hora_fin" min="0" max="24" required></div>
+            </div>
+            <div class="mb-3 mt-3"><label for="edit-proyecto" class="form-label">Proyecto</label><select class="form-select" id="edit-proyecto" name="id_proyecto" required><?php foreach ($proyectos as $proyecto): ?><option value="<?php echo $proyecto['id']; ?>"><?php echo htmlspecialchars($proyecto['nombre_proyecto']); ?></option><?php endforeach; ?></select></div>
+            <div class="mb-3"><label for="edit-zona" class="form-label">Zona / Muelle</label><select class="form-select" id="edit-zona" name="id_zona_trabajo" required><?php foreach ($zonas as $zona): ?><option value="<?php echo $zona['id']; ?>"><?php echo htmlspecialchars($zona['nombre_zona_o_muelle']); ?></option><?php endforeach; ?></select></div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="submit" form="editForm" class="btn btn-primary">Guardar Cambios</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    var editModal = document.getElementById('editModal');
+    if(editModal) {
+        editModal.addEventListener('show.bs.modal', function (event) {
+            var button = event.relatedTarget;
+            var id = button.getAttribute('data-id');
+            var fecha = button.getAttribute('data-fecha');
+            var inicio = button.getAttribute('data-inicio');
+            var fin = button.getAttribute('data-fin');
+            var proyectoId = button.getAttribute('data-proyecto-id');
+            var zonaId = button.getAttribute('data-zona-id');
+            
+            editModal.querySelector('#edit-registro-id').value = id;
+            editModal.querySelector('#edit-fecha').value = fecha;
+            editModal.querySelector('#edit-inicio').value = inicio;
+            editModal.querySelector('#edit-fin').value = fin;
+            editModal.querySelector('#edit-proyecto').value = proyectoId;
+            editModal.querySelector('#edit-zona').value = zonaId;
+        });
+    }
+
+    var selectAll = document.getElementById('selectAll');
+    if(selectAll) {
+        selectAll.addEventListener('click', function(event) {
+            document.querySelectorAll('input[name^="registros["][type="checkbox"]').forEach(c => c.checked = event.target.checked);
+        });
+    }
+});
+</script>
+<!-- FIN DEL CÓDIGO RESTAURADO -->
 
 <?php require_once '../includes/footer.php'; ?>
