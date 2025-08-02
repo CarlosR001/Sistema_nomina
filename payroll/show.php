@@ -1,6 +1,6 @@
 <?php
-// payroll/show.php - v1.1
-// Añade los botones de acción "Recalcular Nómina" y "Finalizar Nómina"
+// payroll/show.php - v1.2 (ESTABLE Y COMPLETO)
+// Restaura la lógica completa para mostrar los botones de acción "Recalcular" y "Finalizar".
 
 require_once '../auth.php';
 require_login();
@@ -52,35 +52,30 @@ require_once '../includes/header.php';
 <div class="card mb-4">
     <div class="card-header d-flex justify-content-between align-items-center">
         <h5 class="mb-0">Resumen General</h5>
-        <div>
-            <span class="badge bg-warning text-dark fs-6"><?php echo htmlspecialchars($nomina['estado_nomina']); ?></span>
-        </div>
+        <div><span class="badge bg-warning text-dark fs-6"><?php echo htmlspecialchars($nomina['estado_nomina']); ?></span></div>
     </div>
     <div class="card-body">
         <div class="row">
-            <div class="col-md-4">
-                <p><strong>ID de Nómina:</strong> <?php echo htmlspecialchars($nomina['id']); ?></p>
-                <p><strong>Tipo:</strong> <?php echo htmlspecialchars($nomina['tipo_nomina_procesada']); ?></p>
-            </div>
-            <div class="col-md-4">
-                <p><strong>Período:</strong> <?php echo htmlspecialchars($nomina['periodo_inicio']) . " al " . htmlspecialchars($nomina['periodo_fin']); ?></p>
-                <p><strong>Procesada el:</strong> <?php echo htmlspecialchars($nomina['fecha_ejecucion']); ?></p>
-            </div>
+            <div class="col-md-4"><p><strong>ID de Nómina:</strong> <?php echo htmlspecialchars($nomina['id']); ?></p><p><strong>Tipo:</strong> <?php echo htmlspecialchars($nomina['tipo_nomina_procesada']); ?></p></div>
+            <div class="col-md-4"><p><strong>Período:</strong> <?php echo htmlspecialchars($nomina['periodo_inicio']) . " al " . htmlspecialchars($nomina['periodo_fin']); ?></p><p><strong>Procesada el:</strong> <?php echo htmlspecialchars($nomina['fecha_ejecucion']); ?></p></div>
             <div class="col-md-4 text-end">
-                <!-- ACCIONES -->
-                <?php if ($nomina['estado_nomina'] !== 'Pagada' && $nomina['estado_nomina'] !== 'Aprobada y Finalizada'): ?>
-                    <form action="<?php echo BASE_URL; ?>payroll/process.php" method="POST" class="d-inline" onsubmit="return confirm('¿Estás seguro de que quieres recalcular esta nómina? Los datos actuales se borrarán y se volverán a generar.');">
+                
+                <!-- INICIO DEL BLOQUE RESTAURADO -->
+                <?php if ($nomina['estado_nomina'] !== 'Aprobada y Finalizada'): ?>
+                    <form action="<?php echo BASE_URL; ?>payroll/process.php" method="POST" class="d-inline" onsubmit="return confirm('¿Recalcular? Los datos actuales se borrarán y se volverán a generar con las novedades más recientes.');">
                         <input type="hidden" name="periodo_id" value="<?php echo htmlspecialchars($nomina['periodo_id']); ?>">
-                        <button type="submit" class="btn btn-warning"><i class="bi bi-arrow-clockwise"></i> Recalcular Nómina</button>
+                        <button type="submit" class="btn btn-warning"><i class="bi bi-arrow-clockwise"></i> Recalcular</button>
                     </form>
                     
-                    <form action="<?php echo BASE_URL; ?>payroll/finalize.php" method="POST" class="d-inline" onsubmit="return confirm('Este proceso es irreversible. ¿Estás seguro de que quieres finalizar y aprobar esta nómina?');">
+                    <form action="<?php echo BASE_URL; ?>payroll/finalize.php" method="POST" class="d-inline" onsubmit="return confirm('Este proceso es irreversible. ¿Finalizar y aprobar esta nómina?');">
                         <input type="hidden" name="nomina_id" value="<?php echo htmlspecialchars($id_nomina); ?>">
-                        <button type="submit" class="btn btn-success"><i class="bi bi-check-circle"></i> Finalizar y Aprobar</button>
+                        <button type="submit" class="btn btn-success"><i class="bi bi-check-circle"></i> Finalizar</button>
                     </form>
                 <?php else: ?>
                     <p class="text-muted">La nómina ya ha sido finalizada y no admite más acciones.</p>
                 <?php endif; ?>
+                <!-- FIN DEL BLOQUE RESTAURADO -->
+
             </div>
         </div>
     </div>
@@ -90,46 +85,33 @@ require_once '../includes/header.php';
 <table class="table table-bordered table-hover">
     <thead class="table-dark">
         <tr>
-            <th>Cédula</th>
-            <th>Empleado</th>
-            <th class="text-end">Total Ingresos</th>
-            <th class="text-end">Total Deducciones</th>
-            <th class="text-end">Neto a Pagar</th>
-            <th>Acciones</th>
+            <th>Cédula</th><th>Empleado</th><th class="text-end">Total Ingresos</th><th class="text-end">Total Deducciones</th><th class="text-end">Neto a Pagar</th><th class="text-center">Acciones</th>
         </tr>
     </thead>
     <tbody>
-        <?php 
-        $total_general_ingresos = 0;
-        $total_general_deducciones = 0;
-        $total_general_neto = 0;
-        foreach ($detalles as $detalle): 
-            $ingresos_empleado = (float)($detalle['total_ingresos'] ?? 0);
-            $deducciones_empleado = (float)($detalle['total_deducciones'] ?? 0);
-            $neto_pagar = $ingresos_empleado - $deducciones_empleado;
-            
-            $total_general_ingresos += $ingresos_empleado;
-            $total_general_deducciones += $deducciones_empleado;
-            $total_general_neto += $neto_pagar;
-        ?>
+        <?php foreach ($detalles as $detalle): ?>
         <tr>
             <td><?php echo htmlspecialchars($detalle['cedula']); ?></td>
             <td><?php echo htmlspecialchars($detalle['nombres'] . ' ' . $detalle['primer_apellido']); ?></td>
-            <td class="text-end">$<?php echo number_format($ingresos_empleado, 2); ?></td>
-            <td class="text-end text-danger">-$<?php echo number_format($deducciones_empleado, 2); ?></td>
-            <td class="text-end fw-bold">$<?php echo number_format($neto_pagar, 2); ?></td>
-            <td>
-                <a href="payslip.php?nomina_id=<?php echo htmlspecialchars($id_nomina); ?>&contrato_id=<?php echo htmlspecialchars($detalle['id_contrato']); ?>" class="btn btn-sm btn-info" target="_blank">Ver Desglose</a>
+            <td class="text-end">$<?php echo number_format((float)$detalle['total_ingresos'], 2); ?></td>
+            <td class="text-end text-danger">-$<?php echo number_format((float)$detalle['total_deducciones'], 2); ?></td>
+            <td class="text-end fw-bold">$<?php echo number_format((float)$detalle['total_ingresos'] - (float)$detalle['total_deducciones'], 2); ?></td>
+            <td class="text-center">
+                <a href="payslip.php?nomina_id=<?php echo $id_nomina; ?>&contrato_id=<?php echo $detalle['id_contrato']; ?>" class="btn btn-sm btn-info" target="_blank">Ver Desglose</a>
             </td>
         </tr>
         <?php endforeach; ?>
     </tbody>
     <tfoot class="table-group-divider">
+        <?php 
+            $total_ingresos = array_sum(array_column($detalles, 'total_ingresos'));
+            $total_deducciones = array_sum(array_column($detalles, 'total_deducciones'));
+        ?>
         <tr class="table-secondary">
             <td colspan="2" class="text-end"><strong>TOTALES GENERALES:</strong></td>
-            <td class="text-end"><strong>$<?php echo number_format($total_general_ingresos, 2); ?></strong></td>
-            <td class="text-end"><strong>-$<?php echo number_format($total_general_deducciones, 2); ?></strong></td>
-            <td class="text-end"><strong>$<?php echo number_format($total_general_neto, 2); ?></strong></td>
+            <td class="text-end"><strong>$<?php echo number_format($total_ingresos, 2); ?></strong></td>
+            <td class="text-end"><strong>-$<?php echo number_format($total_deducciones, 2); ?></strong></td>
+            <td class="text-end"><strong>$<?php echo number_format($total_ingresos - $total_deducciones, 2); ?></strong></td>
             <td></td>
         </tr>
     </tfoot>
