@@ -1,19 +1,17 @@
 <?php
-// payroll/generar_novedades.php
-// Interfaz para iniciar el proceso de cálculo de horas y generación de novedades.
+// payroll/generar_novedades.php - v2.0
+// Implementa el flujo de Previsualización y Confirmación.
 
 require_once '../auth.php';
 require_login();
 require_role(['Admin', 'Contabilidad']);
 
-// Obtener los períodos de reporte que están 'Abiertos' para la nómina de 'Inspectores'
-$stmt_periodos = $pdo->query("
-    SELECT id, fecha_inicio_periodo, fecha_fin_periodo 
-    FROM PeriodosDeReporte 
-    WHERE tipo_nomina = 'Inspectores' AND estado_periodo = 'Abierto'
-    ORDER BY fecha_inicio_periodo DESC
-");
-$periodos_abiertos = $stmt_periodos->fetchAll();
+// Recuperar resultados de la previsualización de la sesión, si existen.
+$preview_results = $_SESSION['preview_results'] ?? null;
+$preview_period_id = $_SESSION['preview_period_id'] ?? null;
+unset($_SESSION['preview_results'], $_SESSION['preview_period_id']); // Limpiar la sesión inmediatamente.
+
+$periodos_abiertos = $pdo->query("SELECT id, fecha_inicio_periodo, fecha_fin_periodo FROM PeriodosDeReporte WHERE tipo_nomina = 'Inspectores' AND estado_periodo = 'Abierto' ORDER BY fecha_inicio_periodo DESC")->fetchAll();
 
 require_once '../includes/header.php';
 ?>
@@ -31,34 +29,33 @@ require_once '../includes/header.php';
 
 <div class="card">
     <div class="card-header">
-        <h5>Paso 1: Seleccionar Período a Procesar</h5>
+        <h5>Paso 1: Seleccionar Período y Previsualizar</h5>
     </div>
     <div class="card-body">
         <p class="card-text text-muted">
-            Selecciona un período de reporte abierto. El sistema buscará todas las horas con estado <strong>'Aprobado'</strong> dentro de este rango de fechas,
-            calculará los montos correspondientes (normales, extras, feriados, etc.) y los insertará como novedades en el sistema, dejándolos listos para el cálculo de la nómina.
+            Selecciona un período para previsualizar los cálculos de ingresos basados en las horas aprobadas.
         </p>
-        <p class="text-danger"><strong>Advertencia:</strong> Este proceso borrará cualquier novedad de ingresos (excepto ajustes manuales) previamente calculada para este período para evitar duplicados.</p>
         
         <?php if (empty($periodos_abiertos)): ?>
-            <div class="alert alert-warning">No hay períodos de reporte abiertos para la nómina de Inspectores. Por favor, abre un período en "Entrada de Datos" -> "Períodos de Reporte".</div>
+            <div class="alert alert-warning">No hay períodos de reporte abiertos para la nómina de Inspectores.</div>
         <?php else: ?>
-            <form action="procesar_horas.php" method="POST" onsubmit="return confirm('¿Estás seguro? Este proceso es intensivo y no se puede deshacer.');">
+            <form action="procesar_horas.php" method="POST">
+                <input type="hidden" name="mode" value="preview"> <!-- Modo Previsualización -->
                 <div class="row g-3 align-items-end">
                     <div class="col-md-8">
                         <label for="periodo_id" class="form-label">Período de Reporte</label>
                         <select name="periodo_id" id="periodo_id" class="form-select" required>
                             <option value="">Selecciona un período...</option>
                             <?php foreach ($periodos_abiertos as $periodo): ?>
-                                <option value="<?php echo $periodo['id']; ?>">
+                                <option value="<?php echo $periodo['id']; ?>" <?php if ($periodo['id'] == $preview_period_id) echo 'selected'; ?>>
                                     Semana del <?php echo htmlspecialchars($periodo['fecha_inicio_periodo']) . " al " . htmlspecialchars($periodo['fecha_fin_periodo']); ?>
                                 </option>
                             <?php endforeach; ?>
                         </select>
                     </div>
                     <div class="col-md-4">
-                        <button type="submit" class="btn btn-primary w-100">
-                            <i class="bi bi-calculator"></i> Calcular y Generar Novedades
+                        <button type="submit" class="btn btn-info w-100">
+                            <i class="bi bi-eye"></i> Previsualizar Cálculo
                         </button>
                     </div>
                 </div>
@@ -66,5 +63,53 @@ require_once '../includes/header.php';
         <?php endif; ?>
     </div>
 </div>
+
+<?php if (isset($preview_results) && !empty($preview_results)): ?>
+<div class="card mt-4">
+    <div class="card-header bg-success text-white">
+        <h5>Paso 2: Previsualización de Resultados</h5>
+    </div>
+    <div class="card-body">
+        <table class="table table-sm table-bordered">
+            <thead class="table-light">
+                <tr>
+                    <th>Empleado</th>
+                    <th class="text-end">Pago Normal</th>
+                    <th class="text-end">Pago Extra</th>
+                    <th class="text-end">Pago Feriado</th>
+                    <th class="text-end">Bono Nocturno</th>
+                    <th class="text-end">Transporte</th>
+                    <th class="text-end"><strong>Ingreso Bruto</strong></th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php foreach ($preview_results as $contrato_id => $res): ?>
+                    <tr>
+                        <td><?php echo htmlspecialchars($res['nombre_empleado']); ?></td>
+                        <td class="text-end"><?php echo number_format($res['pago_normal'] ?? 0, 2); ?></td>
+                        <td class="text-end"><?php echo number_format($res['pago_extra'] ?? 0, 2); ?></td>
+                        <td class="text-end"><?php echo number_format($res['pago_feriado'] ?? 0, 2); ?></td>
+                        <td class="text-end"><?php echo number_format($res['pago_nocturno'] ?? 0, 2); ?></td>
+                        <td class="text-end"><?php echo number_format($res['pago_transporte'] ?? 0, 2); ?></td>
+                        <td class="text-end"><strong><?php echo number_format($res['ingreso_bruto'] ?? 0, 2); ?></strong></td>
+                    </tr>
+                <?php endforeach; ?>
+            </tbody>
+        </table>
+
+        <hr>
+        <p class="text-danger"><strong>Advertencia:</strong> Al confirmar, se borrarán las novedades de ingreso previamente calculadas para este período y se reemplazarán por las que se muestran arriba.</p>
+        <form action="procesar_horas.php" method="POST">
+            <input type="hidden" name="periodo_id" value="<?php echo htmlspecialchars($preview_period_id); ?>">
+            <input type="hidden" name="mode" value="final"> <!-- Modo Final -->
+            <button type="submit" class="btn btn-success">
+                <i class="bi bi-check-circle"></i> Confirmar y Guardar Novedades
+            </button>
+            <a href="generar_novedades.php" class="btn btn-secondary">Cancelar</a>
+        </form>
+    </div>
+</div>
+<?php endif; ?>
+
 
 <?php require_once '../includes/footer.php'; ?>
