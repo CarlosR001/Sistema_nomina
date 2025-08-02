@@ -1,28 +1,23 @@
 <?php
-// config/init.php - v1.2
-// Establece la BASE_URL a la raíz '/' para entornos donde el servidor apunta directamente al proyecto.
+// config/init.php - v1.3 (Definitivo)
+// Implementa la detección automática de BASE_URL para funcionar en cualquier entorno.
 
 // 1. Iniciar la sesión
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-// 2. Definir la URL base
-// Para entornos de desarrollo donde el servidor (ej. localhost:3000) apunta
-// directamente a la carpeta del proyecto, la URL base es simplemente "/".
+// 2. Definir la URL base automáticamente
 if (!defined('BASE_URL')) {
-    define('BASE_URL', '/');
-}
+    // Obtiene la ruta del script actual (ej. /Sistema_nomina/config/init.php)
+    $script_path = str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME']));
 
-/*
-// NOTA: Si en el futuro mueves este proyecto a una subcarpeta del servidor 
-// (ej. htdocs/proyectos/nomina), puedes usar la siguiente lógica automática:
-if (!defined('BASE_URL')) {
-    $project_folder = basename(dirname(__DIR__)); 
-    $base_url = "/" . $project_folder . "/";
+    // Sube un nivel para obtener la raíz del proyecto (ej. /Sistema_nomina)
+    $base_url = rtrim(dirname($script_path), '/') . '/';
+
     define('BASE_URL', $base_url);
 }
-*/
+
 
 // 3. Cargar la conexión a la base de datos
 require_once __DIR__ . '/database.php';
