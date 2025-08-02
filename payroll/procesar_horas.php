@@ -1,6 +1,6 @@
 <?php
-// payroll/procesar_horas.php - v2.6 (FINAL Y CORREGIDO)
-// Restaura la lógica nocturna correcta (v2.3) y la combina con la lógica de transporte aprobado.
+// payroll/procesar_horas.php - v2.8 (Lógica Nocturna Definitiva y Final)
+// Implementa la regla de negocio correcta basada en el horario 07:00-21:00.
 
 require_once '../auth.php';
 require_login();
@@ -53,18 +53,23 @@ try {
                 $total_horas_laborales += $duracion_horas; 
             }
             
-            // --- LÓGICA DE HORAS NOCTURNAS RESTAURADA A LA VERSIÓN CORRECTA ---
+            // --- LÓGICA DE HORAS NOCTURNAS CORREGIDA Y DEFINITIVA ---
             $inicio_H = (int)$inicio->format('H');
             $fin_H = (int)$fin->format('H');
+            $fin_M = (int)$fin->format('i');
             
-            // Un turno es DIURNO solo si empieza a las 7:00 o después Y termina a las 19:00 o antes.
-            // El formato de 24h para las 7pm es 19.
-            $es_diurno = ($inicio_H >= 7 && $fin_H <= 19 && $inicio < $fin);
+            // Caso especial: si el turno termina a medianoche (00:00), trátalo como hora 24 para la lógica.
+            if ($fin_H == 0 && $fin_M == 0 && $fin > $inicio) {
+                $fin_H = 24;
+            }
 
+            // Un turno es DIURNO solo si empieza a las 7 o después Y termina a las 21 (9 PM) o antes.
+            $es_diurno = ($inicio_H >= 7 && $fin_H <= 21);
+            
             if (!$es_diurno) {
                 $total_horas_nocturnas_bono += $duracion_horas;
             }
-            // --- FIN DE LA LÓGICA RESTAURADA ---
+            // --- FIN DE LA CORRECCIÓN ---
 
             if ($reg['transporte_aprobado']) {
                 $zonas_trabajadas_por_dia[$reg['fecha_trabajada']][] = $reg['id_zona_trabajo'];
@@ -119,7 +124,6 @@ try {
         header('Location: generar_novedades.php?status=success&message=' . urlencode('Proceso completado.'));
         exit();
     }
-
 } catch (Exception $e) {
     if (isset($pdo) && $pdo->inTransaction()) { $pdo->rollBack(); }
     header('Location: generar_novedades.php?status=error&message=' . urlencode('Error crítico: ' . $e->getMessage()));
