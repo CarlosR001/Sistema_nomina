@@ -53,79 +53,82 @@ try {
     $stmt_nomina->execute([$tipo_nomina, $fecha_inicio, $fecha_fin, $_SESSION['user_id']]);
     $id_nomina_procesada = $pdo->lastInsertId();
 
-    $sql_contratos = "SELECT DISTINCT c.id, c.id_empleado FROM Contratos c JOIN NovedadesPeriodo np ON c.id = np.id_contrato WHERE c.tipo_nomina = ? AND np.periodo_aplicacion = ? AND c.estado_contrato = 'Vigente'";
-    $stmt_contratos = $pdo->prepare($sql_contratos);
-    $stmt_contratos->execute([$tipo_nomina, $fecha_inicio]);
-    $contratos = $stmt_contratos->fetchAll();
+  // PEGAR ESTE BLOQUE COMPLETO
 
-    foreach ($contratos as $contrato) {
-        $id_contrato = $contrato['id'];
-        $conceptos = [];
+$sql_contratos = "SELECT DISTINCT c.id, c.id_empleado FROM Contratos c JOIN NovedadesPeriodo np ON c.id = np.id_contrato WHERE c.tipo_nomina = ? AND np.periodo_aplicacion = ? AND c.estado_contrato = 'Vigente'";
+$stmt_contratos = $pdo->prepare($sql_contratos);
+$stmt_contratos->execute([$tipo_nomina, $fecha_inicio]);
+$contratos = $stmt_contratos->fetchAll();
 
-        $stmt_novedades = $pdo->prepare("SELECT n.id as novedad_id, n.monto_valor, c.* FROM NovedadesPeriodo n JOIN ConceptosNomina c ON n.id_concepto = c.id WHERE n.id_contrato = ? AND n.estado_novedad = 'Pendiente' AND n.periodo_aplicacion = ?");
-        $stmt_novedades->execute([$id_contrato, $fecha_inicio]);
-        
-        foreach ($stmt_novedades->fetchAll(PDO::FETCH_ASSOC) as $novedad) {
-            $codigo = $novedad['codigo_concepto'];
-            if (!isset($conceptos[$codigo])) {
-                $conceptos[$codigo] = ['desc' => $novedad['descripcion_publica'], 'monto' => 0, 'aplica_tss' => (bool)$novedad['afecta_tss'], 'aplica_isr' => (bool)$novedad['afecta_isr'], 'tipo' => $novedad['tipo_concepto']];
-            }
-            $conceptos[$codigo]['monto'] += floatval($novedad['monto_valor']);
-            $pdo->prepare("UPDATE NovedadesPeriodo SET estado_novedad = 'Aplicada' WHERE id = ?")->execute([$novedad['novedad_id']]);
+foreach ($contratos as $contrato) {
+    $id_contrato = $contrato['id'];
+    $conceptos = [];
+
+    $stmt_novedades = $pdo->prepare("SELECT n.id as novedad_id, n.monto_valor, c.* FROM NovedadesPeriodo n JOIN ConceptosNomina c ON n.id_concepto = c.id WHERE n.id_contrato = ? AND n.estado_novedad = 'Pendiente' AND n.periodo_aplicacion = ?");
+    $stmt_novedades->execute([$id_contrato, $fecha_inicio]);
+    
+    foreach ($stmt_novedades->fetchAll(PDO::FETCH_ASSOC) as $novedad) {
+        $codigo = $novedad['codigo_concepto'];
+        if (!isset($conceptos[$codigo])) {
+            $conceptos[$codigo] = ['desc' => $novedad['descripcion_publica'], 'monto' => 0, 'aplica_tss' => (bool)$novedad['afecta_tss'], 'aplica_isr' => (bool)$novedad['afecta_isr'], 'tipo' => $novedad['tipo_concepto']];
         }
-
-        $salario_cotizable_tss = 0;
-        foreach ($conceptos as $data) { if ($data['tipo'] === 'Ingreso' && $data['aplica_tss']) { $salario_cotizable_tss += $data['monto']; } }
-        
-        $tope_salarial_semanal = round($tope_salarial_tss / 4.333333, 2);
-        $salario_cotizable_final_semanal = min($salario_cotizable_tss, $tope_salarial_semanal);
-        
-        $deduccion_afp = round($salario_cotizable_final_semanal * $porcentaje_afp, 2);
-        $deduccion_sfs = round($salario_cotizable_final_semanal * $porcentaje_sfs, 2);
-        if($deduccion_afp > 0) $conceptos['DED-AFP'] = ['desc' => 'Aporte AFP (2.87%)', 'monto' => $deduccion_afp, 'tipo' => 'Deducción'];
-        if($deduccion_sfs > 0) $conceptos['DED-SFS'] = ['desc' => 'Aporte SFS (3.04%)', 'monto' => $deduccion_sfs, 'tipo' => 'Deducción'];
-
-        $base_para_isr_semanal = 0;
-        foreach ($conceptos as $data) { if (isset($data['aplica_isr']) && $data['aplica_isr'] && $data['tipo'] === 'Ingreso') { $base_para_isr_semanal += $data['monto']; } }
-        $base_para_isr_semanal -= ($deduccion_afp + $deduccion_sfs);
-        
-        $deduccion_isr = 0;
-        if ($es_ultima_semana) {
-            $sql_prev_base = "SELECT SUM(nd.monto_resultado) FROM NominaDetalle nd JOIN NominasProcesadas np ON nd.id_nomina_procesada = np.id WHERE nd.id_contrato = ? AND MONTH(np.periodo_fin) = ? AND YEAR(np.periodo_fin) = ? AND nd.codigo_concepto = 'BASE-ISR-SEMANAL'";
-            $stmt_prev_base = $pdo->prepare($sql_prev_base);
-            $stmt_prev_base->execute([$id_contrato, $mes_actual, $anio_actual]);
-            $base_isr_acumulada_previa = (float)$stmt_prev_base->fetchColumn();
-            $base_isr_mensual_total = $base_para_isr_semanal + $base_isr_acumulada_previa;
-            
-            $ingreso_anual_proyectado = $base_isr_mensual_total * 12;
-            $isr_anual = 0;
-            if (count($escala_isr) === 4) {
-                $tramo1_hasta = (float)$escala_isr[0]['hasta_monto_anual']; $tramo2_hasta = (float)$escala_isr[1]['hasta_monto_anual']; $tramo3_hasta = (float)$escala_isr[2]['hasta_monto_anual'];
-                if ($ingreso_anual_proyectado > $tramo3_hasta) {
-                    $excedente = $ingreso_anual_proyectado - $tramo3_hasta; $tasa = (float)$escala_isr[3]['tasa_porcentaje'] / 100; $monto_fijo = (float)$escala_isr[3]['monto_fijo_adicional']; $isr_anual = $monto_fijo + ($excedente * $tasa);
-                } elseif ($ingreso_anual_proyectado > $tramo2_hasta) {
-                    $excedente = $ingreso_anual_proyectado - $tramo2_hasta; $tasa = (float)$escala_isr[2]['tasa_porcentaje'] / 100; $monto_fijo = (float)$escala_isr[2]['monto_fijo_adicional']; $isr_anual = $monto_fijo + ($excedente * $tasa);
-                } elseif ($ingreso_anual_proyectado > $tramo1_hasta) {
-                    $excedente = $ingreso_anual_proyectado - $tramo1_hasta; $tasa = (float)$escala_isr[1]['tasa_porcentaje'] / 100; $monto_fijo = (float)$escala_isr[1]['monto_fijo_adicional']; $isr_anual = $monto_fijo + ($excedente * $tasa);
-                }
-            }
-            $deduccion_isr = round(max(0, $isr_anual / 12), 2);
-        }
-        
-        $conceptos['BASE-ISR-SEMANAL'] = ['desc' => 'Base ISR Semanal', 'monto' => $base_para_isr_semanal, 'tipo' => 'Base de Cálculo'];
-        if($es_ultima_semana) { $conceptos['BASE-ISR-MENSUAL'] = ['desc' => 'Base ISR Mensual Acumulada', 'monto' => $base_isr_mensual_total, 'tipo' => 'Base de Cálculo']; }
-        if($deduccion_isr > 0) { $conceptos['DED-ISR'] = ['desc' => 'Impuesto Sobre la Renta (ISR)', 'monto' => $deduccion_isr, 'tipo' => 'Deducción']; }
-        
-        $sql_detalle = "INSERT INTO NominaDetalle (id_nomina_procesada, id_contrato, codigo_concepto, descripcion_concepto, tipo_concepto, monto_resultado) VALUES (?, ?, ?, ?, ?, ?)";
-        $stmt_detalle = $pdo->prepare($sql_detalle);
-        foreach ($conceptos as $codigo => $data) {
-            if (isset($data['monto']) && abs($data['monto']) > 0.001) {
-                $stmt_detalle->execute([$id_nomina_procesada, $id_contrato, $codigo, $data['desc'], $data['tipo'], $data['monto']]);
-            }
-        }
+        $conceptos[$codigo]['monto'] += floatval($novedad['monto_valor']);
+        $pdo->prepare("UPDATE NovedadesPeriodo SET estado_novedad = 'Aplicada' WHERE id = ?")->execute([$novedad['novedad_id']]);
     }
 
-    // --- ÚNICA MODIFICACIÓN: Actualizar al nuevo estado ---
+    $salario_cotizable_tss = 0;
+    foreach ($conceptos as $data) { if ($data['tipo'] === 'Ingreso' && $data['aplica_tss']) { $salario_cotizable_tss += $data['monto']; } }
+    
+    $tope_salarial_semanal = round($tope_salarial_tss / 4.333333, 2);
+    $salario_cotizable_final_semanal = min($salario_cotizable_tss, $tope_salarial_semanal);
+    
+    $deduccion_afp = round($salario_cotizable_final_semanal * $porcentaje_afp, 2);
+    $deduccion_sfs = round($salario_cotizable_final_semanal * $porcentaje_sfs, 2);
+    if($deduccion_afp > 0) $conceptos['DED-AFP'] = ['desc' => 'Aporte AFP (2.87%)', 'monto' => $deduccion_afp, 'tipo' => 'Deducción'];
+    if($deduccion_sfs > 0) $conceptos['DED-SFS'] = ['desc' => 'Aporte SFS (3.04%)', 'monto' => $deduccion_sfs, 'tipo' => 'Deducción'];
+
+    $base_para_isr_semanal = 0;
+    foreach ($conceptos as $data) { if (isset($data['aplica_isr']) && $data['aplica_isr'] && $data['tipo'] === 'Ingreso') { $base_para_isr_semanal += $data['monto']; } }
+    $base_para_isr_semanal -= ($deduccion_afp + $deduccion_sfs);
+    
+    $deduccion_isr = 0;
+    if ($es_ultima_semana) {
+        $sql_prev_base = "SELECT SUM(nd.monto_resultado) FROM NominaDetalle nd JOIN NominasProcesadas np ON nd.id_nomina_procesada = np.id WHERE nd.id_contrato = ? AND MONTH(np.periodo_fin) = ? AND YEAR(np.periodo_fin) = ? AND nd.codigo_concepto = 'BASE-ISR-SEMANAL'";
+        $stmt_prev_base = $pdo->prepare($sql_prev_base);
+        $stmt_prev_base->execute([$id_contrato, $mes_actual, $anio_actual]);
+        $base_isr_acumulada_previa = (float)$stmt_prev_base->fetchColumn();
+        $base_isr_mensual_total = $base_para_isr_semanal + $base_isr_acumulada_previa;
+        
+        $ingreso_anual_proyectado = $base_isr_mensual_total * 12;
+        $isr_anual = 0;
+        if (count($escala_isr) === 4) {
+            $tramo1_hasta = (float)$escala_isr[0]['hasta_monto_anual']; $tramo2_hasta = (float)$escala_isr[1]['hasta_monto_anual']; $tramo3_hasta = (float)$escala_isr[2]['hasta_monto_anual'];
+            if ($ingreso_anual_proyectado > $tramo3_hasta) {
+                $excedente = $ingreso_anual_proyectado - $tramo3_hasta; $tasa = (float)$escala_isr[3]['tasa_porcentaje'] / 100; $monto_fijo = (float)$escala_isr[3]['monto_fijo_adicional']; $isr_anual = $monto_fijo + ($excedente * $tasa);
+            } elseif ($ingreso_anual_proyectado > $tramo2_hasta) {
+                $excedente = $ingreso_anual_proyectado - $tramo2_hasta; $tasa = (float)$escala_isr[2]['tasa_porcentaje'] / 100; $monto_fijo = (float)$escala_isr[2]['monto_fijo_adicional']; $isr_anual = $monto_fijo + ($excedente * $tasa);
+            } elseif ($ingreso_anual_proyectado > $tramo1_hasta) {
+                $excedente = $ingreso_anual_proyectado - $tramo1_hasta; $tasa = (float)$escala_isr[1]['tasa_porcentaje'] / 100; $monto_fijo = (float)$escala_isr[1]['monto_fijo_adicional']; $isr_anual = $monto_fijo + ($excedente * $tasa);
+            }
+        }
+        $deduccion_isr = round(max(0, $isr_anual / 12), 2);
+    }
+    
+    $conceptos['BASE-ISR-SEMANAL'] = ['desc' => 'Base ISR Semanal', 'monto' => $base_para_isr_semanal, 'tipo' => 'Base de Cálculo'];
+    if($es_ultima_semana) { $conceptos['BASE-ISR-MENSUAL'] = ['desc' => 'Base ISR Mensual Acumulada', 'monto' => $base_isr_mensual_total, 'tipo' => 'Base de Cálculo']; }
+    if($deduccion_isr > 0) { $conceptos['DED-ISR'] = ['desc' => 'Impuesto Sobre la Renta (ISR)', 'monto' => $deduccion_isr, 'tipo' => 'Deducción']; }
+    
+    $sql_detalle = "INSERT INTO NominaDetalle (id_nomina_procesada, id_contrato, codigo_concepto, descripcion_concepto, tipo_concepto, monto_resultado) VALUES (?, ?, ?, ?, ?, ?)";
+    $stmt_detalle = $pdo->prepare($sql_detalle);
+    foreach ($conceptos as $codigo => $data) {
+        if (isset($data['monto']) && abs($data['monto']) > 0.001) {
+            $stmt_detalle->execute([$id_nomina_procesada, $id_contrato, $codigo, $data['desc'], $data['tipo'], $data['monto']]);
+        }
+    }
+}
+
+// FIN DEL BLOQUE A PEGAR
+
     $stmt_cerrar = $pdo->prepare("UPDATE PeriodosDeReporte SET estado_periodo = 'Procesado y Finalizado' WHERE id = ?");
     $stmt_cerrar->execute([$periodo_id]);
 
