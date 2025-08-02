@@ -51,9 +51,13 @@ require_once '../includes/header.php';
     </button>
 </div>
 
-<?php if (isset($_GET['status'])): ?>
-    <div class="alert alert-<?php echo $_GET['status'] === 'success' ? 'success' : 'danger'; ?> alert-dismissible fade show" role="alert">
-        <?php echo htmlspecialchars($_GET['message']); ?>
+<?php // --- BLOQUE DE MENSAJES CORREGIDO ---
+if (isset($_GET['status'])):
+    $status_message = htmlspecialchars(urldecode($_GET['message'] ?? 'Operación completada con éxito.'));
+    $alert_type = $_GET['status'] === 'success' ? 'alert-success' : 'alert-danger';
+?>
+    <div class="alert <?php echo $alert_type; ?> alert-dismissible fade show" role="alert">
+        <?php echo $status_message; ?>
         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
     </div>
 <?php endif; ?>
