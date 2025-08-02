@@ -1,15 +1,34 @@
 <?php
-// payroll/procesar_horas.php - v2.3 (Lógica Nocturna Definitiva)
-// Implementa la regla de negocio "el turno completo cuenta si toca el horario nocturno".
+// payroll/procesar_horas.php - v2.4 (FINAL)
+// Añade la condición de 'transporte_aprobado' al cálculo de transporte.
 
 require_once '../auth.php';
 require_login();
 require_role(['Admin', 'Contabilidad']);
 
+// ... (función de horas nocturnas sin cambios) ...
+function calcular_horas_nocturnas($fecha, $hora_inicio, $hora_fin) {
+    $inicio_turno = new DateTime($fecha . ' ' . $hora_inicio);
+    $fin_turno = new DateTime($fecha . ' ' . $hora_fin);
+    if ($fin_turno <= $inicio_turno) { $fin_turno->modify('+1 day'); }
+    $total_segundos_nocturnos = 0;
+    $cursor = clone $inicio_turno;
+    while ($cursor < $fin_turno) {
+        $H = (int)$cursor->format('H');
+        if ($H >= 21 || $H < 7) {
+            $total_segundos_nocturnos += 1;
+        }
+        $cursor->modify('+1 second');
+    }
+    return $total_segundos_nocturnos / 3600;
+}
+
+
 if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !isset($_POST['periodo_id'], $_POST['mode'])) {
     header('Location: generar_novedades.php?status=error&message=' . urlencode('Solicitud no válida.'));
     exit();
 }
+// ... (resto del script de inicialización sin cambios) ...
 $periodo_id = $_POST['periodo_id'];
 $mode = $_POST['mode'];
 
@@ -29,7 +48,8 @@ try {
     $conceptos = $pdo->query("SELECT codigo_concepto, id FROM ConceptosNomina")->fetchAll(PDO::FETCH_KEY_PAIR);
     $zonas = $pdo->query("SELECT id, monto_transporte_completo FROM ZonasTransporte")->fetchAll(PDO::FETCH_KEY_PAIR);
     
-    $sql_horas = "SELECT c.id as contrato_id, c.tarifa_por_hora, e.nombres, e.primer_apellido, rh.fecha_trabajada, rh.hora_inicio, rh.hora_fin, rh.id_zona_trabajo FROM Contratos c JOIN Empleados e ON c.id_empleado = e.id JOIN RegistroHoras rh ON c.id = rh.id_contrato WHERE c.tipo_nomina = 'Inspectores' AND rh.estado_registro = 'Aprobado' AND rh.fecha_trabajada BETWEEN ? AND ? ORDER BY c.id, rh.fecha_trabajada, rh.hora_inicio";
+    // --- CORRECCIÓN: Añadir 'transporte_aprobado' a la consulta ---
+    $sql_horas = "SELECT c.id as contrato_id, c.tarifa_por_hora, e.nombres, e.primer_apellido, rh.fecha_trabajada, rh.hora_inicio, rh.hora_fin, rh.id_zona_trabajo, rh.transporte_aprobado FROM Contratos c JOIN Empleados e ON c.id_empleado = e.id JOIN RegistroHoras rh ON c.id = rh.id_contrato WHERE c.tipo_nomina = 'Inspectores' AND rh.estado_registro = 'Aprobado' AND rh.fecha_trabajada BETWEEN ? AND ? ORDER BY c.id, rh.fecha_trabajada, rh.hora_inicio";
     $stmt_horas = $pdo->prepare($sql_horas);
     $stmt_horas->execute([$fecha_inicio, $fecha_fin]);
     $horas_aprobadas = $stmt_horas->fetchAll(PDO::FETCH_ASSOC | PDO::FETCH_GROUP);
@@ -38,7 +58,7 @@ try {
 
     foreach ($horas_aprobadas as $contrato_id => $registros) {
         $tarifa_hora = (float)$registros[0]['tarifa_por_hora'];
-        $total_horas_feriado = 0; $total_horas_laborales = 0; $total_horas_nocturnas_bono = 0;
+        $total_horas_feriado = 0; $total_horas_laborales = 0; $total_horas_nocturnas = 0;
         $zonas_trabajadas_por_dia = [];
 
         foreach ($registros as $reg) {
@@ -47,27 +67,18 @@ try {
             if ($fin <= $inicio) $fin->modify('+1 day');
             $duracion_horas = ($fin->getTimestamp() - $inicio->getTimestamp()) / 3600;
 
-            if (in_array($reg['fecha_trabajada'], $feriados)) { 
-                $total_horas_feriado += $duracion_horas; 
-            } else { 
-                $total_horas_laborales += $duracion_horas; 
-            }
+            if (in_array($reg['fecha_trabajada'], $feriados)) { $total_horas_feriado += $duracion_horas; } 
+            else { $total_horas_laborales += $duracion_horas; }
             
-            // --- LÓGICA DE HORAS NOCTURNAS CORREGIDA (v2.3) ---
-            $inicio_H = (int)$inicio->format('H');
-            $fin_H = (int)$fin->format('H');
+            $total_horas_nocturnas += calcular_horas_nocturnas($reg['fecha_trabajada'], $reg['hora_inicio'], $reg['hora_fin']);
             
-            // Un turno es DIURNO solo si empieza y termina estrictamente en el rango de 7 a 21.
-            $es_diurno = ($inicio_H >= 7 && $fin_H <= 21 && $inicio < $fin);
-
-            if (!$es_diurno) {
-                $total_horas_nocturnas_bono += $duracion_horas;
+            // --- CORRECCIÓN: Solo agrupar la zona si el transporte fue aprobado ---
+            if ($reg['transporte_aprobado']) {
+                $zonas_trabajadas_por_dia[$reg['fecha_trabajada']][] = $reg['id_zona_trabajo'];
             }
-            // --- FIN DE LA CORRECCIÓN ---
-
-            $zonas_trabajadas_por_dia[$reg['fecha_trabajada']][] = $reg['id_zona_trabajo'];
         }
 
+        // ... (cálculos de pago de horas sin cambios) ...
         $pago_feriado = $total_horas_feriado * $tarifa_hora * 2.0;
         $horas_normales = min($total_horas_laborales, 44);
         $pago_normal = $horas_normales * $tarifa_hora;
@@ -76,7 +87,8 @@ try {
         $horas_extra_100 = max(0, $total_horas_laborales - 68);
         $pago_extra_100 = $horas_extra_100 * $tarifa_hora * 2.0;
         $pago_extra_total = $pago_extra_35 + $pago_extra_100;
-        $pago_nocturno = $total_horas_nocturnas_bono * $tarifa_hora * 0.15;
+        $pago_nocturno = $total_horas_nocturnas * $tarifa_hora * 0.15;
+        
         $pago_transporte = 0;
         foreach ($zonas_trabajadas_por_dia as $zonas_dia) {
             $zonas_unicas = array_unique($zonas_dia);
@@ -92,7 +104,8 @@ try {
             'ingreso_bruto' => round($pago_normal + $pago_extra_total + $pago_feriado + $pago_nocturno + $pago_transporte, 2)
         ];
     }
-
+    
+    // ... (lógica de preview y final sin cambios) ...
     if ($mode === 'preview') {
         $_SESSION['preview_results'] = $results;
         $_SESSION['preview_period_id'] = $periodo_id;
@@ -112,7 +125,7 @@ try {
             if ($res['pago_transporte'] > 0) $stmt_insert->execute([$contrato_id, $conceptos['ING-TRANSP'], $fecha_inicio, $res['pago_transporte']]);
         }
         $pdo->commit();
-        header('Location: generar_novedades.php?status=success&message=' . urlencode('Proceso completado. Se generaron las novedades de ingreso.'));
+        header('Location: generar_novedades.php?status=success&message=' . urlencode('Proceso completado.'));
         exit();
     }
 
