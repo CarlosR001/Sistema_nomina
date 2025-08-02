@@ -1,67 +1,93 @@
 <?php
-// payroll/review.php
+// payroll/review.php - v2.0
+// Rediseña la página para agrupar las nóminas procesadas por mes y año en un acordeón.
 
-require_once '../auth.php'; // Carga el sistema de autenticación (incluye DB y sesión)
-require_login(); // Asegura que el usuario esté logueado
-require_role('Admin'); // Solo Admin pueden revisar y finalizar la nómina.
+require_once '../auth.php';
+require_login();
+require_role(['Admin', 'Contabilidad']);
 
-// La conexión $pdo ya está disponible a través de auth.php
+// 1. Obtener todas las nóminas procesadas, ordenadas por fecha
+$stmt_nominas = $pdo->query("SELECT * FROM NominasProcesadas ORDER BY periodo_fin DESC");
+$nominas = $stmt_nominas->fetchAll();
 
-// Buscar nóminas que están listas para ser revisadas y aprobadas.
-$nominas_pendientes = $pdo->query("SELECT * FROM NominasProcesadas WHERE estado_nomina = 'Pendiente de Aprobación' ORDER BY fecha_ejecucion DESC")->fetchAll();
+// 2. Agrupar las nóminas por mes y año en un array de PHP
+$nominas_por_mes = [];
+foreach ($nominas as $nomina) {
+    // Crear una clave única para cada mes/año, ej: "2025-07"
+    $key = date('Y-m', strtotime($nomina['periodo_fin']));
+    if (!isset($nominas_por_mes[$key])) {
+        $nominas_por_mes[$key] = [];
+    }
+    $nominas_por_mes[$key][] = $nomina;
+}
 
 require_once '../includes/header.php';
 ?>
 
-<h1 class="mb-4">Revisión y Aprobación Final de Nómina</h1>
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>Revisión de Nóminas Procesadas</h1>
+</div>
 
-<?php
-if (isset($_GET['status'])) {
-    if ($_GET['status'] === 'finalized') {
-        echo '<div class="alert alert-success">Nómina finalizada y aprobada correctamente.</div>';
-    } elseif ($_GET['status'] === 'error' && isset($_GET['message'])) {
-        echo '<div class="alert alert-danger">Ocurrió un error al procesar la solicitud: ' . htmlspecialchars($_GET['message']) . '</div>';
-    }
-}
-?>
+<?php if (isset($_GET['status'])): ?>
+    <div class="alert alert-<?php echo $_GET['status'] === 'success' ? 'success' : 'danger'; ?> alert-dismissible fade show" role="alert">
+        <?php echo htmlspecialchars(urldecode($_GET['message'])); ?>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+<?php endif; ?>
 
-<div class="card">
-    <div class="card-header">
-        Nóminas Pendientes de Aprobación
-    </div>
-    <div class="card-body">
-        <table class="table table-hover">
-            <thead class="table-dark">
-                <tr>
-                    <th>ID Nómina</th>
-                    <th>Tipo</th>
-                    <th>Período</th>
-                    <th>Fecha de Cálculo</th>
-                    <th>Acciones</th>
-                </tr>
-            </thead>
-            <tbody>
-                <?php if (!empty($nominas_pendientes)): ?>
-                    <?php foreach ($nominas_pendientes as $nomina): ?>
-                    <tr>
-                        <td><?php echo htmlspecialchars($nomina['id']); ?></td>
-                        <td><?php echo htmlspecialchars($nomina['tipo_nomina_procesada']); ?></td>
-                        <td><?php echo htmlspecialchars($nomina['periodo_inicio'] . ' al ' . $nomina['periodo_fin']); ?></td>
-                        <td><?php echo htmlspecialchars($nomina['fecha_ejecucion']); ?></td>
-                        <td>
-                            <a href="show.php?id=<?php echo htmlspecialchars($nomina['id']); ?>" class="btn btn-sm btn-info">Ver Resumen</a>
-                            <a href="finalize.php?id=<?php echo htmlspecialchars($nomina['id']); ?>" class="btn btn-sm btn-success" onclick="return confirm('¿Está seguro? Esta acción finalizará la nómina y ya no podrá ser modificada.');">Aprobar y Finalizar</a>
-                        </td>
-                    </tr>
-                    <?php endforeach; ?>
-                <?php else: ?>
-                    <tr>
-                        <td colspan="5" class="text-center">No hay nóminas pendientes de aprobación.</td>
-                    </tr>
-                <?php endif; ?>
-            </tbody>
-        </table>
-    </div>
+<div class="accordion" id="accordionNominas">
+    <?php if (empty($nominas_por_mes)): ?>
+        <div class="alert alert-info">Aún no hay nóminas procesadas para revisar.</div>
+    <?php else: ?>
+        <?php foreach ($nominas_por_mes as $mes_key => $nominas_del_mes): ?>
+            <?php
+                // Formatear la clave '2025-07' a un formato legible como "Julio de 2025"
+                $fecha_mes = new DateTime($mes_key . '-01');
+                $nombre_mes = strftime('%B de %Y', $fecha_mes->getTimestamp());
+            ?>
+            <div class="accordion-item">
+                <h2 class="accordion-header" id="heading-<?php echo $mes_key; ?>">
+                    <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-<?php echo $mes_key; ?>" aria-expanded="true" aria-controls="collapse-<?php echo $mes_key; ?>">
+                        Nóminas de <?php echo ucfirst($nombre_mes); ?> (<?php echo count($nominas_del_mes); ?> períodos)
+                    </button>
+                </h2>
+                <div id="collapse-<?php echo $mes_key; ?>" class="accordion-collapse collapse show" aria-labelledby="heading-<?php echo $mes_key; ?>" data-bs-parent="#accordionNominas">
+                    <div class="accordion-body p-0">
+                        <table class="table table-striped table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Período</th>
+                                    <th>Tipo</th>
+                                    <th>Estado</th>
+                                    <th>Fecha Ejecución</th>
+                                    <th class="text-center">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($nominas_del_mes as $nomina): ?>
+                                    <tr>
+                                        <td><?php echo htmlspecialchars($nomina['id']); ?></td>
+                                        <td><?php echo htmlspecialchars($nomina['periodo_inicio']) . ' al ' . htmlspecialchars($nomina['periodo_fin']); ?></td>
+                                        <td><?php echo htmlspecialchars($nomina['tipo_nomina_procesada']); ?></td>
+                                        <td>
+                                            <span class="badge bg-<?php echo ($nomina['estado_nomina'] === 'Aprobada y Finalizada') ? 'success' : 'warning text-dark'; ?>">
+                                                <?php echo htmlspecialchars($nomina['estado_nomina']); ?>
+                                            </span>
+                                        </td>
+                                        <td><?php echo htmlspecialchars($nomina['fecha_ejecucion']); ?></td>
+                                        <td class="text-center">
+                                            <a href="show.php?id=<?php echo $nomina['id']; ?>" class="btn btn-sm btn-primary">Ver Detalles</a>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        <?php endforeach; ?>
+    <?php endif; ?>
 </div>
 
 <?php require_once '../includes/footer.php'; ?>
