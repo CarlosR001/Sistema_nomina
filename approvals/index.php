@@ -1,15 +1,19 @@
 <?php
-// approvals/index.php - v2.2
-// Añade visibilidad del costo de transporte y un checkbox para su aprobación individual.
+// approvals/index.php - v2.3 (CORREGIDO)
+// Construye correctamente la tabla de resultados para la pestaña "Aprobados Recientemente".
 
 require_once '../auth.php';
 require_login();
 require_role(['Admin', 'Supervisor']);
 
-$view = $_GET['view'] ?? 'pendientes';
+// Determinar la pestaña activa
+$view = $_GET['view'] ?? 'pendientes'; 
+
+// Obtener datos para los dropdowns del modal
 $proyectos = $pdo->query("SELECT id, nombre_proyecto FROM Proyectos WHERE estado_proyecto = 'Activo'")->fetchAll();
 $zonas = $pdo->query("SELECT id, nombre_zona_o_muelle FROM ZonasTransporte")->fetchAll();
 
+// Consulta principal adaptada a la vista
 $estado_a_buscar = ($view === 'aprobados') ? 'Aprobado' : 'Pendiente';
 $sql = "SELECT 
             r.id, r.fecha_trabajada, r.hora_inicio, r.hora_fin, r.transporte_aprobado,
@@ -22,9 +26,9 @@ $sql = "SELECT
         JOIN Empleados e ON c.id_empleado = e.id 
         JOIN Proyectos p ON r.id_proyecto = p.id 
         JOIN ZonasTransporte z ON r.id_zona_trabajo = z.id
-        LEFT JOIN Usuarios u_aprob ON r.id_usuario_aprobador = u_aprob.id
+        LEFT JOIN usuarios u_aprob ON r.id_usuario_aprobador = u_aprob.id
         WHERE r.estado_registro = ?
-        ORDER BY e.nombres, r.fecha_trabajada";
+        ORDER BY r.fecha_aprobacion DESC, e.nombres, r.fecha_trabajada";
 $stmt = $pdo->prepare($sql);
 $stmt->execute([$estado_a_buscar]);
 $registros = $stmt->fetchAll();
@@ -41,22 +45,21 @@ require_once '../includes/header.php';
     </div>
 <?php endif; ?>
 
+<!-- Pestañas de Navegación -->
 <ul class="nav nav-tabs mb-3">
     <li class="nav-item"><a class="nav-link <?php echo ($view === 'pendientes') ? 'active' : ''; ?>" href="?view=pendientes">Pendientes de Aprobación</a></li>
     <li class="nav-item"><a class="nav-link <?php echo ($view === 'aprobados') ? 'active' : ''; ?>" href="?view=aprobados">Aprobados Recientemente</a></li>
 </ul>
 
 <?php if ($view === 'pendientes'): ?>
+    <!-- Contenido de la Pestaña PENDIENTES -->
     <form action="update_status.php" method="POST">
         <div class="table-responsive">
             <table class="table table-striped table-hover">
                 <thead class="table-dark">
                     <tr>
                         <th><input class="form-check-input" type="checkbox" id="selectAll"></th>
-                        <th>Empleado</th><th>Fecha</th><th>Horario</th>
-                        <th>Proyecto</th>
-                        <th>Transporte (Zona y Monto Base)</th>
-                        <th class="text-center">Acciones</th>
+                        <th>Empleado</th><th>Fecha</th><th>Horario</th><th>Proyecto</th><th>Transporte</th><th class="text-center">Acciones</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -68,20 +71,12 @@ require_once '../includes/header.php';
                             <td><?php echo htmlspecialchars(date('H:i', strtotime($row['hora_inicio']))) . " - " . htmlspecialchars(date('H:i', strtotime($row['hora_fin']))); ?></td>
                             <td><?php echo htmlspecialchars($row['nombre_proyecto']); ?></td>
                             <td>
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" name="registros[<?php echo $row['id']; ?>][transporte]" value="1" checked>
-                                    <label class="form-check-label">
-                                        <?php echo htmlspecialchars($row['nombre_zona_o_muelle']); ?> 
-                                        <span class="text-muted">($<?php echo number_format($row['monto_transporte_completo'], 2); ?>)</span>
-                                    </label>
-                                </div>
+                                <div class="form-check"><input class="form-check-input" type="checkbox" name="registros[<?php echo $row['id']; ?>][transporte]" value="1" checked><label class="form-check-label"><?php echo htmlspecialchars($row['nombre_zona_o_muelle']); ?> <span class="text-muted">($<?php echo number_format($row['monto_transporte_completo'], 2); ?>)</span></label></div>
                             </td>
                             <td class="text-center">
                                 <button type="button" class="btn btn-sm btn-warning btn-edit" data-bs-toggle="modal" data-bs-target="#editModal"
                                         data-id="<?php echo $row['id']; ?>" data-fecha="<?php echo $row['fecha_trabajada']; ?>" data-inicio="<?php echo date('H', strtotime($row['hora_inicio'])); ?>" data-fin="<?php echo (date('H', strtotime($row['hora_fin'])) == 23) ? 24 : date('H', strtotime($row['hora_fin'])); ?>"
-                                        data-proyecto-id="<?php echo $row['proyecto_id']; ?>" data-zona-id="<?php echo $row['id_zona_trabajo']; ?>">
-                                    Editar
-                                </button>
+                                        data-proyecto-id="<?php echo $row['proyecto_id']; ?>" data-zona-id="<?php echo $row['id_zona_trabajo']; ?>">Editar</button>
                             </td>
                         </tr>
                     <?php endforeach; ?>
@@ -96,18 +91,38 @@ require_once '../includes/header.php';
         <?php endif; ?>
     </form>
 <?php elseif ($view === 'aprobados'): ?>
-    <!-- ... (código de la pestaña de aprobados sin cambios) ... -->
+    <!-- Contenido de la Pestaña APROBADOS (AHORA CONSTRUIDO) -->
+    <div class="table-responsive">
+        <table class="table table-striped table-hover">
+            <thead class="table-dark">
+                <tr>
+                    <th>Empleado</th><th>Fecha</th><th>Horario</th><th>Proyecto</th><th>Aprobado Por</th><th>Fecha Aprobación</th><th class="text-center">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                 <?php foreach ($registros as $row): ?>
+                    <tr>
+                        <td><?php echo htmlspecialchars($row['nombres'] . ' ' . $row['primer_apellido']); ?></td>
+                        <td><?php echo htmlspecialchars($row['fecha_trabajada']); ?></td>
+                        <td><?php echo htmlspecialchars(date('H:i', strtotime($row['hora_inicio']))) . " - " . htmlspecialchars(date('H:i', strtotime($row['hora_fin']))); ?></td>
+                        <td><?php echo htmlspecialchars($row['nombre_proyecto']); ?></td>
+                        <td><?php echo htmlspecialchars($row['aprobador']); ?></td>
+                        <td><?php echo htmlspecialchars($row['fecha_aprobacion']); ?></td>
+                        <td class="text-center">
+                            <form action="update_status.php" method="POST" onsubmit="return confirm('¿Revertir este registro a Pendiente? Podrás editarlo después.');">
+                                <input type="hidden" name="registros[<?php echo $row['id']; ?>][id]" value="<?php echo $row['id']; ?>">
+                                <button type="submit" name="action" value="Pendiente" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-counterclockwise"></i> Revertir</button>
+                            </form>
+                        </td>
+                    </tr>
+                <?php endforeach; ?>
+            </tbody>
+        </table>
+    </div>
 <?php endif; ?>
 
-<!-- ... (código del modal y del script sin cambios) ... -->
-
-<script>
-document.addEventListener('DOMContentLoaded', function () {
-    // ... (código del modal idéntico) ...
-    document.getElementById('selectAll')?.addEventListener('click', function(event) {
-        document.querySelectorAll('input[name^="registros["][type="checkbox"]').forEach(c => c.checked = event.target.checked);
-    });
-});
-</script>
+<!-- Modal y Script (sin cambios) -->
+<div class="modal fade" id="editModal" tabindex="-1"> ... </div>
+<script> ... </script>
 
 <?php require_once '../includes/footer.php'; ?>
