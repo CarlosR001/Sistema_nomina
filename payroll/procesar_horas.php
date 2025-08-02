@@ -1,13 +1,13 @@
 <?php
-// payroll/procesar_horas.php - v3.0 (Lógica de Borrado Corregida)
-// El script ahora solo borra los conceptos de ingreso derivados de horas,
-// preservando las novedades manuales como incentivos.
+// payroll/procesar_horas.php - v3.1 (ESTABLE Y COMPLETO)
+// Combina el motor de cálculo funcional (v2.8) con la lógica de borrado selectivo.
 
 require_once '../auth.php';
 require_login();
 require_role(['Admin', 'Contabilidad']);
 
-// ... (El resto del script, incluida la lógica de modo preview y cálculo de horas, no necesita cambios)
+// --- Funciones de ayuda (si las necesitamos en el futuro) ---
+
 if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !isset($_POST['periodo_id'], $_POST['mode'])) {
     header('Location: generar_novedades.php?status=error&message=' . urlencode('Solicitud no válida.'));
     exit();
@@ -15,72 +15,116 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !isset($_POST['periodo_id'], $_POST
 $periodo_id = $_POST['periodo_id'];
 $mode = $_POST['mode'];
 
-// --- LA CORRECCIÓN ESTÁ EN EL MODO 'FINAL' ---
-
 try {
-    if ($mode === 'final') {
-        $pdo->beginTransaction();
-    }
+    if ($mode === 'final') $pdo->beginTransaction();
 
     $stmt_periodo = $pdo->prepare("SELECT * FROM PeriodosDeReporte WHERE id = ?");
     $stmt_periodo->execute([$periodo_id]);
     $periodo = $stmt_periodo->fetch();
-    if (!$periodo) {
-        throw new Exception("Período no válido.");
-    }
+    if (!$periodo) throw new Exception("Período no válido.");
     $fecha_inicio = $periodo['fecha_inicio_periodo'];
     $fecha_fin = $periodo['fecha_fin_periodo'];
 
-    // ... (toda la lógica de cálculo y previsualización se mantiene igual)
-
-    // --- COMIENZO DEL PROCESO REAL ---
+    if ($mode === 'preview') {
+        $stmt_check_pendientes = $pdo->prepare("SELECT COUNT(id) FROM RegistroHoras WHERE estado_registro IN ('Pendiente', 'Rechazado') AND fecha_trabajada BETWEEN ? AND ?");
+        $stmt_check_pendientes->execute([$fecha_inicio, $fecha_fin]);
+        $_SESSION['pending_hours_check'] = $stmt_check_pendientes->fetchColumn();
+    }
+    
     $feriados_stmt = $pdo->prepare("SELECT fecha FROM CalendarioLaboralRD WHERE fecha BETWEEN ? AND ?");
     $feriados_stmt->execute([$fecha_inicio, $fecha_fin]);
     $feriados = $feriados_stmt->fetchAll(PDO::FETCH_COLUMN);
     $conceptos = $pdo->query("SELECT codigo_concepto, id FROM ConceptosNomina")->fetchAll(PDO::FETCH_KEY_PAIR);
     $zonas = $pdo->query("SELECT id, monto_transporte_completo FROM ZonasTransporte")->fetchAll(PDO::FETCH_KEY_PAIR);
+    
     $sql_horas = "SELECT c.id as contrato_id, c.tarifa_por_hora, e.nombres, e.primer_apellido, rh.fecha_trabajada, rh.hora_inicio, rh.hora_fin, rh.id_zona_trabajo, rh.transporte_aprobado FROM Contratos c JOIN Empleados e ON c.id_empleado = e.id JOIN RegistroHoras rh ON c.id = rh.id_contrato WHERE c.tipo_nomina = 'Inspectores' AND rh.estado_registro = 'Aprobado' AND rh.fecha_trabajada BETWEEN ? AND ? ORDER BY c.id, rh.fecha_trabajada, rh.hora_inicio";
     $stmt_horas = $pdo->prepare($sql_horas);
     $stmt_horas->execute([$fecha_inicio, $fecha_fin]);
     $horas_aprobadas = $stmt_horas->fetchAll(PDO::FETCH_ASSOC | PDO::FETCH_GROUP);
     
-    $results = []; // Array para guardar los resultados del cálculo
+    $results = [];
 
     foreach ($horas_aprobadas as $contrato_id => $registros) {
-        // ... (TODA la lógica de cálculo de horas, nocturnas, transporte, etc. va aquí como antes)
-        // ... (Este bloque no necesita cambios y se mantiene idéntico a la v2.8)
+        $tarifa_hora = (float)$registros[0]['tarifa_por_hora'];
+        $total_horas_feriado = 0; $total_horas_laborales = 0; $total_horas_nocturnas_bono = 0;
+        $zonas_trabajadas_por_dia = [];
+
+        foreach ($registros as $reg) {
+            $inicio = new DateTime($reg['hora_inicio']);
+            $fin = new DateTime($reg['hora_fin']);
+            if ($fin <= $inicio) $fin->modify('+1 day');
+            $duracion_horas = round(($fin->getTimestamp() - $inicio->getTimestamp()) / 3600, 2);
+
+            if (in_array($reg['fecha_trabajada'], $feriados)) { 
+                $total_horas_feriado += $duracion_horas; 
+            } else { 
+                $total_horas_laborales += $duracion_horas; 
+            }
+            
+            $inicio_H = (int)$inicio->format('H');
+            $fin_H = (int)$fin->format('H');
+            $fin_M = (int)$fin->format('i');
+            if ($fin_H == 0 && $fin_M == 0 && $fin > $inicio) { $fin_H = 24; }
+            $es_diurno = ($inicio_H >= 7 && $fin_H <= 21);
+            if (!$es_diurno) { $total_horas_nocturnas_bono += $duracion_horas; }
+
+            if ($reg['transporte_aprobado']) {
+                $zonas_trabajadas_por_dia[$reg['fecha_trabajada']][] = $reg['id_zona_trabajo'];
+            }
+        }
+
+        $pago_feriado = $total_horas_feriado * $tarifa_hora * 2.0;
+        $horas_normales = min($total_horas_laborales, 44);
+        $pago_normal = $horas_normales * $tarifa_hora;
+        $horas_extra_35 = max(0, min($total_horas_laborales - 44, 24));
+        $pago_extra_35 = $horas_extra_35 * $tarifa_hora * 1.35;
+        $horas_extra_100 = max(0, $total_horas_laborales - 68);
+        $pago_extra_100 = $horas_extra_100 * $tarifa_hora * 2.0;
+        $pago_extra_total = $pago_extra_35 + $pago_extra_100;
+        $pago_nocturno = $total_horas_nocturnas_bono * $tarifa_hora * 0.15;
+        $pago_transporte = 0;
+        foreach ($zonas_trabajadas_por_dia as $zonas_dia) {
+            $zonas_unicas = array_unique($zonas_dia);
+            if (empty($zonas_unicas)) continue;
+            $pago_transporte += (float)($zonas[array_shift($zonas_unicas)] ?? 0);
+            foreach ($zonas_unicas as $zona_id) { $pago_transporte += (float)($zonas[$zona_id] ?? 0) * 0.5; }
+        }
+        
+        $results[$contrato_id] = [
+            'nombre_empleado' => $registros[0]['nombres'] . ' ' . $registros[0]['primer_apellido'],
+            'pago_normal' => round($pago_normal, 2), 'pago_extra' => round($pago_extra_total, 2),
+            'pago_feriado' => round($pago_feriado, 2), 'pago_nocturno' => round($pago_nocturno, 2),
+            'pago_transporte' => round($pago_transporte, 2),
+            'ingreso_bruto' => round($pago_normal + $pago_extra_total + $pago_feriado + $pago_nocturno + $pago_transporte, 2)
+        ];
     }
-    
-    // --- LÓGICA DE PREVISUALIZACIÓN Y GUARDADO ---
+
     if ($mode === 'preview') {
-        // ... (código de preview sin cambios)
+        $_SESSION['preview_results'] = $results;
+        $_SESSION['preview_period_id'] = $periodo_id;
+        header('Location: generar_novedades.php');
+        exit();
     } 
     elseif ($mode === 'final') {
-        // --- CORRECCIÓN CLAVE: Borrado Selectivo ---
-        // Se definen explícitamente solo los códigos de concepto que este proceso genera.
         $codigos_a_borrar_placeholders = implode(',', array_fill(0, 5, '?'));
         $codigos_a_borrar_valores = ['ING-NORMAL', 'ING-EXTRA', 'ING-FERIADO', 'ING-NOCTURNO', 'ING-TRANSP'];
-        
-        $sql_delete = "DELETE n FROM NovedadesPeriodo n 
-                       JOIN ConceptosNomina c ON n.id_concepto = c.id
-                       WHERE n.periodo_aplicacion = ? 
-                       AND c.codigo_concepto IN ($codigos_a_borrar_placeholders)";
-        
+        $sql_delete = "DELETE n FROM NovedadesPeriodo n JOIN ConceptosNomina c ON n.id_concepto = c.id WHERE n.periodo_aplicacion = ? AND c.codigo_concepto IN ($codigos_a_borrar_placeholders)";
         $stmt_delete = $pdo->prepare($sql_delete);
         $stmt_delete->execute(array_merge([$fecha_inicio], $codigos_a_borrar_valores));
-        // --- FIN DE LA CORRECCIÓN ---
         
-        // La lógica de inserción se mantiene igual
         $stmt_insert = $pdo->prepare("INSERT INTO NovedadesPeriodo (id_contrato, id_concepto, periodo_aplicacion, monto_valor, estado_novedad) VALUES (?, ?, ?, ?, 'Pendiente')");
         foreach ($results as $contrato_id => $res) {
-            // ... (código de inserción sin cambios)
+            if ($res['pago_normal'] > 0) $stmt_insert->execute([$contrato_id, $conceptos['ING-NORMAL'], $fecha_inicio, $res['pago_normal']]);
+            if ($res['pago_extra'] > 0) $stmt_insert->execute([$contrato_id, $conceptos['ING-EXTRA'], $fecha_inicio, $res['pago_extra']]);
+            if ($res['pago_feriado'] > 0) $stmt_insert->execute([$contrato_id, $conceptos['ING-FERIADO'], $fecha_inicio, $res['pago_feriado']]);
+            if ($res['pago_nocturno'] > 0) $stmt_insert->execute([$contrato_id, $conceptos['ING-NOCTURNO'], $fecha_inicio, $res['pago_nocturno']]);
+            if ($res['pago_transporte'] > 0) $stmt_insert->execute([$contrato_id, $conceptos['ING-TRANSP'], $fecha_inicio, $res['pago_transporte']]);
         }
         
         $pdo->commit();
-        header('Location: generar_novedades.php?status=success&message=' . urlencode('Proceso completado. Las novedades de horas han sido generadas.'));
+        header('Location: generar_novedades.php?status=success&message=' . urlencode('Proceso completado. Las novedades de horas han sido generadas y las novedades manuales (incentivos) han sido preservadas.'));
         exit();
     }
-
 } catch (Exception $e) {
     if (isset($pdo) && $pdo->inTransaction()) { $pdo->rollBack(); }
     header('Location: generar_novedades.php?status=error&message=' . urlencode('Error crítico: ' . $e->getMessage()));
