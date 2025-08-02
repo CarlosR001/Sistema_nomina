@@ -1,23 +1,18 @@
 <?php
-// config/init.php - v1.3 (Definitivo)
-// Implementa la detección automática de BASE_URL para funcionar en cualquier entorno.
+// config/init.php - v1.4 (MANUAL Y DEFINITIVO)
+// Establece la BASE_URL de forma manual y explícita para garantizar el funcionamiento.
 
 // 1. Iniciar la sesión
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-// 2. Definir la URL base automáticamente
+// 2. Definir la URL base
+// Esta es la configuración correcta para un proyecto en una subcarpeta.
+// Si el nombre de tu carpeta de proyecto cambia, solo necesitas cambiarlo aquí.
 if (!defined('BASE_URL')) {
-    // Obtiene la ruta del script actual (ej. /Sistema_nomina/config/init.php)
-    $script_path = str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME']));
-
-    // Sube un nivel para obtener la raíz del proyecto (ej. /Sistema_nomina)
-    $base_url = rtrim(dirname($script_path), '/') . '/';
-
-    define('BASE_URL', $base_url);
+    define('BASE_URL', '/Sistema_nomina/');
 }
-
 
 // 3. Cargar la conexión a la base de datos
 require_once __DIR__ . '/database.php';
