@@ -1,6 +1,6 @@
 <?php
-// payroll/procesar_horas.php - v2.2 (Lógica Nocturna Corregida)
-// Implementa la regla de negocio correcta para el cálculo del bono nocturno.
+// payroll/procesar_horas.php - v2.3 (Lógica Nocturna Definitiva)
+// Implementa la regla de negocio "el turno completo cuenta si toca el horario nocturno".
 
 require_once '../auth.php';
 require_login();
@@ -53,17 +53,14 @@ try {
                 $total_horas_laborales += $duracion_horas; 
             }
             
-            // --- LÓGICA DE HORAS NOCTURNAS CORREGIDA ---
-            // Si el turno toca el horario nocturno, la duración completa del turno cuenta para el bono.
+            // --- LÓGICA DE HORAS NOCTURNAS CORREGIDA (v2.3) ---
             $inicio_H = (int)$inicio->format('H');
             $fin_H = (int)$fin->format('H');
-            $es_nocturno = false;
-            if ($inicio < $fin) { // Turno dentro del mismo día
-                 if ($inicio_H >= 21 || $fin_H <= 7) $es_nocturno = true;
-            } else { // Turno que cruza la medianoche
-                $es_nocturno = true;
-            }
-            if ($es_nocturno) {
+            
+            // Un turno es DIURNO solo si empieza y termina estrictamente en el rango de 7 a 21.
+            $es_diurno = ($inicio_H >= 7 && $fin_H <= 21 && $inicio < $fin);
+
+            if (!$es_diurno) {
                 $total_horas_nocturnas_bono += $duracion_horas;
             }
             // --- FIN DE LA CORRECCIÓN ---
@@ -79,7 +76,7 @@ try {
         $horas_extra_100 = max(0, $total_horas_laborales - 68);
         $pago_extra_100 = $horas_extra_100 * $tarifa_hora * 2.0;
         $pago_extra_total = $pago_extra_35 + $pago_extra_100;
-        $pago_nocturno = $total_horas_nocturnas_bono * $tarifa_hora * 0.15; // Usar el nuevo total
+        $pago_nocturno = $total_horas_nocturnas_bono * $tarifa_hora * 0.15;
         $pago_transporte = 0;
         foreach ($zonas_trabajadas_por_dia as $zonas_dia) {
             $zonas_unicas = array_unique($zonas_dia);
