@@ -53,7 +53,7 @@ try {
     $stmt_nomina->execute([$tipo_nomina, $fecha_inicio, $fecha_fin, $_SESSION['user_id']]);
     $id_nomina_procesada = $pdo->lastInsertId();
 
-  // PEGAR ESTE BLOQUE COMPLETO
+// PEGAR ESTE BLOQUE COMPLETO
 
 $sql_contratos = "SELECT DISTINCT c.id, c.id_empleado FROM Contratos c JOIN NovedadesPeriodo np ON c.id = np.id_contrato WHERE c.tipo_nomina = ? AND np.periodo_aplicacion = ? AND c.estado_contrato = 'Vigente'";
 $stmt_contratos = $pdo->prepare($sql_contratos);
@@ -128,6 +128,7 @@ foreach ($contratos as $contrato) {
 }
 
 // FIN DEL BLOQUE A PEGAR
+
 
     $stmt_cerrar = $pdo->prepare("UPDATE PeriodosDeReporte SET estado_periodo = 'Procesado y Finalizado' WHERE id = ?");
     $stmt_cerrar->execute([$periodo_id]);
