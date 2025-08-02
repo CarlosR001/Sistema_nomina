@@ -163,7 +163,7 @@ try {
     }
 
     }
-} catch (Exception $e) {
+ catch (Exception $e) {
     if (isset($pdo) && $pdo->inTransaction()) { $pdo->rollBack(); }
     header('Location: generar_novedades.php?status=error&message=' . urlencode('Error crítico: ' . $e->getMessage()));
     exit();
