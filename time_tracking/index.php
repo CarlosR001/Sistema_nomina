@@ -1,6 +1,6 @@
 <?php
-// time_tracking/index.php - v1.1
-// Modifica los campos de hora a campos numéricos para un registro más rápido.
+// time_tracking/index.php - v2.0
+// Añade soporte para múltiples períodos abiertos a través de un selector.
 
 require_once '../auth.php';
 require_login();
@@ -12,15 +12,32 @@ if (!$contrato_inspector_id) {
     exit();
 }
 
-// 1. Buscar el ÚNICO período de reporte abierto para Inspectores
-$stmt_periodo = $pdo->query("SELECT * FROM PeriodosDeReporte WHERE tipo_nomina = 'Inspectores' AND estado_periodo = 'Abierto' LIMIT 1");
-$periodo_abierto = $stmt_periodo->fetch();
+// 1. Buscar TODOS los períodos de reporte abiertos para Inspectores
+$stmt_periodos = $pdo->query("SELECT * FROM PeriodosDeReporte WHERE tipo_nomina = 'Inspectores' AND estado_periodo = 'Abierto' ORDER BY fecha_inicio_periodo DESC");
+$periodos_abiertos = $stmt_periodos->fetchAll();
+$num_periodos_abiertos = count($periodos_abiertos);
 
-if ($periodo_abierto) {
+// 2. Determinar el período seleccionado
+$periodo_seleccionado = null;
+if (isset($_GET['periodo_id'])) {
+    foreach ($periodos_abiertos as $p) {
+        if ($p['id'] == $_GET['periodo_id']) {
+            $periodo_seleccionado = $p;
+            break;
+        }
+    }
+} elseif ($num_periodos_abiertos === 1) {
+    // Si solo hay un período abierto, se selecciona automáticamente.
+    $periodo_seleccionado = $periodos_abiertos[0];
+}
+
+// 3. Si un período está seleccionado, cargar los proyectos y zonas.
+if ($periodo_seleccionado) {
     $proyectos = $pdo->query("SELECT id, nombre_proyecto FROM Proyectos WHERE estado_proyecto = 'Activo'")->fetchAll();
     $zonas = $pdo->query("SELECT id, nombre_zona_o_muelle FROM ZonasTransporte")->fetchAll();
 }
 
+// 4. Cargar los registros recientes del inspector (esto no cambia)
 $stmt_registros = $pdo->prepare("SELECT r.*, p.nombre_proyecto FROM RegistroHoras r JOIN Proyectos p ON r.id_proyecto = p.id WHERE r.id_contrato = ? ORDER BY r.fecha_trabajada DESC, r.hora_inicio DESC LIMIT 10");
 $stmt_registros->execute([$contrato_inspector_id]);
 $registros_recientes = $stmt_registros->fetchAll();
@@ -37,23 +54,49 @@ require_once '../includes/header.php';
 <div class="card mb-4">
     <div class="card-header bg-primary text-white">Registrar Nuevo Parte de Horas</div>
     <div class="card-body">
-        <?php if ($periodo_abierto): ?>
-            <div class="alert alert-info">Período de reporte abierto: Del <strong><?php echo htmlspecialchars($periodo_abierto['fecha_inicio_periodo']); ?></strong> al <strong><?php echo htmlspecialchars($periodo_abierto['fecha_fin_periodo']); ?></strong></div>
+
+        <?php if ($num_periodos_abiertos > 1 && !$periodo_seleccionado): ?>
+            <!-- Caso A: Más de un período abierto, y ninguno seleccionado todavía -->
+            <div class="alert alert-info">Hay varios períodos de reporte abiertos. Por favor, seleccione uno para continuar.</div>
+            <form method="GET" action="index.php">
+                <div class="input-group">
+                    <select name="periodo_id" class="form-select form-select-lg">
+                        <option value="">-- Seleccione un período --</option>
+                        <?php foreach ($periodos_abiertos as $p): ?>
+                            <option value="<?php echo htmlspecialchars($p['id']); ?>">
+                                Semana del <?php echo htmlspecialchars(date("d/m/Y", strtotime($p['fecha_inicio_periodo']))); ?> al <?php echo htmlspecialchars(date("d/m/Y", strtotime($p['fecha_fin_periodo']))); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                    <button class="btn btn-primary" type="submit">Cargar Período</button>
+                </div>
+            </form>
+
+        <?php elseif ($periodo_seleccionado): ?>
+            <!-- Caso B: Un período está seleccionado (ya sea porque solo había uno, o porque el usuario lo eligió) -->
+            <div class="alert alert-info">
+                Período de reporte: <strong>Del <?php echo htmlspecialchars(date("d/m/Y", strtotime($periodo_seleccionado['fecha_inicio_periodo']))); ?> al <?php echo htmlspecialchars(date("d/m/Y", strtotime($periodo_seleccionado['fecha_fin_periodo']))); ?></strong>.
+                <?php if ($num_periodos_abiertos > 1): ?>
+                    <a href="index.php" class="alert-link ms-3">(Cambiar período)</a>
+                <?php endif; ?>
+            </div>
             <hr>
             <form action="store.php" method="POST">
                 <input type="hidden" name="id_contrato" value="<?php echo htmlspecialchars($contrato_inspector_id); ?>">
+                <input type="hidden" name="id_periodo_reporte" value="<?php echo htmlspecialchars($periodo_seleccionado['id']); ?>">
+                
                 <div class="row g-3">
                     <div class="col-md-3">
                         <label for="fecha_trabajada" class="form-label">Fecha</label>
-                        <input type="date" class="form-control" name="fecha_trabajada" min="<?php echo htmlspecialchars($periodo_abierto['fecha_inicio_periodo']); ?>" max="<?php echo htmlspecialchars($periodo_abierto['fecha_fin_periodo']); ?>" required>
+                        <input type="date" class="form-control" name="fecha_trabajada" min="<?php echo htmlspecialchars($periodo_seleccionado['fecha_inicio_periodo']); ?>" max="<?php echo htmlspecialchars($periodo_seleccionado['fecha_fin_periodo']); ?>" required>
                     </div>
                     <div class="col-md-3">
                         <label for="hora_inicio" class="form-label">Hora Inicio (Formato 24h)</label>
-                        <input type="number" class="form-control" name="hora_inicio" min="0" max="24" placeholder="Ej: 19" required>
+                        <input type="number" class="form-control" name="hora_inicio" min="0" max="24" step="0.01" placeholder="Ej: 7 o 19.5" required>
                     </div>
                     <div class="col-md-3">
                         <label for="hora_fin" class="form-label">Hora Fin (Formato 24h)</label>
-                        <input type="number" class="form-control" name="hora_fin" min="0" max="24" placeholder="Ej: 24" required>
+                        <input type="number" class="form-control" name="hora_fin" min="0" max="24" step="0.01" placeholder="Ej: 15.5 o 24" required>
                     </div>
                     <div class="col-md-3">
                         <label for="id_proyecto" class="form-label">Proyecto</label>
@@ -75,7 +118,9 @@ require_once '../includes/header.php';
                     </div>
                 </div>
             </form>
+
         <?php else: ?>
+            <!-- Caso C: No hay ningún período abierto -->
             <div class="alert alert-warning" role="alert">Actualmente no hay ningún período de reporte abierto. Contacte a su supervisor.</div>
         <?php endif; ?>
     </div>
