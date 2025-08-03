@@ -6,6 +6,43 @@ require_once '../auth.php';
 require_login();
 require_role(['Admin', 'Contabilidad']);
 
+
+/**
+ * Calcula la cantidad de horas de un turno que caen dentro del período nocturno legal (21:00 a 07:00).
+ *
+ * @param DateTime $inicio_turno La hora y fecha de inicio del turno.
+ * @param DateTime $fin_turno La hora y fecha de fin del turno.
+ * @return float El número de horas nocturnas trabajadas.
+ */
+function calcular_horas_nocturnas_reales(DateTime $inicio_turno, DateTime $fin_turno) {
+    $horas_nocturnas = 0;
+    
+    // Clonar para no modificar los objetos originales
+    $cursor = clone $inicio_turno;
+    $fin = clone $fin_turno;
+    
+    // Definir los límites de la jornada nocturna (formato 24h)
+    $hora_inicio_nocturna = 21;
+    $hora_fin_nocturna = 7;
+
+    // Iterar minuto a minuto a lo largo de la duración del turno
+    while ($cursor < $fin) {
+        $hora_actual = (int)$cursor->format('G'); // Obtener la hora del día (0-23)
+        
+        // Un minuto es nocturno si su hora es >= 21 o < 7.
+        if ($hora_actual >= $hora_inicio_nocturna || $hora_actual < $hora_fin_nocturna) {
+            // Sumamos el equivalente a un minuto en horas (1/60)
+            $horas_nocturnas += 1 / 60.0;
+        }
+        
+        // Avanzar el cursor un minuto
+        $cursor->modify('+1 minute');
+    }
+    
+    return round($horas_nocturnas, 2);
+}
+
+
 // --- Funciones de ayuda (si las necesitamos en el futuro) ---
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !isset($_POST['periodo_id'], $_POST['mode'])) {
@@ -61,12 +98,11 @@ try {
                 $total_horas_laborales += $duracion_horas; 
             }
             
-            $inicio_H = (int)$inicio->format('H');
-            $fin_H = (int)$fin->format('H');
-            $fin_M = (int)$fin->format('i');
-            if ($fin_H == 0 && $fin_M == 0 && $fin > $inicio) { $fin_H = 24; }
-            $es_diurno = ($inicio_H >= 7 && $fin_H <= 21);
-            if (!$es_diurno) { $total_horas_nocturnas_bono += $duracion_horas; }
+                        // --- CÁLCULO NOCTURNO PRECISO ---
+            // Se reemplaza la lógica anterior con una llamada a la nueva función.
+            $total_horas_nocturnas_bono += calcular_horas_nocturnas_reales($inicio, $fin);
+            // --- FIN CÁLCULO NOCTURNO ---
+
 
             if ($reg['transporte_aprobado']) {
                 $zonas_trabajadas_por_dia[$reg['fecha_trabajada']][] = $reg['id_zona_trabajo'];
