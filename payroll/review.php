@@ -78,6 +78,10 @@ require_once '../includes/header.php';
                                         <td><?php echo htmlspecialchars($nomina['fecha_ejecucion']); ?></td>
                                         <td class="text-center">
                                             <a href="show.php?id=<?php echo $nomina['id']; ?>" class="btn btn-sm btn-primary">Ver Detalles</a>
+                                            <form action="delete_payroll.php" method="POST" class="d-inline" onsubmit="return confirm('¿Está SEGURO de que desea eliminar esta nómina por completo? Esta acción es irreversible.');">
+                                                <input type="hidden" name="nomina_id" value="<?php echo $nomina['id']; ?>">
+                                                <button type="submit" class="btn btn-sm btn-danger ms-1">Eliminar</button>
+                                            </form>
                                         </td>
                                     </tr>
                                 <?php endforeach; ?>
