@@ -46,7 +46,7 @@ $user_rol = $_SESSION['user_rol'] ?? null;
                                     <?php if (in_array($user_rol, ['Admin', 'Supervisor'])): // Variable corregida ?>
                                     <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>approvals/">Aprobaciones</a></li>
                                     <?php endif; ?>
-                                    <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>payroll/">Procesar Nómina Semanal</a></li>
+                                    <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>payroll/">Procesar Nómina</a></li>
                                     <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>pagos_especiales/">Procesar Pago Especial</a></li>
                                     <li><hr class="dropdown-divider"></li>
                                     <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>payroll/review.php">Revisión de Nóminas</a></li>
