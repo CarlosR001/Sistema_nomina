@@ -1,9 +1,16 @@
 <?php
 // includes/header.php
-// v2.0 - Implementa lógica de roles para mostrar/ocultar menús.
+// v2.1 - Unifica el uso de la variable de rol para corregir errores.
 
+// Se unifican los includes y la inicialización de sesión aquí para consistencia.
+if (session_status() == PHP_SESSION_NONE) {
+    session_start();
+}
+require_once __DIR__ . '/../config/init.php';
 require_once __DIR__ . '/../auth.php';
-$user_rol = $_SESSION['user_rol'] ?? null; // Obtener el rol del usuario
+
+// Esta es la única variable que usaremos para el rol en todo el archivo.
+$user_rol = $_SESSION['user_rol'] ?? null;
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -13,7 +20,6 @@ $user_rol = $_SESSION['user_rol'] ?? null; // Obtener el rol del usuario
     <title>Sistema de Nómina J&C</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
-    <link rel="stylesheet" href="<?php echo BASE_URL; ?>css/style.css">
 </head>
 <body>
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
@@ -35,20 +41,17 @@ $user_rol = $_SESSION['user_rol'] ?? null; // Obtener el rol del usuario
                                 <a class="nav-link" href="<?php echo BASE_URL; ?>index.php">Dashboard</a>
                             </li>
                             <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownNomina" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                             Nómina
-                             </a>
-                            <ul class="dropdown-menu" aria-labelledby="navbarDropdownNomina">
-                                <?php if (in_array($current_user_rol, ['Admin', 'Supervisor'])): ?>
-                                <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>approvals/">Aprobaciones</a></li>
-                                <?php endif; ?>
-                                <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>payroll/">Procesar Nómina Semanal</a></li>
-                                <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>pagos_especiales/">Procesar Pago Especial</a></li>
-                                <li><hr class="dropdown-divider"></li>
-                                <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>payroll/review.php">Revisión de Nóminas</a></li>
-                            </ul>
+                                <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownNomina" role="button" data-bs-toggle="dropdown" aria-expanded="false">Nómina</a>
+                                <ul class="dropdown-menu" aria-labelledby="navbarDropdownNomina">
+                                    <?php if (in_array($user_rol, ['Admin', 'Supervisor'])): // Variable corregida ?>
+                                    <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>approvals/">Aprobaciones</a></li>
+                                    <?php endif; ?>
+                                    <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>payroll/">Procesar Nómina Semanal</a></li>
+                                    <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>pagos_especiales/">Procesar Pago Especial</a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>payroll/review.php">Revisión de Nóminas</a></li>
+                                </ul>
                             </li>
-
                             <li class="nav-item dropdown">
                                 <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownNovedades" role="button" data-bs-toggle="dropdown" aria-expanded="false">Entrada de Datos</a>
                                 <ul class="dropdown-menu" aria-labelledby="navbarDropdownNovedades">
@@ -71,10 +74,12 @@ $user_rol = $_SESSION['user_rol'] ?? null; // Obtener el rol del usuario
                                     <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>zones/index.php">Zonas de Transporte</a></li>
                                 </ul>
                             </li>
-                             <li class="nav-item dropdown">
+                            <li class="nav-item dropdown">
                                 <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownConfig" role="button" data-bs-toggle="dropdown" aria-expanded="false">Sistema</a>
                                 <ul class="dropdown-menu" aria-labelledby="navbarDropdownConfig">
+                                    <?php if ($user_rol === 'Admin'): // Variable corregida ?>
                                     <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>users/index.php">Gestión de Usuarios</a></li>
+                                    <?php endif; ?>
                                     <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>conceptos/index.php">Conceptos de Nómina</a></li>
                                     <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>calendario/index.php">Calendario Laboral</a></li>
                                     <li><hr class="dropdown-divider"></li>
