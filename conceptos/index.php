@@ -36,29 +36,37 @@ require_once '../includes/header.php';
                 </div>
             </div>
             <div class="row">
-                <div class="col-md-4 mb-3">
-                    <label for="tipo_concepto" class="form-label">Tipo</label>
-                    <select class="form-select" id="tipo_concepto" name="tipo_concepto">
-                        <option value="Ingreso">Ingreso</option>
-                        <option value="Deducción">Deducción</option>
-                        <option value="Base de Cálculo">Base de Cálculo</option>
-                    </select>
-                </div>
-                <div class="col-md-4 mb-3">
-                    <label for="afecta_tss" class="form-label">Afecta TSS</label>
-                    <select class="form-select" id="afecta_tss" name="afecta_tss">
-                        <option value="1">Sí</option>
-                        <option value="0" selected>No</option>
-                    </select>
-                </div>
-                <div class="col-md-4 mb-3">
-                    <label for="afecta_isr" class="form-label">Afecta ISR</label>
-                    <select class="form-select" id="afecta_isr" name="afecta_isr">
-                        <option value="1">Sí</option>
-                        <option value="0" selected>No</option>
-                    </select>
-                </div>
+            <div class="col-md-3 mb-3">
+                <label for="tipo_concepto" class="form-label">Tipo</label>
+                <select class="form-select" id="tipo_concepto" name="tipo_concepto">
+                    <option value="Ingreso">Ingreso</option>
+                    <option value="Deducción">Deducción</option>
+                    <option value="Base de Cálculo">Base de Cálculo</option>
+                </select>
             </div>
+            <div class="col-md-3 mb-3">
+                <label for="origen_calculo" class="form-label">Origen del Cálculo</label>
+                <select class="form-select" id="origen_calculo" name="origen_calculo">
+                    <option value="Novedad" selected>Novedad (Manual)</option>
+                    <option value="Formula">Fórmula (Automático)</option>
+                </select>
+            </div>
+            <div class="col-md-3 mb-3">
+                <label for="afecta_tss" class="form-label">Afecta TSS</label>
+                <select class="form-select" id="afecta_tss" name="afecta_tss">
+                    <option value="1">Sí</option>
+                    <option value="0" selected>No</option>
+                </select>
+            </div>
+            <div class="col-md-3 mb-3">
+                <label for="afecta_isr" class="form-label">Afecta ISR</label>
+                <select class="form-select" id="afecta_isr" name="afecta_isr">
+                    <option value="1">Sí</option>
+                    <option value="0" selected>No</option>
+                </select>
+            </div>
+        </div>
+
             <button type="submit" class="btn btn-primary">Guardar Nuevo Concepto</button>
         </form>
     </div>
