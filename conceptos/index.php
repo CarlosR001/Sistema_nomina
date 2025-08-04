@@ -1,12 +1,11 @@
 <?php
-// conceptos/index.php - v2.0
-// Añade acciones de Editar y Eliminar a la tabla de conceptos.
+// conceptos/index.php - v3.0 (Versión Sincronizada)
+// Asegura que el formulario y la tabla estén alineados con la BD.
 
 require_once '../auth.php';
 require_login();
 require_role('Admin');
 
-// Obtener todos los conceptos para la tabla
 $conceptos = $pdo->query("SELECT * FROM ConceptosNomina ORDER BY tipo_concepto, codigo_concepto")->fetchAll(PDO::FETCH_ASSOC);
 
 require_once '../includes/header.php';
@@ -36,37 +35,38 @@ require_once '../includes/header.php';
                 </div>
             </div>
             <div class="row">
-            <div class="col-md-3 mb-3">
-                <label for="tipo_concepto" class="form-label">Tipo</label>
-                <select class="form-select" id="tipo_concepto" name="tipo_concepto">
-                    <option value="Ingreso">Ingreso</option>
-                    <option value="Deducción">Deducción</option>
-                    <option value="Base de Cálculo">Base de Cálculo</option>
-                </select>
+                <div class="col-md-3 mb-3">
+                    <label for="tipo_concepto" class="form-label">Tipo</label>
+                    <select class="form-select" id="tipo_concepto" name="tipo_concepto">
+                        <option value="Ingreso">Ingreso</option>
+                        <option value="Deducción">Deducción</option>
+                        <option value="Base de Cálculo">Base de Cálculo</option>
+                    </select>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <label for="origen_calculo" class="form-label">Origen del Cálculo</label>
+                    <select class="form-select" id="origen_calculo" name="origen_calculo">
+                        <option value="Novedad" selected>Novedad (Manual)</option>
+                        <option value="Formula">Fórmula (Automático)</option>
+                        <option value="Fijo">Fijo</option>
+                        <option value="Porcentaje">Porcentaje</option>
+                    </select>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <label for="afecta_tss" class="form-label">Afecta TSS</label>
+                    <select class="form-select" id="afecta_tss" name="afecta_tss">
+                        <option value="1">Sí</option>
+                        <option value="0" selected>No</option>
+                    </select>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <label for="afecta_isr" class="form-label">Afecta ISR</label>
+                    <select class="form-select" id="afecta_isr" name="afecta_isr">
+                        <option value="1">Sí</option>
+                        <option value="0" selected>No</option>
+                    </select>
+                </div>
             </div>
-            <div class="col-md-3 mb-3">
-                <label for="origen_calculo" class="form-label">Origen del Cálculo</label>
-                <select class="form-select" id="origen_calculo" name="origen_calculo">
-                    <option value="Novedad" selected>Novedad (Manual)</option>
-                    <option value="Formula">Fórmula (Automático)</option>
-                </select>
-            </div>
-            <div class="col-md-3 mb-3">
-                <label for="afecta_tss" class="form-label">Afecta TSS</label>
-                <select class="form-select" id="afecta_tss" name="afecta_tss">
-                    <option value="1">Sí</option>
-                    <option value="0" selected>No</option>
-                </select>
-            </div>
-            <div class="col-md-3 mb-3">
-                <label for="afecta_isr" class="form-label">Afecta ISR</label>
-                <select class="form-select" id="afecta_isr" name="afecta_isr">
-                    <option value="1">Sí</option>
-                    <option value="0" selected>No</option>
-                </select>
-            </div>
-        </div>
-
             <button type="submit" class="btn btn-primary">Guardar Nuevo Concepto</button>
         </form>
     </div>
@@ -80,6 +80,7 @@ require_once '../includes/header.php';
                 <th>Código</th>
                 <th>Descripción</th>
                 <th>Tipo</th>
+                <th>Origen</th>
                 <th>Afecta TSS</th>
                 <th>Afecta ISR</th>
                 <th>Acciones</th>
@@ -91,11 +92,12 @@ require_once '../includes/header.php';
                 <td><strong><?php echo htmlspecialchars($concepto['codigo_concepto']); ?></strong></td>
                 <td><?php echo htmlspecialchars($concepto['descripcion_publica']); ?></td>
                 <td><?php echo htmlspecialchars($concepto['tipo_concepto']); ?></td>
+                <td><?php echo htmlspecialchars($concepto['origen_calculo']); ?></td>
                 <td><span class="badge bg-<?php echo $concepto['afecta_tss'] ? 'success' : 'secondary'; ?>"><?php echo $concepto['afecta_tss'] ? 'Sí' : 'No'; ?></span></td>
                 <td><span class="badge bg-<?php echo $concepto['afecta_isr'] ? 'success' : 'secondary'; ?>"><?php echo $concepto['afecta_isr'] ? 'Sí' : 'No'; ?></span></td>
                 <td>
                     <a href="edit.php?id=<?php echo $concepto['id']; ?>" class="btn btn-sm btn-outline-primary">Editar</a>
-                    <form action="delete.php" method="POST" class="d-inline" onsubmit="return confirm('¿Está seguro de que desea eliminar este concepto? Esta acción no se puede deshacer.');">
+                    <form action="delete.php" method="POST" class="d-inline" onsubmit="return confirm('¿Está seguro de que desea eliminar este concepto?');">
                         <input type="hidden" name="id" value="<?php echo $concepto['id']; ?>">
                         <button type="submit" class="btn btn-sm btn-outline-danger">Eliminar</button>
                     </form>
