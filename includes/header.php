@@ -39,7 +39,7 @@ $user_rol = $_SESSION['user_rol'] ?? null; // Obtener el rol del usuario
                              Nómina
                              </a>
                             <ul class="dropdown-menu" aria-labelledby="navbarDropdownNomina">
-                                <?php if (in_array($current_user_role, ['Admin', 'Supervisor'])): ?>
+                                <?php if (in_array($current_user_rol, ['Admin', 'Supervisor'])): ?>
                                 <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>approvals/">Aprobaciones</a></li>
                                 <?php endif; ?>
                                 <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>payroll/">Procesar Nómina Semanal</a></li>
