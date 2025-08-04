@@ -122,10 +122,22 @@ try {
                     $excedente = $ingreso_anual_proyectado - $tramo1_hasta; $tasa = (float)$escala_isr[1]['tasa_porcentaje'] / 100; $monto_fijo = (float)$escala_isr[1]['monto_fijo_adicional']; $isr_anual = $monto_fijo + ($excedente * $tasa);
                 }
             }
-            $deduccion_isr = round(max(0, $isr_anual / 12), 2);
-        }
-        
-        $conceptos['BASE-ISR-SEMANAL'] = ['desc' => 'Base ISR Semanal', 'monto' => $base_para_isr_semanal, 'tipo' => 'Base de Cálculo'];
+             $deduccion_isr_mensual_total = round(max(0, $isr_anual / 12), 2);
+
+    // --- INICIO DE LA MEJORA: AJUSTE POR ISR PRE-PAGADO ---
+    // Buscar si ya se retuvo ISR en pagos especiales este mes.
+    $sql_prev_isr = "SELECT SUM(nd.monto_resultado) FROM NominaDetalle nd JOIN NominasProcesadas np ON nd.id_nomina_procesada = np.id WHERE nd.id_contrato = ? AND MONTH(np.periodo_fin) = ? AND YEAR(np.periodo_fin) = ? AND nd.codigo_concepto = 'DED-ISR' AND np.tipo_calculo_nomina = 'Especial'";
+    $stmt_prev_isr = $pdo->prepare($sql_prev_isr);
+    $stmt_prev_isr->execute([$id_contrato, $mes_actual, $anio_actual]);
+    $isr_ya_retenido = (float)$stmt_prev_isr->fetchColumn();
+
+    // La deducción final es el total del mes menos lo que ya se pagó.
+    $deduccion_isr = max(0, $deduccion_isr_mensual_total - $isr_ya_retenido);
+    // --- FIN DE LA MEJORA ---
+}
+
+$conceptos['BASE-ISR-SEMANAL'] = ['desc' => 'Base ISR Semanal', 'monto' => $base_para_isr_semanal, 'tipo' => 'Base de Cálculo'];
+
         if($es_ultima_semana) { $conceptos['BASE-ISR-MENSUAL'] = ['desc' => 'Base ISR Mensual Acumulada', 'monto' => $base_isr_mensual_total, 'tipo' => 'Base de Cálculo']; }
         if($deduccion_isr > 0) { $conceptos['DED-ISR'] = ['desc' => 'Impuesto Sobre la Renta (ISR)', 'monto' => $deduccion_isr, 'tipo' => 'Deducción']; }
         
