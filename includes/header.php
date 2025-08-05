@@ -52,16 +52,19 @@ $user_rol = $_SESSION['user_rol'] ?? null;
                                     <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>payroll/review.php">Revisión de Nóminas</a></li>
                                 </ul>
                             </li>
-                            <li class="nav-item dropdown">
-                                <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownNovedades" role="button" data-bs-toggle="dropdown" aria-expanded="false">Entrada de Datos</a>
-                                <ul class="dropdown-menu" aria-labelledby="navbarDropdownNovedades">
-                                    <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>reporting_periods/index.php">Períodos de Reporte</a></li>
-                                    <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>payroll/generar_novedades.php">Generar Novedades desde Horas</a></li>
-                                    <li><hr class="dropdown-divider"></li>
-                                    <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>novedades/index.php">Novedades Manuales</a></li>
-                                    <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>novedades/ajuste_isr.php">Ajuste Manual de ISR</a></li>
-                                </ul>
-                            </li>
+                         <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownNovedades" role="button" data-bs-toggle="dropdown" aria-expanded="false">Entrada de Datos</a>
+                            <ul class="dropdown-menu" aria-labelledby="navbarDropdownNovedades">
+                                <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>reporting_periods/index.php">Períodos de Reporte (Inspectores)</a></li>
+                                <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>payroll/generar_novedades.php">Generar Novedades de Horas</a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>novedades/index.php">Novedades Manuales (Comisiones, etc.)</a></li>
+                                <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>novedades/horas_extras_admin.php">Horas Extras (Personal Fijo)</a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>novedades/ajuste_isr.php">Ajuste Manual de ISR</a></li>
+                            </ul>
+                        </li>
+
                             <li class="nav-item dropdown">
                                 <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownCatalogos" role="button" data-bs-toggle="dropdown" aria-expanded="false">Catálogos</a>
                                 <ul class="dropdown-menu" aria-labelledby="navbarDropdownCatalogos">
