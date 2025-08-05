@@ -1,12 +1,14 @@
 <?php
 // nomina_administrativa/index.php
+require_once '../includes/header.php';
 
-require_once '../auth.php';
+// Las comprobaciones de seguridad ahora van DESPUÉS de cargar el header.
 require_login();
 require_role(['Admin', 'Contabilidad']);
 
 // Establecer la configuración regional a español para nombres de meses
 setlocale(LC_TIME, 'es_ES.UTF-8', 'Spanish_Spain.1252');
+
 
 require_once '../includes/header.php';
 ?>
