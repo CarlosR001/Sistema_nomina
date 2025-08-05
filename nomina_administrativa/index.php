@@ -47,8 +47,8 @@ require_once '../includes/header.php';
                 <div class="col-md-4">
                     <label for="quincena" class="form-label">Quincena</label>
                     <select class="form-select" id="quincena" name="quincena" required>
-                        <option value="1">Primera Quincena (1-15)</option>
-                        <option value="2">Segunda Quincena (16 - Fin de Mes)</option>
+                        <option value="1">Primera Quincena</option>
+                        <option value="2">Segunda Quincena</option>
                     </select>
                 </div>
             </div>
