@@ -41,17 +41,19 @@ $user_rol = $_SESSION['user_rol'] ?? null;
                                 <a class="nav-link" href="<?php echo BASE_URL; ?>index.php">Dashboard</a>
                             </li>
                             <li class="nav-item dropdown">
-                                <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownNomina" role="button" data-bs-toggle="dropdown" aria-expanded="false">Nómina</a>
-                                <ul class="dropdown-menu" aria-labelledby="navbarDropdownNomina">
-                                    <?php if (in_array($user_rol, ['Admin', 'Supervisor'])): // Variable corregida ?>
-                                    <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>approvals/">Aprobaciones</a></li>
-                                    <?php endif; ?>
-                                    <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>payroll/">Procesar Nómina</a></li>
-                                    <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>pagos_especiales/">Procesar Pago Especial</a></li>
-                                    <li><hr class="dropdown-divider"></li>
-                                    <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>payroll/review.php">Revisión de Nóminas</a></li>
-                                </ul>
-                            </li>
+                            <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownNomina" role="button" data-bs-toggle="dropdown" aria-expanded="false">Nómina</a>
+                            <ul class="dropdown-menu" aria-labelledby="navbarDropdownNomina">
+                                <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>payroll/">Nómina Inspectores (Semanal)</a></li>
+                                <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>nomina_administrativa/">Nómina Administrativa (Quincenal)</a></li>
+                                <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>pagos_especiales/">Procesar Pago Especial</a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <?php if (in_array($user_rol, ['Admin', 'Supervisor'])): ?>
+                                <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>approvals/">Aprobaciones (Inspectores)</a></li>
+                                <?php endif; ?>
+                                <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>payroll/review.php">Revisión de Nóminas</a></li>
+                            </ul>
+                        </li>
+
                          <li class="nav-item dropdown">
                             <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownNovedades" role="button" data-bs-toggle="dropdown" aria-expanded="false">Entrada de Datos</a>
                             <ul class="dropdown-menu" aria-labelledby="navbarDropdownNovedades">
