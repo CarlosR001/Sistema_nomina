@@ -44,33 +44,40 @@ require_once '../includes/header.php';
         </tr>
     </thead>
     <tbody>
-        <?php foreach ($periodos as $periodo): ?>
+    <?php foreach ($periodos as $periodo): ?>
         <tr>
-            <td><?php echo htmlspecialchars($periodo['fecha_inicio_periodo']) . " al " . htmlspecialchars($periodo['fecha_fin_periodo']); ?></td>
+            <td><?php echo htmlspecialchars(date("d/m/Y", strtotime($periodo['fecha_inicio_periodo']))); ?></td>
+            <td><?php echo htmlspecialchars(date("d/m/Y", strtotime($periodo['fecha_fin_periodo']))); ?></td>
             <td><?php echo htmlspecialchars($periodo['tipo_nomina']); ?></td>
             <td>
-                <span class="badge bg-<?php echo $periodo['estado_periodo'] == 'Abierto' ? 'success' : 'secondary'; ?>">
-                    <?php echo htmlspecialchars($periodo['estado_periodo']); ?>
-                </span>
+                <?php
+                    $estado = htmlspecialchars($periodo['estado_periodo']);
+                    $clase_badge = 'bg-secondary';
+                    if ($estado == 'Abierto') $clase_badge = 'bg-success';
+                    if ($estado == 'Cerrado para Registro') $clase_badge = 'bg-warning text-dark';
+                    if ($estado == 'Procesado y Finalizado') $clase_badge = 'bg-primary';
+                ?>
+                <span class="badge <?php echo $clase_badge; ?>"><?php echo $estado; ?></span>
             </td>
-            <td class="text-center">
-                <?php if ($periodo['estado_periodo'] == 'Abierto'): ?>
-                    <form action="update_status.php" method="POST" class="d-inline" onsubmit="return confirm('¿Estás seguro de que quieres cerrar este período?');">
+            <td>
+                <?php if ($periodo['estado_periodo'] === 'Abierto'): ?>
+                    <form action="update_status.php" method="POST" class="d-inline">
                         <input type="hidden" name="periodo_id" value="<?php echo $periodo['id']; ?>">
-                        <input type="hidden" name="new_status" value="Cerrado">
-                        <button type="submit" class="btn btn-sm btn-danger">Cerrar Período</button>
+                        <input type="hidden" name="new_status" value="Cerrado para Registro">
+                        <button type="submit" class="btn btn-sm btn-warning">Cerrar para Inspectores</button>
                     </form>
-                <?php else: ?>
-                     <form action="update_status.php" method="POST" class="d-inline" onsubmit="return confirm('¿Estás seguro de que quieres reabrir este período?');">
+                <?php elseif ($periodo['estado_periodo'] === 'Cerrado para Registro'): ?>
+                    <form action="update_status.php" method="POST" class="d-inline">
                         <input type="hidden" name="periodo_id" value="<?php echo $periodo['id']; ?>">
                         <input type="hidden" name="new_status" value="Abierto">
-                        <button type="submit" class="btn btn-sm btn-info">Reabrir Período</button>
+                        <button type="submit" class="btn btn-sm btn-success">Forzar Reapertura</button>
                     </form>
                 <?php endif; ?>
             </td>
         </tr>
-        <?php endforeach; ?>
-    </tbody>
+    <?php endforeach; ?>
+</tbody>
+
 </table>
 
 <?php require_once '../includes/footer.php'; ?>
