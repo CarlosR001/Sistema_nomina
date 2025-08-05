@@ -1,16 +1,15 @@
 <?php
-// nomina_administrativa/index.php
+// nomina_administrativa/index.php - v2.0 Corregido
+
+// Paso 1: Cargar el header. Esto inicializa todo el sistema (sesión, config, auth).
 require_once '../includes/header.php';
 
-// Las comprobaciones de seguridad ahora van DESPUÉS de cargar el header.
+// Paso 2: Ejecutar las comprobaciones de seguridad.
 require_login();
 require_role(['Admin', 'Contabilidad']);
 
-// Establecer la configuración regional a español para nombres de meses
+// Paso 3: Configurar la página (opcional).
 setlocale(LC_TIME, 'es_ES.UTF-8', 'Spanish_Spain.1252');
-
-
-require_once '../includes/header.php';
 ?>
 
 <h1 class="mb-4">Nómina Administrativa y Directiva</h1>
@@ -49,8 +48,8 @@ require_once '../includes/header.php';
                 <div class="col-md-4">
                     <label for="quincena" class="form-label">Quincena</label>
                     <select class="form-select" id="quincena" name="quincena" required>
-                        <option value="1">Primera Quincena</option>
-                        <option value="2">Segunda Quincena</option>
+                        <option value="1">Primera Quincena (1-15)</option>
+                        <option value="2">Segunda Quincena (16 - Fin de Mes)</option>
                     </select>
                 </div>
             </div>
@@ -59,4 +58,7 @@ require_once '../includes/header.php';
     </div>
 </div>
 
-<?php require_once '../includes/header.php'; ?>
+<?php
+// Paso 4: Cargar el footer. Esto cierra el body/html y carga el JS de Bootstrap.
+require_once '../includes/footer.php';
+?>
