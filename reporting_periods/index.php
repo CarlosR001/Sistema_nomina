@@ -72,11 +72,14 @@ require_once '../includes/header.php';
                         <input type="hidden" name="new_status" value="Abierto">
                         <button type="submit" class="btn btn-sm btn-success">Forzar Reapertura</button>
                     </form>
+                <?php else: // AÑADIDO: Para 'Procesado y Finalizado' y cualquier otro estado ?>
+                    <span class="text-muted">No hay acciones</span>
                 <?php endif; ?>
             </td>
         </tr>
     <?php endforeach; ?>
 </tbody>
+
 
 </table>
 
