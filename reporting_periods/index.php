@@ -47,7 +47,7 @@ require_once '../includes/header.php';
 
     <tbody>
     <?php foreach ($periodos as $periodo): ?>
-        <tr>
+        <tr class="text-center">
             <td><?php echo htmlspecialchars(date("d/m/Y", strtotime($periodo['fecha_inicio_periodo']))); ?></td>
             <td><?php echo htmlspecialchars(date("d/m/Y", strtotime($periodo['fecha_fin_periodo']))); ?></td>
             <td><?php echo htmlspecialchars($periodo['tipo_nomina']); ?></td>
