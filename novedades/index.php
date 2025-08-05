@@ -5,7 +5,6 @@
 require_once '../auth.php';
 require_login();
 require_role(['Admin', 'Contabilidad']);
-require_once '../includes/header.php';
 
 // --- Lógica de Filtros ---
 $filtro_contrato_id = $_GET['contrato_id'] ?? '';
