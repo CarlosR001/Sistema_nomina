@@ -36,13 +36,15 @@ require_once '../includes/header.php';
 
 <table class="table table-striped table-hover">
     <thead class="table-dark">
-        <tr>
-            <th>Período</th>
-            <th>Nómina</th>
-            <th>Estado</th>
-            <th class="text-center">Acciones</th>
-        </tr>
-    </thead>
+    <tr>
+        <th class="text-center">Fecha de Inicio</th>
+        <th class="text-center">Fecha de Fin</th>
+        <th class="text-center">Tipo de Nómina</th>
+        <th class="text-center">Estado</th>
+        <th class="text-center">Acciones</th>
+    </tr>
+</thead>
+
     <tbody>
     <?php foreach ($periodos as $periodo): ?>
         <tr>
