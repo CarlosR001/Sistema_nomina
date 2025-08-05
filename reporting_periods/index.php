@@ -105,22 +105,31 @@ require_once '../includes/header.php';
                             <span class="badge <?php echo $clase_badge; ?>"><?php echo $estado; ?></span>
                         </td>
                         <td>
-                            <?php if ($periodo['estado_periodo'] === 'Abierto'): ?>
-                                <form action="update_status.php" method="POST" class="d-inline">
-                                    <input type="hidden" name="periodo_id" value="<?php echo $periodo['id']; ?>">
-                                    <input type="hidden" name="new_status" value="Cerrado para Registro">
-                                    <button type="submit" class="btn btn-sm btn-warning">Cerrar para Inspectores</button>
-                                </form>
-                            <?php elseif ($periodo['estado_periodo'] === 'Cerrado para Registro'): ?>
-                                <form action="update_status.php" method="POST" class="d-inline">
-                                    <input type="hidden" name="periodo_id" value="<?php echo $periodo['id']; ?>">
-                                    <input type="hidden" name="new_status" value="Abierto">
-                                    <button type="submit" class="btn btn-sm btn-success">Forzar Reapertura</button>
-                                </form>
-                            <?php else: ?>
-                                <span class="text-muted small">No hay acciones</span>
-                            <?php endif; ?>
-                        </td>
+                                <?php if ($periodo['estado_periodo'] === 'Abierto'): ?>
+                                    <form action="update_status.php" method="POST" class="d-inline">
+                                        <input type="hidden" name="periodo_id" value="<?php echo $periodo['id']; ?>">
+                                        <input type="hidden" name="new_status" value="Cerrado para Registro">
+                                        <button type="submit" class="btn btn-sm btn-warning">Cerrar para Inspectores</button>
+                                    </form>
+                                <?php elseif ($periodo['estado_periodo'] === 'Cerrado para Registro'): ?>
+                                    <form action="update_status.php" method="POST" class="d-inline">
+                                        <input type="hidden" name="periodo_id" value="<?php echo $periodo['id']; ?>">
+                                        <input type="hidden" name="new_status" value="Abierto">
+                                        <button type="submit" class="btn btn-sm btn-success">Forzar Reapertura</button>
+                                    </form>
+                                <?php endif; ?>
+
+                                <?php // Botón de Eliminar: solo aparece si el período no está finalizado ?>
+                                <?php if ($periodo['estado_periodo'] !== 'Procesado y Finalizado'): ?>
+                                    <form action="delete.php" method="POST" class="d-inline ms-1" onsubmit="return confirm('¿Está seguro de que desea eliminar este período? Esta acción no se puede deshacer.');">
+                                        <input type="hidden" name="periodo_id" value="<?php echo $periodo['id']; ?>">
+                                        <button type="submit" class="btn btn-sm btn-danger">Eliminar</button>
+                                    </form>
+                                    <?php else: ?>
+                                        <span class="text-muted small">No hay acciones</span>
+                                     <?php endif; ?>
+                            </td>
+
                     </tr>
                 <?php endforeach; ?>
             <?php endif; ?>
