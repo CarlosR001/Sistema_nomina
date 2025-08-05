@@ -1,83 +1,136 @@
 <?php
-// contracts/index.php
+// contracts/index.php - v2.0 (con Deducciones Recurrentes)
 
-require_once '../auth.php'; // Carga el sistema de autenticación
-require_login(); // Asegura que el usuario esté logueado
-require_role('Admin'); // Solo Admin pueden acceder a esta sección
+require_once '../auth.php';
+require_login();
+require_role('Admin');
 
-// La conexión $pdo ya está disponible a través de auth.php
-
-require_once '../includes/header.php';
-
-// Validar que se reciba un ID de empleado
 if (!isset($_GET['employee_id']) || !is_numeric($_GET['employee_id'])) {
-    echo "<div class='alert alert-danger'>ID de empleado no válido.</div>";
-    require_once '../includes/footer.php';
+    header('Location: ../employees/index.php?status=error&message=ID de empleado no válido.');
     exit();
 }
-
 $employee_id = $_GET['employee_id'];
 
-// Obtener nombre del empleado para el título
+// Obtener datos del empleado
 $stmt_employee = $pdo->prepare("SELECT nombres, primer_apellido FROM Empleados WHERE id = ?");
 $stmt_employee->execute([$employee_id]);
 $employee = $stmt_employee->fetch();
-
 if (!$employee) {
-    echo "<div class='alert alert-danger'>Empleado no encontrado.</div>";
-    require_once '../includes/footer.php';
+    header('Location: ../employees/index.php?status=error&message=Empleado no encontrado.');
     exit();
 }
 
-// Consulta para obtener los contratos del empleado
-$sql = 'SELECT c.id, c.tipo_contrato, c.fecha_inicio, c.fecha_fin, c.salario_mensual_bruto, c.tarifa_por_hora, p.nombre_posicion
-        FROM Contratos c
-        JOIN Posiciones p ON c.id_posicion = p.id
-        WHERE c.id_empleado = ?
-        ORDER BY c.fecha_inicio DESC';
-$stmt = $pdo->prepare($sql);
-$stmt->execute([$employee_id]);
+// Obtener contratos
+$stmt_contracts = $pdo->prepare('SELECT c.id, c.estado_contrato, p.nombre_posicion FROM Contratos c JOIN Posiciones p ON c.id_posicion = p.id WHERE c.id_empleado = ? ORDER BY c.fecha_inicio DESC');
+$stmt_contracts->execute([$employee_id]);
+$contracts = $stmt_contracts->fetchAll();
+
+// Obtener deducciones recurrentes de TODOS los contratos de este empleado
+$stmt_deductions = $pdo->prepare("
+    SELECT dr.id, dr.monto_deduccion, dr.estado, cn.descripcion_publica, c.id as id_contrato, p.nombre_posicion
+    FROM DeduccionesRecurrentes dr
+    JOIN ConceptosNomina cn ON dr.id_concepto_deduccion = cn.id
+    JOIN Contratos c ON dr.id_contrato = c.id
+    JOIN Posiciones p ON c.id_posicion = p.id
+    WHERE c.id_empleado = ?
+    ORDER BY dr.estado
+");
+$stmt_deductions->execute([$employee_id]);
+$deductions = $stmt_deductions->fetchAll();
+
+// Obtener conceptos de tipo 'Deducción' para el formulario
+$conceptos_deduccion = $pdo->query("SELECT id, descripcion_publica FROM ConceptosNomina WHERE tipo_concepto = 'Deducción'")->fetchAll();
+
+require_once '../includes/header.php';
 ?>
 
-<h1 class="mb-4">Contratos de: <?php echo htmlspecialchars($employee['nombres'] . ' ' . htmlspecialchars($employee['primer_apellido'])); ?></h1>
-<a href="create.php?employee_id=<?php echo $employee_id; ?>" class="btn btn-primary mb-3">Añadir Nuevo Contrato</a>
+<h1 class="mb-4">Gestión de: <?php echo htmlspecialchars($employee['nombres'] . ' ' . $employee['primer_apellido']); ?></h1>
 
-<table class="table table-striped table-hover">
-    <thead class="table-dark">
-        <tr>
-            <th>Posición</th>
-            <th>Tipo Contrato</th>
-            <th>Fecha Inicio</th>
-            <th>Salario / Tarifa por Hora</th>
-            <th>Acciones</th>
-        </tr>
-    </thead>
-    <tbody>
-        <?php while ($row = $stmt->fetch()): ?>
-        <tr>
-            <td><?php echo htmlspecialchars($row['nombre_posicion']); ?></td>
-            <td><?php echo htmlspecialchars($row['tipo_contrato']); ?></td>
-            <td><?php echo htmlspecialchars($row['fecha_inicio']); ?></td>
-            <td>
-                <?php 
-                if (!empty($row['salario_mensual_bruto'])) {
-                    echo '$' . number_format($row['salario_mensual_bruto'], 2) . ' (Mensual)';
-                } else {
-                    echo '$' . number_format($row['tarifa_por_hora'], 2) . ' (por Hora)';
-                }
-                ?>
-            </td>
-            <td>
-                <a href="edit.php?id=<?php echo $row['id']; ?>" class="btn btn-sm btn-warning">Editar</a>
-                <!-- Eliminar contrato (implementar después si es necesario) -->
-            </td>
-        </tr>
-        <?php endwhile; ?>
-    </tbody>
-</table>
+<!-- Sección de Contratos -->
+<div class="card mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5>Contratos</h5>
+        <a href="create.php?employee_id=<?php echo $employee_id; ?>" class="btn btn-primary">Añadir Nuevo Contrato</a>
+    </div>
+    <div class="card-body">
+        <ul class="list-group">
+            <?php foreach ($contracts as $contract): ?>
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    <?php echo htmlspecialchars($contract['nombre_posicion']); ?>
+                    <div>
+                        <span class="badge bg-<?php echo $contract['estado_contrato'] === 'Vigente' ? 'success' : 'secondary'; ?> me-2"><?php echo htmlspecialchars($contract['estado_contrato']); ?></span>
+                        <a href="edit.php?id=<?php echo $contract['id']; ?>" class="btn btn-sm btn-warning">Editar Contrato</a>
+                    </div>
+                </li>
+            <?php endforeach; ?>
+        </ul>
+    </div>
+</div>
 
-<a href="<?php echo BASE_URL; ?>employees/index.php" class="btn btn-secondary">Volver a Empleados</a>
+<!-- Sección de Deducciones Recurrentes -->
+<div class="card">
+    <div class="card-header"><h5>Deducciones Recurrentes</h5></div>
+    <div class="card-body">
+        <!-- Formulario para añadir nueva deducción -->
+        <form action="store_deduccion.php" method="POST" class="mb-4 border-bottom pb-4">
+            <h6 class="mb-3">Añadir Nueva Deducción</h6>
+            <input type="hidden" name="employee_id" value="<?php echo $employee_id; ?>">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label for="id_contrato" class="form-label">Aplicar al Contrato</label>
+                    <select class="form-select" name="id_contrato" required>
+                        <option value="">Seleccione contrato...</option>
+                        <?php foreach ($contracts as $contract): if($contract['estado_contrato'] === 'Vigente'): ?>
+                            <option value="<?php echo $contract['id']; ?>"><?php echo htmlspecialchars($contract['nombre_posicion']); ?> (Vigente)</option>
+                        <?php endif; endforeach; ?>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label for="id_concepto" class="form-label">Concepto de Deducción</label>
+                    <select class="form-select" name="id_concepto_deduccion" required>
+                        <option value="">Seleccione concepto...</option>
+                        <?php foreach ($conceptos_deduccion as $concepto): ?>
+                            <option value="<?php echo $concepto['id']; ?>"><?php echo htmlspecialchars($concepto['descripcion_publica']); ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label for="monto" class="form-label">Monto Quincenal</label>
+                    <input type="number" step="0.01" class="form-control" name="monto_deduccion" required>
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <button type="submit" class="btn btn-success w-100">Añadir</button>
+                </div>
+            </div>
+        </form>
+        
+        <!-- Tabla de deducciones existentes -->
+        <h6 class="mt-4">Deducciones Configuradas</h6>
+        <table class="table table-sm">
+            <thead><tr><th>Concepto</th><th>Monto Quincenal</th><th>Estado</th><th>Contrato Asociado</th><th>Acciones</th></tr></thead>
+            <tbody>
+                <?php foreach ($deductions as $deduction): ?>
+                    <tr>
+                        <td><?php echo htmlspecialchars($deduction['descripcion_publica']); ?></td>
+                        <td>$<?php echo number_format($deduction['monto_deduccion'], 2); ?></td>
+                        <td><span class="badge bg-<?php echo $deduction['estado'] === 'Activa' ? 'success' : 'secondary'; ?>"><?php echo htmlspecialchars($deduction['estado']); ?></span></td>
+                        <td><?php echo htmlspecialchars($deduction['nombre_posicion']); ?></td>
+                        <td>
+                            <form action="toggle_deduccion.php" method="POST" class="d-inline">
+                                <input type="hidden" name="id_deduccion" value="<?php echo $deduction['id']; ?>">
+                                <input type="hidden" name="employee_id" value="<?php echo $employee_id; ?>">
+                                <button type="submit" class="btn btn-sm btn-<?php echo $deduction['estado'] === 'Activa' ? 'secondary' : 'success'; ?>">
+                                    <?php echo $deduction['estado'] === 'Activa' ? 'Desactivar' : 'Activar'; ?>
+                                </button>
+                            </form>
+                        </td>
+                    </tr>
+                <?php endforeach; ?>
+            </tbody>
+        </table>
+    </div>
+</div>
 
-<?php
-require_once '../includes/footer.php';
-?>
+<a href="<?php echo BASE_URL; ?>employees/index.php" class="btn btn-secondary mt-4">Volver a Empleados</a>
+
+<?php require_once '../includes/footer.php'; ?>
