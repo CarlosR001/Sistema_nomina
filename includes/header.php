@@ -61,7 +61,7 @@ $user_rol = $_SESSION['user_rol'] ?? null;
                                 <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>payroll/generar_novedades.php">Generar Novedades de Horas</a></li>
                                 <li><hr class="dropdown-divider"></li>
                                 <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>novedades/index.php">Novedades Manuales (Comisiones, etc.)</a></li>
-                                <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>novedades/horas_extras_admin.php">Horas Extras (Personal Fijo)</a></li>
+                                <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>he_admin/">Registrar Horas Extras (Personal Fijo)</a></li>
                                 <li><hr class="dropdown-divider"></li>
                                 <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>novedades/ajuste_isr.php">Ajuste Manual de ISR</a></li>
                             </ul>
