@@ -1,18 +1,16 @@
 <?php
-// he_admin/index.php - Portal para registro de HE de personal fijo.
+// he_admin/index.php - v2.0 (Corregido con lógica de roles)
 
 require_once '../auth.php';
 require_login();
-// Un Admin puede registrar para otros, un ReporteHorasExtras solo para sí mismo.
 require_role(['Admin', 'ReporteHorasExtras']);
 
 $user_rol = $_SESSION['user_rol'];
 $user_id_empleado = $_SESSION['user_id_empleado'] ?? null;
 
-$pdo->query("SET lc_time_names = 'es_ES'");
+$empleados_para_el_formulario = [];
+$empleado_actual_nombre = '';
 
-// Si es Admin, puede elegir a qué empleado registrarle horas.
-// Si es ReporteHorasExtras, solo puede registrar para sí mismo.
 if ($user_rol === 'Admin') {
     $stmt = $pdo->query("
         SELECT c.id as id_contrato, e.nombres, e.primer_apellido 
@@ -21,9 +19,11 @@ if ($user_rol === 'Admin') {
         WHERE c.permite_horas_extras = 1 AND c.estado_contrato = 'Vigente'
         ORDER BY e.nombres
     ");
-    $empleados_autorizados = $stmt->fetchAll();
-} else {
-    // Si es un empleado, se busca a sí mismo.
+    $empleados_para_el_formulario = $stmt->fetchAll();
+} else { // Rol: ReporteHorasExtras
+    if (!$user_id_empleado) {
+        die('Error: Su cuenta de usuario no está vinculada a un registro de empleado.');
+    }
     $stmt = $pdo->prepare("
         SELECT c.id as id_contrato, e.nombres, e.primer_apellido 
         FROM Contratos c 
@@ -31,11 +31,14 @@ if ($user_rol === 'Admin') {
         WHERE c.permite_horas_extras = 1 AND c.estado_contrato = 'Vigente' AND e.id = ?
     ");
     $stmt->execute([$user_id_empleado]);
-    $empleados_autorizados = $stmt->fetchAll();
-    if(empty($empleados_autorizados)){
-        // Si el empleado no tiene permiso, se le notifica.
-        die('Acceso denegado. Su contrato no permite el registro de horas extras.');
+    $empleado_actual = $stmt->fetch();
+    
+    if(!$empleado_actual){
+        // Usamos die() porque el header.php ya se cargó
+        die('<div class="container mt-4"><div class="alert alert-danger">Acceso denegado. Su contrato actual no tiene habilitado el permiso para registrar horas extras.</div></div>');
     }
+    $empleados_para_el_formulario[] = $empleado_actual;
+    $empleado_actual_nombre = $empleado_actual['nombres'] . ' ' . $empleado_actual['primer_apellido'];
 }
 
 require_once '../includes/header.php';
@@ -53,18 +56,20 @@ require_once '../includes/header.php';
         <form action="store.php" method="POST">
             <div class="row g-3">
                 <?php if ($user_rol === 'Admin'): ?>
-                <div class="col-md-12">
-                    <label for="id_contrato" class="form-label">Empleado</label>
-                    <select class="form-select" id="id_contrato" name="id_contrato" required>
-                        <option value="">Seleccione un empleado...</option>
-                        <?php foreach ($empleados_autorizados as $empleado): ?>
-                            <option value="<?php echo $empleado['id_contrato']; ?>"><?php echo htmlspecialchars($empleado['nombres'] . ' ' . $empleado['primer_apellido']); ?></option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
-                <?php else: // Si es un empleado, su contrato se selecciona automáticamente ?>
-                    <input type="hidden" name="id_contrato" value="<?php echo $empleados_autorizados[0]['id_contrato']; ?>">
-                    <div class="col-md-12"><div class="alert alert-info">Registrando horas para: <strong><?php echo htmlspecialchars($empleados_autorizados[0]['nombres'] . ' ' . $empleados_autorizados[0]['primer_apellido']); ?></strong></div></div>
+                    <div class="col-md-12">
+                        <label for="id_contrato" class="form-label">Empleado</label>
+                        <select class="form-select" id="id_contrato" name="id_contrato" required>
+                            <option value="">Seleccione un empleado...</option>
+                            <?php foreach ($empleados_para_el_formulario as $empleado): ?>
+                                <option value="<?php echo $empleado['id_contrato']; ?>"><?php echo htmlspecialchars($empleado['nombres'] . ' ' . $empleado['primer_apellido']); ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                <?php else: // Para ReporteHorasExtras, el contrato es fijo ?>
+                    <input type="hidden" name="id_contrato" value="<?php echo $empleados_para_el_formulario[0]['id_contrato']; ?>">
+                    <div class="col-md-12">
+                        <div class="alert alert-info">Registrando horas para: <strong><?php echo htmlspecialchars($empleado_actual_nombre); ?></strong></div>
+                    </div>
                 <?php endif; ?>
 
                 <div class="col-md-4">

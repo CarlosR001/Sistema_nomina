@@ -36,15 +36,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['username'], $_POST['p
                 if ($contrato) {
                     $_SESSION['contrato_inspector_id'] = $contrato['id'];
                 }
-            }
-            // --- FIN DE LA CORRECCIÓN ---
 
-            // Redirección centralizada
-            if ($user['rol'] === 'Inspector') {
-                header('Location: ' . BASE_URL . 'time_tracking/index.php');
-            } else {
-                header('Location: ' . BASE_URL . 'index.php');
-            }
+            }           // --- LÓGICA PARA ROL REPORTE HORAS EXTRAS ---
+            elseif ($user['rol'] === 'ReporteHorasExtras' && $user['id_empleado']) {
+                            // Guardamos el id_empleado en la sesión para que el portal lo pueda usar.
+                            $_SESSION['user_id_empleado'] = $user['id_empleado'];
+             }
+          
+    
+                        // --- REDIRECCIÓN INTELIGENTE BASADA EN ROL ---
+                        if ($user['rol'] === 'Inspector') {
+                            header('Location: ' . BASE_URL . 'time_tracking/index.php');
+                        } elseif ($user['rol'] === 'ReporteHorasExtras') {
+                            header('Location: ' . BASE_URL . 'he_admin/index.php');
+                        } else {
+                            // Admin, Supervisor, Contabilidad, etc., van al dashboard.
+                            header('Location: ' . BASE_URL . 'index.php');
+                        }
             exit();
         }
     }
