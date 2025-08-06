@@ -60,12 +60,13 @@ try {
             $conceptos_del_empleado[$codigo]['monto'] += $novedad['monto_valor'];
         }
         
-        // 3.3. Deducciones Recurrentes (NUEVO)
-        $stmt_ded_rec = $pdo->prepare("SELECT dr.monto_deduccion, cn.codigo_concepto, cn.descripcion_publica FROM DeduccionesRecurrentes dr JOIN ConceptosNomina cn ON dr.id_concepto_deduccion = cn.id WHERE dr.id_contrato = ? AND dr.estado = 'Activa'");
-        $stmt_ded_rec->execute([$id_contrato]);
-        foreach ($stmt_ded_rec->fetchAll(PDO::FETCH_ASSOC) as $ded_rec) {
-            $conceptos_del_empleado[$ded_rec['codigo_concepto']] = ['monto' => $ded_rec['monto_deduccion'], 'desc' => $ded_rec['descripcion_publica'], 'tipo' => 'Deducción'];
-        }
+                  // 3.3. Deducciones Recurrentes (Filtradas por Quincena)
+                  $stmt_ded_rec = $pdo->prepare("SELECT dr.monto_deduccion, cn.codigo_concepto, cn.descripcion_publica FROM DeduccionesRecurrentes dr JOIN ConceptosNomina cn ON dr.id_concepto_deduccion = cn.id WHERE dr.id_contrato = ? AND dr.estado = 'Activa' AND (dr.quincena_aplicacion = 0 OR dr.quincena_aplicacion = ?)");
+                  $stmt_ded_rec->execute([$id_contrato, $quincena]);
+                  foreach ($stmt_ded_rec->fetchAll(PDO::FETCH_ASSOC) as $ded_rec) {
+                      $conceptos_del_empleado[$ded_rec['codigo_concepto']] = ['monto' => $ded_rec['monto_deduccion'], 'desc' => $ded_rec['descripcion_publica'], 'tipo' => 'Deducción'];
+                  }
+      
 
         // 4. Calcular Impuestos
         $ingreso_total_tss = 0;

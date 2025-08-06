@@ -1,5 +1,5 @@
 <?php
-// contracts/index.php - v2.1 (con Botón de Eliminar)
+// contracts/index.php - v2.2 (con Frecuencia de Deducción)
 
 require_once '../auth.php';
 require_login();
@@ -25,9 +25,9 @@ $stmt_contracts = $pdo->prepare('SELECT c.id, c.estado_contrato, p.nombre_posici
 $stmt_contracts->execute([$employee_id]);
 $contracts = $stmt_contracts->fetchAll();
 
-// Obtener deducciones recurrentes de TODOS los contratos de este empleado
+// Obtener deducciones recurrentes (con el nuevo campo 'quincena_aplicacion')
 $stmt_deductions = $pdo->prepare("
-    SELECT dr.id, dr.monto_deduccion, dr.estado, cn.descripcion_publica, c.id as id_contrato, p.nombre_posicion
+    SELECT dr.id, dr.monto_deduccion, dr.estado, dr.quincena_aplicacion, cn.descripcion_publica, c.id as id_contrato, p.nombre_posicion
     FROM DeduccionesRecurrentes dr
     JOIN ConceptosNomina cn ON dr.id_concepto_deduccion = cn.id
     JOIN Contratos c ON dr.id_contrato = c.id
@@ -60,8 +60,6 @@ require_once '../includes/header.php';
                     <div>
                         <span class="badge bg-<?php echo $contract['estado_contrato'] === 'Vigente' ? 'success' : 'secondary'; ?> me-2"><?php echo htmlspecialchars($contract['estado_contrato']); ?></span>
                         <a href="edit.php?id=<?php echo $contract['id']; ?>" class="btn btn-sm btn-warning">Editar</a>
-                        
-                        <!-- Formulario para Eliminar Contrato -->
                         <form action="delete.php" method="POST" class="d-inline" onsubmit="return confirm('¿Está seguro de que desea eliminar este contrato? Esta acción no se puede deshacer.');">
                             <input type="hidden" name="id" value="<?php echo $contract['id']; ?>">
                             <input type="hidden" name="employee_id" value="<?php echo $employee_id; ?>">
@@ -83,27 +81,35 @@ require_once '../includes/header.php';
             <h6 class="mb-3">Añadir Nueva Deducción</h6>
             <input type="hidden" name="employee_id" value="<?php echo $employee_id; ?>">
             <div class="row g-3">
-                <div class="col-md-4">
+                <div class="col-md-3">
                     <label for="id_contrato" class="form-label">Aplicar al Contrato</label>
                     <select class="form-select" name="id_contrato" required>
-                        <option value="">Seleccione contrato...</option>
+                        <option value="">Seleccione...</option>
                         <?php foreach ($contracts as $contract): if($contract['estado_contrato'] === 'Vigente'): ?>
                             <option value="<?php echo $contract['id']; ?>"><?php echo htmlspecialchars($contract['nombre_posicion']); ?> (Vigente)</option>
                         <?php endif; endforeach; ?>
                     </select>
                 </div>
-                <div class="col-md-4">
-                    <label for="id_concepto" class="form-label">Concepto de Deducción</label>
+                <div class="col-md-3">
+                    <label for="id_concepto" class="form-label">Concepto</label>
                     <select class="form-select" name="id_concepto_deduccion" required>
-                        <option value="">Seleccione concepto...</option>
+                        <option value="">Seleccione...</option>
                         <?php foreach ($conceptos_deduccion as $concepto): ?>
                             <option value="<?php echo $concepto['id']; ?>"><?php echo htmlspecialchars($concepto['descripcion_publica']); ?></option>
                         <?php endforeach; ?>
                     </select>
                 </div>
                 <div class="col-md-2">
-                    <label for="monto" class="form-label">Monto Quincenal</label>
+                    <label for="monto" class="form-label">Monto</label>
                     <input type="number" step="0.01" class="form-control" name="monto_deduccion" required>
+                </div>
+                <div class="col-md-2">
+                    <label for="quincena_aplicacion" class="form-label">Frecuencia</label>
+                    <select class="form-select" name="quincena_aplicacion" required>
+                        <option value="0">Siempre</option>
+                        <option value="1">Solo 1ra Quincena</option>
+                        <option value="2">Solo 2da Quincena</option>
+                    </select>
                 </div>
                 <div class="col-md-2 d-flex align-items-end">
                     <button type="submit" class="btn btn-success w-100">Añadir</button>
@@ -113,13 +119,22 @@ require_once '../includes/header.php';
         
         <!-- Tabla de deducciones existentes -->
         <h6 class="mt-4">Deducciones Configuradas</h6>
-        <table class="table table-sm">
-            <thead><tr><th>Concepto</th><th>Monto Quincenal</th><th>Estado</th><th>Contrato Asociado</th><th>Acciones</th></tr></thead>
+        <table class="table table-sm table-hover">
+            <thead><tr><th>Concepto</th><th>Monto</th><th>Frecuencia</th><th>Estado</th><th>Contrato</th><th>Acciones</th></tr></thead>
             <tbody>
                 <?php foreach ($deductions as $deduction): ?>
+                    <?php
+                        $frecuencia_texto = 'Siempre';
+                        if ($deduction['quincena_aplicacion'] == 1) {
+                            $frecuencia_texto = '1ra Quincena';
+                        } elseif ($deduction['quincena_aplicacion'] == 2) {
+                            $frecuencia_texto = '2da Quincena';
+                        }
+                    ?>
                     <tr>
                         <td><?php echo htmlspecialchars($deduction['descripcion_publica']); ?></td>
                         <td>$<?php echo number_format($deduction['monto_deduccion'], 2); ?></td>
+                        <td><span class="badge bg-info text-dark"><?php echo $frecuencia_texto; ?></span></td>
                         <td><span class="badge bg-<?php echo $deduction['estado'] === 'Activa' ? 'success' : 'secondary'; ?>"><?php echo htmlspecialchars($deduction['estado']); ?></span></td>
                         <td><?php echo htmlspecialchars($deduction['nombre_posicion']); ?></td>
                         <td>

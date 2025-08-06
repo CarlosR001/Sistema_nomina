@@ -1,36 +1,50 @@
 <?php
-// contracts/store_deduccion.php
+// contracts/store_deduccion.php - v2.0 (con Frecuencia de Deducción)
 
 require_once '../auth.php';
 require_login();
 require_role('Admin');
 
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    header('Location: ../employees/');
+// Función de redirección para mantener el código limpio
+function redirect($employee_id, $status, $message) {
+    header('Location: ' . BASE_URL . 'contracts/index.php?employee_id=' . $employee_id . '&status=' . $status . '&message=' . urlencode($message));
     exit();
 }
 
-$id_contrato = filter_input(INPUT_POST, 'id_contrato', FILTER_VALIDATE_INT);
-$id_concepto = filter_input(INPUT_POST, 'id_concepto_deduccion', FILTER_VALIDATE_INT);
-$monto = filter_input(INPUT_POST, 'monto_deduccion', FILTER_VALIDATE_FLOAT);
-$employee_id = filter_input(INPUT_POST, 'employee_id', FILTER_VALIDATE_INT);
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    redirect(0, 'error', 'Método no permitido.');
+}
 
-$redirect_url = 'index.php?employee_id=' . $employee_id;
+$employee_id = $_POST['employee_id'] ?? null;
+$id_contrato = $_POST['id_contrato'] ?? null;
+$id_concepto_deduccion = $_POST['id_concepto_deduccion'] ?? null;
+$monto_deduccion = $_POST['monto_deduccion'] ?? null;
+$quincena_aplicacion = $_POST['quincena_aplicacion'] ?? 0; // Se recoge el nuevo campo
 
-if (!$id_contrato || !$id_concepto || !$monto || !$employee_id) {
-    header('Location: ' . $redirect_url . '&status=error&message=' . urlencode('Todos los campos son obligatorios.'));
-    exit();
+// Validar que los datos esenciales no estén vacíos
+if (empty($employee_id) || empty($id_contrato) || empty($id_concepto_deduccion) || !is_numeric($monto_deduccion)) {
+    redirect($employee_id, 'error', 'Faltan datos obligatorios para crear la deducción.');
 }
 
 try {
-    $sql = "INSERT INTO DeduccionesRecurrentes (id_contrato, id_concepto_deduccion, monto_deduccion, estado) VALUES (?, ?, ?, 'Activa')";
+    // Verificar si ya existe una deducción del mismo tipo para el mismo contrato
+    $stmt_check = $pdo->prepare("SELECT id FROM DeduccionesRecurrentes WHERE id_contrato = ? AND id_concepto_deduccion = ?");
+    $stmt_check->execute([$id_contrato, $id_concepto_deduccion]);
+    if ($stmt_check->fetch()) {
+        redirect($employee_id, 'error', 'Ya existe una deducción de este tipo para el contrato seleccionado.');
+    }
+
+    // Preparar la consulta SQL incluyendo el nuevo campo
+    $sql = "INSERT INTO DeduccionesRecurrentes (id_contrato, id_concepto_deduccion, monto_deduccion, estado, quincena_aplicacion) VALUES (?, ?, ?, 'Activa', ?)";
     $stmt = $pdo->prepare($sql);
-    $stmt->execute([$id_contrato, $id_concepto, $monto]);
     
-    header('Location: ' . $redirect_url . '&status=success&message=' . urlencode('Deducción recurrente añadida correctamente.'));
-    exit();
+    // Ejecutar la consulta con el nuevo valor
+    $stmt->execute([$id_contrato, $id_concepto_deduccion, $monto_deduccion, $quincena_aplicacion]);
+
+    redirect($employee_id, 'success', 'Deducción recurrente añadida correctamente.');
 
 } catch (PDOException $e) {
-    header('Location: ' . $redirect_url . '&status=error&message=' . urlencode('Error al añadir la deducción: ' . $e->getMessage()));
-    exit();
+    error_log('Error al añadir deducción recurrente: ' . $e->getMessage());
+    redirect($employee_id, 'error', 'Ocurrió un error de base de datos al intentar guardar la deducción.');
 }
+?>
