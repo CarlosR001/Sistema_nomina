@@ -59,29 +59,16 @@ try {
         $pdo->prepare("DELETE FROM NominaDetalle WHERE id_nomina_procesada = ?")->execute([$id_nomina_a_recalcular]);
         $pdo->prepare("DELETE FROM NominasProcesadas WHERE id = ?")->execute([$id_nomina_a_recalcular]);
     }
-    //validar si lo leiste
+        // Esto asegura que el cálculo siempre se haga sobre un estado limpio.
+        $pdo->prepare("UPDATE NovedadesPeriodo SET estado_novedad = 'Pendiente' WHERE periodo_aplicacion BETWEEN ? AND ?")
+        ->execute([$fecha_inicio, $fecha_fin]);
 
     $configs_db = $pdo->query("SELECT clave, valor FROM ConfiguracionGlobal")->fetchAll(PDO::FETCH_KEY_PAIR);
     $tope_salarial_tss = (float)($configs_db['TSS_TOPE_SALARIAL'] ?? 265840.00);
     $porcentaje_afp = (float)($configs_db['TSS_PORCENTAJE_AFP'] ?? 0.0287);
     $porcentaje_sfs = (float)($configs_db['TSS_PORCENTAJE_SFS'] ?? 0.0304);
     $escala_isr = $pdo->query("SELECT * FROM escalasisr WHERE anio_fiscal = {$anio_actual} ORDER BY desde_monto_anual ASC")->fetchAll(PDO::FETCH_ASSOC);
-
-                           // --- INICIO BLOQUE 1 (CORREGIDO) ---
-              // Busca si ya existe una nómina para este período.
-              $stmt_find_nomina = $pdo->prepare("SELECT id FROM NominasProcesadas WHERE periodo_inicio = ? AND periodo_fin = ? AND tipo_nomina_procesada = ?");
-              // CORRECCIÓN: Se usa la variable correcta '$tipo_nomina' que sí está definida en tu script.
-              if ($stmt_find_nomina->execute([$fecha_inicio, $fecha_fin, $tipo_nomina]) && $existing_nomina = $stmt_find_nomina->fetch()) {
-                  // Si existe, la borra por completo para empezar de cero (Hijos primero, luego Padre).
-                  $pdo->prepare("DELETE FROM NominaDetalle WHERE id_nomina_procesada = ?")->execute([$existing_nomina['id']]);
-                  $pdo->prepare("DELETE FROM NominasProcesadas WHERE id = ?")->execute([$existing_nomina['id']]);
-              }
-          
-              // Crucial para Recálculo: Las novedades vuelven a 'Pendiente'.
-              $pdo->prepare("UPDATE NovedadesPeriodo SET estado_novedad = 'Pendiente' WHERE periodo_aplicacion BETWEEN ? AND ?")
-                  ->execute([$fecha_inicio, $fecha_fin]);
-              // --- FIN BLOQUE 1 ---
-
+-
 
     $sql_nomina = "INSERT INTO NominasProcesadas (tipo_nomina_procesada, periodo_inicio, periodo_fin, id_usuario_ejecutor, estado_nomina) VALUES (?, ?, ?, ?, 'Pendiente de Aprobación')";
     $stmt_nomina = $pdo->prepare($sql_nomina);
