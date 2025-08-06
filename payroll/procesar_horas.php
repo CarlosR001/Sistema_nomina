@@ -1,5 +1,5 @@
 <?php
-// payroll/procesar_horas.php - v3.1 (ESTABLE Y COMPLETO)
+// payroll/procesar_horas.php - v3.2 (CORREGIDO)
 // Combina el motor de cálculo funcional (v2.8) con la lógica de borrado selectivo.
 
 require_once '../auth.php';
@@ -42,9 +42,6 @@ function calcular_horas_nocturnas_reales(DateTime $inicio_turno, DateTime $fin_t
     return round($horas_nocturnas, 2);
 }
 
-
-// --- Funciones de ayuda (si las necesitamos en el futuro) ---
-
 if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !isset($_POST['periodo_id'], $_POST['mode'])) {
     header('Location: generar_novedades.php?status=error&message=' . urlencode('Solicitud no válida.'));
     exit();
@@ -63,7 +60,8 @@ try {
     $fecha_fin = $periodo['fecha_fin_periodo'];
 
     if ($mode === 'preview') {
-        $stmt_check_pendientes = $pdo->prepare("SELECT COUNT(id) FROM RegistroHoras WHERE estado_registro IN ('Pendiente', 'Rechazado') AND fecha_trabajada BETWEEN ? AND ?");
+        // CORRECCIÓN: La consulta ahora solo busca registros en estado 'Pendiente'.
+        $stmt_check_pendientes = $pdo->prepare("SELECT COUNT(id) FROM RegistroHoras WHERE estado_registro = 'Pendiente' AND fecha_trabajada BETWEEN ? AND ?");
         $stmt_check_pendientes->execute([$fecha_inicio, $fecha_fin]);
         $_SESSION['pending_hours_check'] = $stmt_check_pendientes->fetchColumn();
     }
@@ -98,11 +96,7 @@ try {
                 $total_horas_laborales += $duracion_horas; 
             }
             
-                        // --- CÁLCULO NOCTURNO PRECISO ---
-            // Se reemplaza la lógica anterior con una llamada a la nueva función.
             $total_horas_nocturnas_bono += calcular_horas_nocturnas_reales($inicio, $fin);
-            // --- FIN CÁLCULO NOCTURNO ---
-
 
             if ($reg['transporte_aprobado']) {
                 $zonas_trabajadas_por_dia[$reg['fecha_trabajada']][] = $reg['id_zona_trabajo'];
@@ -142,8 +136,6 @@ try {
         exit();
     } 
     elseif ($mode === 'final') {
-        // **INICIO DE LA LÓGICA DE BORRADO Y RE-INSERCIÓN SEGURA**
-        
         $contratos_a_procesar = array_keys($results);
         if (empty($contratos_a_procesar)) {
             if ($pdo->inTransaction()) $pdo->commit();
@@ -151,28 +143,22 @@ try {
             exit();
         }
         $contratos_placeholders = implode(',', array_fill(0, count($contratos_a_procesar), '?'));
-
-        // Rescatar novedades manuales
+        
         $codigos_automaticos = ['ING-NORMAL', 'ING-EXTRA', 'ING-FERIADO', 'ING-NOCTURNO', 'ING-TRANSP'];
         $codigos_auto_placeholders = implode(',', array_fill(0, count($codigos_automaticos), '?'));
         
         $sql_rescate = "SELECT np.id_contrato, np.id_concepto, np.periodo_aplicacion, np.monto_valor FROM NovedadesPeriodo np JOIN ConceptosNomina cn ON np.id_concepto = cn.id WHERE np.id_contrato IN ($contratos_placeholders) AND np.periodo_aplicacion BETWEEN ? AND ? AND cn.codigo_concepto NOT IN ($codigos_auto_placeholders)";
-        
         $stmt_rescate = $pdo->prepare($sql_rescate);
         $params_rescate = array_merge($contratos_a_procesar, [$fecha_inicio, $fecha_fin], $codigos_automaticos);
         $stmt_rescate->execute($params_rescate);
         $novedades_manuales_rescatadas = $stmt_rescate->fetchAll(PDO::FETCH_ASSOC);
 
-        // Borrar todas las novedades del período para los contratos afectados
         $sql_delete_total = "DELETE FROM NovedadesPeriodo WHERE id_contrato IN ($contratos_placeholders) AND periodo_aplicacion BETWEEN ? AND ?";
         $stmt_delete_total = $pdo->prepare($sql_delete_total);
         $stmt_delete_total->execute(array_merge($contratos_a_procesar, [$fecha_inicio, $fecha_fin]));
 
-        // --- CORRECCIÓN AQUÍ ---
-        // Se prepara la inserción con 5 parámetros (el estado es el quinto)
         $stmt_insert = $pdo->prepare("INSERT INTO NovedadesPeriodo (id_contrato, id_concepto, periodo_aplicacion, monto_valor, estado_novedad) VALUES (?, ?, ?, ?, ?)");
         
-        // Insertar las novedades recién calculadas, AÑADIENDO el 5to parámetro ('Pendiente')
         foreach ($results as $contrato_id => $res) {
             if ($res['pago_normal'] > 0) $stmt_insert->execute([$contrato_id, $conceptos['ING-NORMAL'], $fecha_inicio, $res['pago_normal'], 'Pendiente']);
             if ($res['pago_extra'] > 0) $stmt_insert->execute([$contrato_id, $conceptos['ING-EXTRA'], $fecha_inicio, $res['pago_extra'], 'Pendiente']);
@@ -181,26 +167,21 @@ try {
             if ($res['pago_transporte'] > 0) $stmt_insert->execute([$contrato_id, $conceptos['ING-TRANSP'], $fecha_inicio, $res['pago_transporte'], 'Pendiente']);
         }
 
-        // Re-insertar las novedades manuales, AÑADIENDO también el 5to parámetro ('Pendiente')
         foreach ($novedades_manuales_rescatadas as $novedad_manual) {
             $stmt_insert->execute([
                 $novedad_manual['id_contrato'],
                 $novedad_manual['id_concepto'],
                 $novedad_manual['periodo_aplicacion'],
                 $novedad_manual['monto_valor'],
-                'Pendiente' // El 5to parámetro que faltaba
+                'Pendiente'
             ]);
         }
-        
-        // **FIN DE LA LÓGICA DE BORRADO Y RE-INSERCIÓN SEGURA**
         
         $pdo->commit();
         header('Location: generar_novedades.php?status=success&message=' . urlencode('Proceso completado. Las novedades de horas han sido generadas y las novedades manuales han sido preservadas.'));
         exit();
     }
-
-
-    }
+}
  catch (Exception $e) {
     if (isset($pdo) && $pdo->inTransaction()) { $pdo->rollBack(); }
     header('Location: generar_novedades.php?status=error&message=' . urlencode('Error crítico: ' . $e->getMessage()));
