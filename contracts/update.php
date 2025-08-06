@@ -27,6 +27,7 @@ $tipo_nomina = $_POST['tipo_nomina'] ?? null;
 $frecuencia_pago = $_POST['frecuencia_pago'] ?? null;
 $fecha_inicio = $_POST['fecha_inicio'] ?? null;
 $estado_contrato = $_POST['estado_contrato'] ?? null;
+$permite_horas_extras = isset($_POST['permite_horas_extras']) ? 1 : 0;
 
 // Campos opcionales
 $fecha_fin = !empty($_POST['fecha_fin']) ? $_POST['fecha_fin'] : null;
@@ -62,20 +63,10 @@ try {
         }
     }
     
-    $sql = "UPDATE Contratos SET
-                id_posicion = :id_posicion, tipo_contrato = :tipo_contrato, tipo_nomina = :tipo_nomina,
-                fecha_inicio = :fecha_inicio, fecha_fin = :fecha_fin, salario_mensual_bruto = :salario_mensual_bruto,
-                tarifa_por_hora = :tarifa_por_hora, frecuencia_pago = :frecuencia_pago, estado_contrato = :estado_contrato
-            WHERE id = :id";
-            
-    $stmt = $pdo->prepare($sql);
-    
-    $stmt->execute([
-        ':id_posicion' => $id_posicion, ':tipo_contrato' => $tipo_contrato, ':tipo_nomina' => $tipo_nomina,
-        ':fecha_inicio' => $fecha_inicio, ':fecha_fin' => $fecha_fin, ':salario_mensual_bruto' => $salario_mensual_bruto,
-        ':tarifa_por_hora' => $tarifa_por_hora, ':frecuencia_pago' => $frecuencia_pago, ':estado_contrato' => $estado_contrato,
-        ':id' => $id
-    ]);
+$sql = "UPDATE Contratos SET id_posicion = ?, tipo_contrato = ?, tipo_nomina = ?, frecuencia_pago = ?, fecha_inicio = ?, fecha_fin = ?, salario_mensual_bruto = ?, tarifa_por_hora = ?, estado_contrato = ?, permite_horas_extras = ? WHERE id = ?";
+$stmt = $pdo->prepare($sql);
+$stmt->execute([$id_posicion, $tipo_contrato, $tipo_nomina, $frecuencia_pago, $fecha_inicio, $fecha_fin, $salario_mensual_bruto, $tarifa_por_hora, $estado_contrato, $permite_horas_extras, $id]);
+
 
     $success_url = BASE_URL . 'contracts/index.php?employee_id=' . urlencode($employee_id) . '&status=success&message=Contrato actualizado correctamente.';
     header('Location: ' . $success_url);

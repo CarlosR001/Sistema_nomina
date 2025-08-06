@@ -97,6 +97,7 @@ require_once '../includes/header.php';
                 </div>
 
                 <div class="col-md-6">
+
                     <label for="estado_contrato" class="form-label">Estado del Contrato</label>
                      <select class="form-select" name="estado_contrato" required>
                         <option value="Vigente" <?php echo $contrato['estado_contrato'] == 'Vigente' ? 'selected' : ''; ?>>Vigente</option>
@@ -104,6 +105,16 @@ require_once '../includes/header.php';
                         <option value="Cancelado" <?php echo $contrato['estado_contrato'] == 'Cancelado' ? 'selected' : ''; ?>>Cancelado</option>
                     </select>
                 </div>
+                <div class="col-md-12 mt-4">
+                <h6>Permisos Especiales</h6>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="permite_horas_extras" value="1" id="permite_horas_extras" <?php echo !empty($contrato['permite_horas_extras']) ? 'checked' : ''; ?>>
+                    <label class="form-check-label" for="permite_horas_extras">
+                        Permitir que este contrato genere Horas Extras (Personal Fijo)
+                    </label>
+                </div>
+            </div>
+
             </div>
 
             <hr class="my-4">
