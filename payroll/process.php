@@ -44,7 +44,8 @@ try {
                     // --- INICIO BLOQUE 1 ---
               // Busca si ya existe una nómina para este período usando los nombres de columna correctos.
               $stmt_find_nomina = $pdo->prepare("SELECT id FROM NominasProcesadas WHERE periodo_inicio = ? AND periodo_fin = ? AND tipo_nomina_procesada = ?");
-              if ($stmt_find_nomina->execute([$periodo['fecha_inicio_periodo'], $periodo['fecha_fin_periodo'], $tipo_nomina_procesada]) && $existing_nomina = $stmt_find_nomina->fetch()) {
+              // CORRECCIÓN: Usar la variable correcta '$tipo_nomina' que sí está definida.
+              if ($stmt_find_nomina->execute([$periodo['fecha_inicio_periodo'], $periodo['fecha_fin_periodo'], $tipo_nomina]) && $existing_nomina = $stmt_find_nomina->fetch()) {
                   // Si existe, la borra por completo para empezar de cero (Hijos primero, luego Padre).
                   $pdo->prepare("DELETE FROM NominaDetalle WHERE id_nomina_procesada = ?")->execute([$existing_nomina['id']]);
                   $pdo->prepare("DELETE FROM NominasProcesadas WHERE id = ?")->execute([$existing_nomina['id']]);
@@ -55,7 +56,6 @@ try {
               $pdo->prepare("UPDATE NovedadesPeriodo SET estado_novedad = 'Pendiente' WHERE periodo_aplicacion BETWEEN ? AND ?")
                   ->execute([$periodo['fecha_inicio_periodo'], $periodo['fecha_fin_periodo']]);
               // --- FIN BLOQUE 1 ---
-
 
 
     $sql_nomina = "INSERT INTO NominasProcesadas (tipo_nomina_procesada, periodo_inicio, periodo_fin, id_usuario_ejecutor, estado_nomina) VALUES (?, ?, ?, ?, 'Pendiente de Aprobación')";

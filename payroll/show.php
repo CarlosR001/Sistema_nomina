@@ -60,16 +60,28 @@ require_once '../includes/header.php';
             <div class="col-md-4"><p><strong>Período:</strong> <?php echo htmlspecialchars($nomina['periodo_inicio']) . " al " . htmlspecialchars($nomina['periodo_fin']); ?></p><p><strong>Procesada el:</strong> <?php echo htmlspecialchars($nomina['fecha_ejecucion']); ?></p></div>
             <div class="col-md-4 text-end">
                 
-            <?php if ($nomina['estado_nomina'] !== 'Aprobada y Finalizada'): ?>
+                        <!-- INICIO DEL BLOQUE CORREGIDO -->
+                        <?php if ($nomina['estado_nomina'] !== 'Aprobada y Finalizada'): ?>
                     <?php
                         // Determinar el script de procesamiento correcto
-                        $processing_script = '';
-                        if ($nomina['tipo_nomina_procesada'] === 'Administrativa') {
-                            $processing_script = BASE_URL . 'nomina_administrativa/procesar_nomina_admin.php';
-                        } else { // Para 'Inspectores' y cualquier otro caso
-                            $processing_script = BASE_URL . 'payroll/process.php';
-                        }
+                        $recalc_script = ($nomina['tipo_nomina_procesada'] === 'Administrativa')
+                            ? BASE_URL . 'nomina_administrativa/procesar_nomina_admin.php'
+                            : BASE_URL . 'payroll/process.php';
                     ?>
+                    <form action="<?php echo $recalc_script; ?>" method="POST" class="d-inline" onsubmit="return confirm('¿Recalcular? Los datos actuales se borrarán y se volverán a generar con las novedades más recientes.');">
+                        <input type="hidden" name="id_nomina_a_recalcular" value="<?php echo htmlspecialchars($id_nomina); ?>">
+                        <button type="submit" class="btn btn-warning"><i class="bi bi-arrow-clockwise"></i> Recalcular</button>
+                    </form>
+                    
+                    <form action="<?php echo BASE_URL; ?>payroll/finalize.php" method="POST" class="d-inline" onsubmit="return confirm('Este proceso es irreversible. ¿Finalizar y aprobar esta nómina?');">
+                        <input type="hidden" name="nomina_id" value="<?php echo htmlspecialchars($id_nomina); ?>">
+                        <button type="submit" class="btn btn-success"><i class="bi bi-check-circle"></i> Finalizar</button>
+                    </form>
+                <?php else: ?>
+                    <p class="text-muted">La nómina ya ha sido finalizada y no admite más acciones.</p>
+                <?php endif; ?>
+                <!-- FIN DEL BLOQUE CORREGIDO -->
+
                     <form action="<?php echo $processing_script; ?>" method="POST" class="d-inline" onsubmit="return confirm('¿Recalcular? Los datos actuales se borrarán y se volverán a generar con las novedades más recientes.');">
                         
                         <!-- El input que enviamos depende del script -->
