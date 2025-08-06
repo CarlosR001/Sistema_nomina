@@ -1,5 +1,5 @@
 <?php
-// contracts/index.php - v2.3 (con Edición/Eliminación de Deducciones)
+// contracts/index.php - v2.4 (con CRUD de Ingresos y Deducciones Recurrentes)
 
 require_once '../auth.php';
 require_login();
@@ -25,8 +25,9 @@ $stmt_contracts = $pdo->prepare('SELECT c.id, c.estado_contrato, p.nombre_posici
 $stmt_contracts->execute([$employee_id]);
 $contracts = $stmt_contracts->fetchAll();
 
+// --- OBTENER INGRESOS Y DEDUCCIONES RECURRENTES ---
 
-// Obtener ingresos recurrentes de TODOS los contratos de este empleado
+// Obtener Ingresos Recurrentes
 $stmt_incomes = $pdo->prepare("
     SELECT ir.id, ir.monto_ingreso, ir.estado, ir.quincena_aplicacion, cn.descripcion_publica, c.id as id_contrato, p.nombre_posicion
     FROM IngresosRecurrentes ir
@@ -39,12 +40,23 @@ $stmt_incomes = $pdo->prepare("
 $stmt_incomes->execute([$employee_id]);
 $incomes = $stmt_incomes->fetchAll();
 
+// Obtener Deducciones Recurrentes
+$stmt_deductions = $pdo->prepare("
+    SELECT dr.id, dr.monto_deduccion, dr.estado, dr.quincena_aplicacion, cn.descripcion_publica, c.id as id_contrato, p.nombre_posicion
+    FROM DeduccionesRecurrentes dr
+    JOIN ConceptosNomina cn ON dr.id_concepto_deduccion = cn.id
+    JOIN Contratos c ON dr.id_contrato = c.id
+    JOIN Posiciones p ON c.id_posicion = p.id
+    WHERE c.id_empleado = ?
+    ORDER BY dr.estado
+");
+$stmt_deductions->execute([$employee_id]);
+$deductions = $stmt_deductions->fetchAll();
 
-
-// Obtener conceptos de tipo 'Deducción' para el formulario
-// ▼▼▼ AÑADE ESTA LÍNEA ▼▼▼
+// Obtener conceptos para los dropdowns de los formularios
 $conceptos_ingreso = $pdo->query("SELECT id, descripcion_publica FROM ConceptosNomina WHERE tipo_concepto = 'Ingreso'")->fetchAll();
 $conceptos_deduccion = $pdo->query("SELECT id, descripcion_publica FROM ConceptosNomina WHERE tipo_concepto = 'Deducción'")->fetchAll();
+
 
 require_once '../includes/header.php';
 ?>
