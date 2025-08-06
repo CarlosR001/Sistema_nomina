@@ -59,6 +59,7 @@ try {
         $pdo->prepare("DELETE FROM NominaDetalle WHERE id_nomina_procesada = ?")->execute([$id_nomina_a_recalcular]);
         $pdo->prepare("DELETE FROM NominasProcesadas WHERE id = ?")->execute([$id_nomina_a_recalcular]);
     }
+    //validar si lo leiste
 
     $configs_db = $pdo->query("SELECT clave, valor FROM ConfiguracionGlobal")->fetchAll(PDO::FETCH_KEY_PAIR);
     $tope_salarial_tss = (float)($configs_db['TSS_TOPE_SALARIAL'] ?? 265840.00);
