@@ -71,8 +71,17 @@ require_once '../includes/header.php';
                                         <td><?php echo htmlspecialchars($nomina['periodo_inicio']) . ' al ' . htmlspecialchars($nomina['periodo_fin']); ?></td>
                                         <td><?php echo htmlspecialchars($nomina['tipo_nomina_procesada']); ?></td>
                                         <td>
-                                            <span class="badge bg-<?php echo ($nomina['estado_nomina'] === 'Aprobada y Finalizada') ? 'success' : 'warning text-dark'; ?>">
-                                                <?php echo htmlspecialchars($nomina['estado_nomina']); ?>
+                                            <?php
+                                                $estado = htmlspecialchars($nomina['estado_nomina'] ?? 'Desconocido');
+                                                $clase_badge = 'bg-secondary'; // Color por defecto
+                                                if ($estado === 'Calculada') {
+                                                    $clase_badge = 'bg-warning text-dark';
+                                                } elseif ($estado === 'Aprobada y Finalizada') {
+                                                    $clase_badge = 'bg-success';
+                                                }
+                                            ?>
+                                            <span class="badge <?php echo $clase_badge; ?>">
+                                                <?php echo $estado; ?>
                                             </span>
                                         </td>
                                         <td><?php echo htmlspecialchars($nomina['fecha_ejecucion']); ?></td>
