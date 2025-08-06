@@ -13,39 +13,38 @@ function esUltimaSemanaDelMes($fecha_fin_periodo) {
     return ($dias_en_mes - $dia_fin_semana) < 7;
 }
 
-// --- Lógica Unificada de Entrada ---
+// --- Lógica Unificada de Entrada (CORREGIDA) ---
 $id_nomina_a_recalcular = $_POST['id_nomina_a_recalcular'] ?? null;
+$periodo_id_from_form = $_POST['periodo_id'] ?? null; // Viene de payroll/index.php para nuevos procesamientos
 
-if (!$id_nomina_a_recalcular || !is_numeric($id_nomina_a_recalcular)) {
-    header('Location: ' . BASE_URL . 'payroll/index.php?status=error&message=Solicitud inválida para recalcular.');
-    exit();
+$periodo = null;
+
+if ($id_nomina_a_recalcular) {
+    // Es un RECALCULO. Obtenemos el período desde la nómina existente.
+    $stmt_recalc_info = $pdo->prepare("
+        SELECT pr.*
+        FROM PeriodosDeReporte pr
+        JOIN NominasProcesadas np ON pr.fecha_inicio_periodo = np.periodo_inicio AND pr.fecha_fin_periodo = np.periodo_fin
+        WHERE np.id = ? AND np.tipo_nomina_procesada = 'Inspectores'
+    ");
+    $stmt_recalc_info->execute([$id_nomina_a_recalcular]);
+    $periodo = $stmt_recalc_info->fetch();
+
+} elseif ($periodo_id_from_form) {
+    // Es un NUEVO procesamiento. Obtenemos el período desde el ID del formulario.
+    $stmt_periodo = $pdo->prepare("SELECT * FROM PeriodosDeReporte WHERE id = ?");
+    $stmt_periodo->execute([$periodo_id_from_form]);
+    $periodo = $stmt_periodo->fetch();
 }
-
-// Obtenemos los datos del período a través de la nómina que vamos a recalcular
-$stmt_recalc_info = $pdo->prepare("
-    SELECT pr.id, pr.fecha_inicio_periodo, pr.fecha_fin_periodo, pr.tipo_nomina
-    FROM PeriodosDeReporte pr
-    JOIN NominasProcesadas np ON pr.fecha_inicio_periodo = np.periodo_inicio AND pr.fecha_fin_periodo = np.periodo_fin
-    WHERE np.id = ? AND np.tipo_nomina_procesada = 'Inspectores'
-");
-$stmt_recalc_info->execute([$id_nomina_a_recalcular]);
-$periodo = $stmt_recalc_info->fetch();
-
-if (!$periodo) {
-    header('Location: ' . BASE_URL . 'payroll/review.php?status=error&message=Error: No se encontró el período de reporte asociado a la nómina de inspectores a recalcular.');
-    exit();
-}
-$periodo_id = $periodo['id']; // Asignamos el periodo_id para usarlo en el resto del script
-
 
 try {
-    $periodo_id = $_POST['periodo_id'];
-    $stmt_periodo = $pdo->prepare("SELECT * FROM PeriodosDeReporte WHERE id = ?");
-    $stmt_periodo->execute([$periodo_id]);
-    $periodo = $stmt_periodo->fetch();
+    // Verificación central: Si después de la lógica anterior no tenemos un período válido, lanzamos la excepción.
+    if (!$periodo) {
+        throw new Exception("Período no encontrado.");
+    }
 
-    if (!$periodo) { throw new Exception("Período no encontrado."); }
-
+    // A partir de aquí, las variables se definen de forma segura desde $periodo
+    $periodo_id = $periodo['id'];
     $tipo_nomina = $periodo['tipo_nomina'];
     $fecha_inicio = $periodo['fecha_inicio_periodo'];
     $fecha_fin = $periodo['fecha_fin_periodo'];
@@ -54,6 +53,12 @@ try {
     $anio_actual = date('Y', strtotime($fecha_fin));
 
     $pdo->beginTransaction();
+
+    // Si estamos recalculando, borramos la nómina anterior.
+    if ($id_nomina_a_recalcular) {
+        $pdo->prepare("DELETE FROM NominaDetalle WHERE id_nomina_procesada = ?")->execute([$id_nomina_a_recalcular]);
+        $pdo->prepare("DELETE FROM NominasProcesadas WHERE id = ?")->execute([$id_nomina_a_recalcular]);
+    }
 
     $configs_db = $pdo->query("SELECT clave, valor FROM ConfiguracionGlobal")->fetchAll(PDO::FETCH_KEY_PAIR);
     $tope_salarial_tss = (float)($configs_db['TSS_TOPE_SALARIAL'] ?? 265840.00);
