@@ -60,10 +60,27 @@ require_once '../includes/header.php';
             <div class="col-md-4"><p><strong>Período:</strong> <?php echo htmlspecialchars($nomina['periodo_inicio']) . " al " . htmlspecialchars($nomina['periodo_fin']); ?></p><p><strong>Procesada el:</strong> <?php echo htmlspecialchars($nomina['fecha_ejecucion']); ?></p></div>
             <div class="col-md-4 text-end">
                 
-                <!-- INICIO DEL BLOQUE RESTAURADO -->
-                <?php if ($nomina['estado_nomina'] !== 'Aprobada y Finalizada'): ?>
-                    <form action="<?php echo BASE_URL; ?>payroll/process.php" method="POST" class="d-inline" onsubmit="return confirm('¿Recalcular? Los datos actuales se borrarán y se volverán a generar con las novedades más recientes.');">
-                        <input type="hidden" name="periodo_id" value="<?php echo htmlspecialchars($nomina['periodo_id']); ?>">
+            <?php if ($nomina['estado_nomina'] !== 'Aprobada y Finalizada'): ?>
+                    <?php
+                        // Determinar el script de procesamiento correcto
+                        $processing_script = '';
+                        if ($nomina['tipo_nomina_procesada'] === 'Administrativa') {
+                            $processing_script = BASE_URL . 'nomina_administrativa/procesar_nomina_admin.php';
+                        } else { // Para 'Inspectores' y cualquier otro caso
+                            $processing_script = BASE_URL . 'payroll/process.php';
+                        }
+                    ?>
+                    <form action="<?php echo $processing_script; ?>" method="POST" class="d-inline" onsubmit="return confirm('¿Recalcular? Los datos actuales se borrarán y se volverán a generar con las novedades más recientes.');">
+                        
+                        <!-- El input que enviamos depende del script -->
+                        <?php if ($nomina['tipo_nomina_procesada'] === 'Administrativa'): ?>
+                            <input type="hidden" name="fecha_inicio" value="<?php echo htmlspecialchars($nomina['periodo_inicio']); ?>">
+                            <input type="hidden" name="fecha_fin" value="<?php echo htmlspecialchars($nomina['periodo_fin']); ?>">
+                            <input type="hidden" name="quincena" value="<?php echo ((int)date('d', strtotime($nomina['periodo_fin'])) <= 15) ? 1 : 2; ?>">
+                        <?php else: ?>
+                            <input type="hidden" name="period_id" value="<?php echo htmlspecialchars($nomina['periodo_id']); ?>">
+                        <?php endif; ?>
+                        
                         <button type="submit" class="btn btn-warning"><i class="bi bi-arrow-clockwise"></i> Recalcular</button>
                     </form>
                     
@@ -74,7 +91,7 @@ require_once '../includes/header.php';
                 <?php else: ?>
                     <p class="text-muted">La nómina ya ha sido finalizada y no admite más acciones.</p>
                 <?php endif; ?>
-                <!-- FIN DEL BLOQUE RESTAURADO -->
+
 
             </div>
         </div>

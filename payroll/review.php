@@ -7,8 +7,20 @@ require_login();
 require_role(['Admin', 'Contabilidad']);
 
 // 1. Obtener todas las nóminas procesadas, ordenadas por fecha
-$stmt_nominas = $pdo->query("SELECT * FROM NominasProcesadas ORDER BY periodo_fin DESC");
-$nominas = $stmt_nominas->fetchAll();
+// 1. Obtener todas las nóminas procesadas, ordenadas por fecha
+$stmt_nominas = $pdo->query("
+    SELECT 
+        id, 
+        periodo_inicio, 
+        periodo_fin, 
+        tipo_nomina_procesada, 
+        estado_nomina, 
+        fecha_ejecucion 
+    FROM NominasProcesadas 
+    ORDER BY periodo_fin DESC
+");
+$nominas = $stmt_nominas->fetchAll(PDO::FETCH_ASSOC);
+
 
 // 2. Agrupar las nóminas por mes y año en un array de PHP
 $nominas_por_mes = [];
