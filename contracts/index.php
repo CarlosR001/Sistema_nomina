@@ -77,12 +77,6 @@ require_once '../includes/header.php';
     </div>
 </div>
 
-</div> <!-- Fin del card-body de Contratos -->
-</div> <!-- Fin del card de Contratos -->
-
-
-<!-- ▼▼▼ AÑADE ESTE BLOQUE COMPLETO ▼▼▼ -->
-<!-- Sección de Ingresos Recurrentes -->
 <div class="card mb-4">
     <div class="card-header"><h5>Ingresos Recurrentes</h5></div>
     <div class="card-body">
@@ -171,11 +165,6 @@ require_once '../includes/header.php';
         </table>
     </div>
 </div>
-<!-- ▲▲▲ FIN DEL BLOQUE A AÑADIR ▲▲▲ -->
-
-
-<!-- Sección de Deducciones Recurrentes -->
-<div class="card">
 
 <!-- Sección de Deducciones Recurrentes -->
 <div class="card">
