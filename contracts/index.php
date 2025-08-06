@@ -25,20 +25,25 @@ $stmt_contracts = $pdo->prepare('SELECT c.id, c.estado_contrato, p.nombre_posici
 $stmt_contracts->execute([$employee_id]);
 $contracts = $stmt_contracts->fetchAll();
 
-// Obtener deducciones recurrentes
-$stmt_deductions = $pdo->prepare("
-    SELECT dr.id, dr.monto_deduccion, dr.estado, dr.quincena_aplicacion, cn.descripcion_publica, c.id as id_contrato, p.nombre_posicion
-    FROM DeduccionesRecurrentes dr
-    JOIN ConceptosNomina cn ON dr.id_concepto_deduccion = cn.id
-    JOIN Contratos c ON dr.id_contrato = c.id
+
+// Obtener ingresos recurrentes de TODOS los contratos de este empleado
+$stmt_incomes = $pdo->prepare("
+    SELECT ir.id, ir.monto_ingreso, ir.estado, ir.quincena_aplicacion, cn.descripcion_publica, c.id as id_contrato, p.nombre_posicion
+    FROM IngresosRecurrentes ir
+    JOIN ConceptosNomina cn ON ir.id_concepto_ingreso = cn.id
+    JOIN Contratos c ON ir.id_contrato = c.id
     JOIN Posiciones p ON c.id_posicion = p.id
     WHERE c.id_empleado = ?
-    ORDER BY dr.estado
+    ORDER BY ir.estado
 ");
-$stmt_deductions->execute([$employee_id]);
-$deductions = $stmt_deductions->fetchAll();
+$stmt_incomes->execute([$employee_id]);
+$incomes = $stmt_incomes->fetchAll();
+
+
 
 // Obtener conceptos de tipo 'Deducción' para el formulario
+// ▼▼▼ AÑADE ESTA LÍNEA ▼▼▼
+$conceptos_ingreso = $pdo->query("SELECT id, descripcion_publica FROM ConceptosNomina WHERE tipo_concepto = 'Ingreso'")->fetchAll();
 $conceptos_deduccion = $pdo->query("SELECT id, descripcion_publica FROM ConceptosNomina WHERE tipo_concepto = 'Deducción'")->fetchAll();
 
 require_once '../includes/header.php';
@@ -71,6 +76,106 @@ require_once '../includes/header.php';
         </ul>
     </div>
 </div>
+
+</div> <!-- Fin del card-body de Contratos -->
+</div> <!-- Fin del card de Contratos -->
+
+
+<!-- ▼▼▼ AÑADE ESTE BLOQUE COMPLETO ▼▼▼ -->
+<!-- Sección de Ingresos Recurrentes -->
+<div class="card mb-4">
+    <div class="card-header"><h5>Ingresos Recurrentes</h5></div>
+    <div class="card-body">
+        <form action="store_ingreso.php" method="POST" class="mb-4 border-bottom pb-4">
+            <h6 class="mb-3">Añadir Nuevo Ingreso</h6>
+            <input type="hidden" name="employee_id" value="<?php echo $employee_id; ?>">
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">Contrato Vigente</label>
+                    <select class="form-select" name="id_contrato" required>
+                        <option value="">Seleccione...</option>
+                        <?php foreach ($contracts as $contract): if($contract['estado_contrato'] === 'Vigente'): ?>
+                            <option value="<?php echo $contract['id']; ?>"><?php echo htmlspecialchars($contract['nombre_posicion']); ?> (Vigente)</option>
+                        <?php endif; endforeach; ?>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Concepto de Ingreso</label>
+                    <select class="form-select" name="id_concepto_ingreso" required>
+                        <option value="">Seleccione...</option>
+                        <?php foreach($conceptos_ingreso as $concepto): ?>
+                            <option value="<?php echo $concepto['id']; ?>"><?php echo htmlspecialchars($concepto['descripcion_publica']); ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Monto</label>
+                    <input type="number" step="0.01" class="form-control" name="monto_ingreso" required>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Frecuencia</label>
+                    <select class="form-select" name="quincena_aplicacion" required>
+                        <option value="0">Siempre</option>
+                        <option value="1">Solo 1ra Quincena</option>
+                        <option value="2">Solo 2da Quincena</option>
+                    </select>
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <button type="submit" class="btn btn-success w-100">Añadir Ingreso</button>
+                </div>
+            </div>
+        </form>
+        
+        <h6 class="mt-4">Ingresos Configurados</h6>
+        <table class="table table-sm table-hover">
+            <thead>
+                <tr>
+                    <th>Concepto</th>
+                    <th>Monto</th>
+                    <th>Frecuencia</th>
+                    <th>Estado</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php foreach ($incomes as $income): ?>
+                    <?php
+                        $frecuencia_texto = 'Siempre';
+                        if ($income['quincena_aplicacion'] == 1) $frecuencia_texto = '1ra Quincena';
+                        elseif ($income['quincena_aplicacion'] == 2) $frecuencia_texto = '2da Quincena';
+                    ?>
+                    <tr>
+                        <td><?php echo htmlspecialchars($income['descripcion_publica']); ?></td>
+                        <td>$<?php echo number_format($income['monto_ingreso'], 2); ?></td>
+                        <td><span class="badge bg-info text-dark"><?php echo $frecuencia_texto; ?></span></td>
+                        <td><span class="badge bg-<?php echo $income['estado'] === 'Activa' ? 'success' : 'secondary'; ?>"><?php echo htmlspecialchars($income['estado']); ?></span></td>
+                        <td>
+                            <form action="toggle_ingreso.php" method="POST" class="d-inline">
+                                <input type="hidden" name="id_ingreso" value="<?php echo $income['id']; ?>">
+                                <input type="hidden" name="employee_id" value="<?php echo $employee_id; ?>">
+                                <button type="submit" class="btn btn-sm btn-info text-white"><?php echo $income['estado'] === 'Activa' ? 'Desactivar' : 'Activar'; ?></button>
+                            </form>
+                            <a href="edit_ingreso.php?id=<?php echo $income['id']; ?>&employee_id=<?php echo $employee_id; ?>" class="btn btn-sm btn-warning">Editar</a>
+                            <form action="delete_ingreso.php" method="POST" class="d-inline" onsubmit="return confirm('¿Está seguro de que desea eliminar este ingreso de forma permanente?');">
+                                <input type="hidden" name="id_ingreso" value="<?php echo $income['id']; ?>">
+                                <input type="hidden" name="employee_id" value="<?php echo $employee_id; ?>">
+                                <button type="submit" class="btn btn-sm btn-danger">Eliminar</button>
+                            </form>
+                        </td>
+                    </tr>
+                <?php endforeach; ?>
+                <?php if (empty($incomes)): ?>
+                    <tr><td colspan="5" class="text-center">No hay ingresos recurrentes configurados.</td></tr>
+                <?php endif; ?>
+            </tbody>
+        </table>
+    </div>
+</div>
+<!-- ▲▲▲ FIN DEL BLOQUE A AÑADIR ▲▲▲ -->
+
+
+<!-- Sección de Deducciones Recurrentes -->
+<div class="card">
 
 <!-- Sección de Deducciones Recurrentes -->
 <div class="card">
