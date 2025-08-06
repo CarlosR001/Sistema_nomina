@@ -1,5 +1,5 @@
 <?php
-// contracts/index.php - v2.2 (con Frecuencia de Deducción)
+// contracts/index.php - v2.3 (con Edición/Eliminación de Deducciones)
 
 require_once '../auth.php';
 require_login();
@@ -25,7 +25,7 @@ $stmt_contracts = $pdo->prepare('SELECT c.id, c.estado_contrato, p.nombre_posici
 $stmt_contracts->execute([$employee_id]);
 $contracts = $stmt_contracts->fetchAll();
 
-// Obtener deducciones recurrentes (con el nuevo campo 'quincena_aplicacion')
+// Obtener deducciones recurrentes
 $stmt_deductions = $pdo->prepare("
     SELECT dr.id, dr.monto_deduccion, dr.estado, dr.quincena_aplicacion, cn.descripcion_publica, c.id as id_contrato, p.nombre_posicion
     FROM DeduccionesRecurrentes dr
@@ -141,9 +141,15 @@ require_once '../includes/header.php';
                             <form action="toggle_deduccion.php" method="POST" class="d-inline">
                                 <input type="hidden" name="id_deduccion" value="<?php echo $deduction['id']; ?>">
                                 <input type="hidden" name="employee_id" value="<?php echo $employee_id; ?>">
-                                <button type="submit" class="btn btn-sm btn-<?php echo $deduction['estado'] === 'Activa' ? 'secondary' : 'success'; ?>">
+                                <button type="submit" class="btn btn-sm btn-info text-white">
                                     <?php echo $deduction['estado'] === 'Activa' ? 'Desactivar' : 'Activar'; ?>
                                 </button>
+                            </form>
+                            <a href="edit_deduccion.php?id=<?php echo $deduction['id']; ?>&employee_id=<?php echo $employee_id; ?>" class="btn btn-sm btn-warning">Editar</a>
+                            <form action="delete_deduccion.php" method="POST" class="d-inline" onsubmit="return confirm('¿Está seguro de que desea eliminar esta deducción de forma permanente?');">
+                                <input type="hidden" name="id_deduccion" value="<?php echo $deduction['id']; ?>">
+                                <input type="hidden" name="employee_id" value="<?php echo $employee_id; ?>">
+                                <button type="submit" class="btn btn-sm btn-danger">Eliminar</button>
                             </form>
                         </td>
                     </tr>
