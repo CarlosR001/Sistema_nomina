@@ -57,6 +57,15 @@ require_once '../includes/header.php';
                         <option value="Por Obra o Servicio" <?php echo $contrato['tipo_contrato'] == 'Por Obra o Servicio' ? 'selected' : ''; ?>>Por Obra o Servicio</option>
                     </select>
                 </div>
+                <div class="col-md-12 mt-4">
+                <h6>Permisos Especiales</h6>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" name="permite_horas_extras" value="1" id="permite_horas_extras" <?php echo !empty($contrato['permite_horas_extras']) ? 'checked' : ''; ?>>
+                    <label class="form-check-label" for="permite_horas_extras">
+                        Permitir que este contrato genere Horas Extras (Personal Fijo)
+                    </label>
+                </div>
+            </div>
 
                 <div class="col-md-6">
                     <label for="tipo_nomina" class="form-label">Tipo de Nómina</label>
@@ -105,14 +114,7 @@ require_once '../includes/header.php';
                         <option value="Cancelado" <?php echo $contrato['estado_contrato'] == 'Cancelado' ? 'selected' : ''; ?>>Cancelado</option>
                     </select>
                 </div>
-                <div class="col-md-12 mt-4">
-                <h6>Permisos Especiales</h6>
-                <div class="form-check">
-                    <input class="form-check-input" type="checkbox" name="permite_horas_extras" value="1" id="permite_horas_extras" <?php echo !empty($contrato['permite_horas_extras']) ? 'checked' : ''; ?>>
-                    <label class="form-check-label" for="permite_horas_extras">
-                        Permitir que este contrato genere Horas Extras (Personal Fijo)
-                    </label>
-                </div>
+               
             </div>
 
             </div>
