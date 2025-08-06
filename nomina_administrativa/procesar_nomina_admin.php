@@ -36,7 +36,8 @@ try {
 
     if (empty($empleados_a_procesar)) throw new Exception("No se encontraron empleados activos con salario para este tipo de nómina.");
 
-    $sql_nomina = "INSERT INTO NominasProcesadas (tipo_nomina_procesada, periodo_inicio, periodo_fin, id_usuario_ejecutor, estado_nomina) VALUES ('Administrativa', ?, ?, ?, 'Procesado y Finalizado')";
+    $sql_nomina = "INSERT INTO NominasProcesadas (tipo_nomina_procesada, periodo_inicio, periodo_fin, id_usuario_ejecutor, estado_nomina) VALUES ('Administrativa', ?, ?, ?, 'Calculada')";
+
     $stmt_nomina = $pdo->prepare($sql_nomina);
     $stmt_nomina->execute([$fecha_inicio, $fecha_fin, $_SESSION['user_id']]);
     $id_nomina_procesada = $pdo->lastInsertId();
