@@ -1,5 +1,5 @@
 <?php
-// contracts/index.php - v2.0 (con Deducciones Recurrentes)
+// contracts/index.php - v2.1 (con Botón de Eliminar)
 
 require_once '../auth.php';
 require_login();
@@ -59,7 +59,14 @@ require_once '../includes/header.php';
                     <?php echo htmlspecialchars($contract['nombre_posicion']); ?>
                     <div>
                         <span class="badge bg-<?php echo $contract['estado_contrato'] === 'Vigente' ? 'success' : 'secondary'; ?> me-2"><?php echo htmlspecialchars($contract['estado_contrato']); ?></span>
-                        <a href="edit.php?id=<?php echo $contract['id']; ?>" class="btn btn-sm btn-warning">Editar Contrato</a>
+                        <a href="edit.php?id=<?php echo $contract['id']; ?>" class="btn btn-sm btn-warning">Editar</a>
+                        
+                        <!-- Formulario para Eliminar Contrato -->
+                        <form action="delete.php" method="POST" class="d-inline" onsubmit="return confirm('¿Está seguro de que desea eliminar este contrato? Esta acción no se puede deshacer.');">
+                            <input type="hidden" name="id" value="<?php echo $contract['id']; ?>">
+                            <input type="hidden" name="employee_id" value="<?php echo $employee_id; ?>">
+                            <button type="submit" class="btn btn-sm btn-danger">Eliminar</button>
+                        </form>
                     </div>
                 </li>
             <?php endforeach; ?>
