@@ -12,37 +12,48 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 try {
     $pdo->beginTransaction();
-
-    // 1. Buscar y eliminar de forma segura cualquier cálculo anterior para este período
-    $stmt_find_old = $pdo->prepare("SELECT id FROM NominasProcesadas WHERE tipo_nomina_procesada = 'Administrativa' AND periodo_inicio = ? AND periodo_fin = ?");
-    $stmt_find_old->execute([$fecha_inicio, $fecha_fin]);
-    $old_nomina_id = $stmt_find_old->fetchColumn();
-
-    // Si encontramos una nómina vieja, la borramos junto con sus detalles.
-    if ($old_nomina_id) {
-        // Primero borramos los detalles (hijos)
-        $stmt_delete_detalles = $pdo->prepare("DELETE FROM NominaDetalle WHERE id_nomina_procesada = ?");
-        $stmt_delete_detalles->execute([$old_nomina_id]);
-
-        // Luego borramos la cabecera (padre)
-        $stmt_delete_nomina = $pdo->prepare("DELETE FROM NominasProcesadas WHERE id = ?");
-        $stmt_delete_nomina->execute([$old_nomina_id]);
+          
+    // Solo se ejecuta si estamos recalculando una nómina existente (la variable ahora sí está definida).
+    if ($id_nomina_a_recalcular) {
+        // Borra los detalles (hijos) primero para evitar error de clave externa.
+        $pdo->prepare("DELETE FROM NominaDetalle WHERE id_nomina_procesada = ?")->execute([$id_nomina_a_recalcular]);
+        // Luego borra la cabecera (padre).
+        $pdo->prepare("DELETE FROM NominasProcesadas WHERE id = ?")->execute([$id_nomina_a_recalcular]);
     }
 
+// --- Lógica Unificada de Entrada (CORREGIDA Y EN EL ORDEN CORRECTO) ---
+$fecha_inicio = null;
+$fecha_fin = null;
+$id_nomina_a_recalcular = $_POST['id_nomina_a_recalcular'] ?? null;
+$fecha_inicio_form = $_POST['fecha_inicio'] ?? null; // Viene de nomina_administrativa/index.php
+$fecha_fin_form = $_POST['fecha_fin'] ?? null;     // Viene de nomina_administrativa/index.php
 
-    $mes = filter_input(INPUT_POST, 'mes', FILTER_VALIDATE_INT);
-    $anio = filter_input(INPUT_POST, 'anio', FILTER_VALIDATE_INT);
-    $quincena = filter_input(INPUT_POST, 'quincena', FILTER_VALIDATE_INT);
-
-    if (!$mes || !$anio || !$quincena) throw new Exception("Parámetros de período inválidos.");
-
-    if ($quincena == 1) {
-        $fecha_inicio = date('Y-m-d', mktime(0, 0, 0, $mes, 1, $anio));
-        $fecha_fin = date('Y-m-d', mktime(0, 0, 0, $mes, 15, $anio));
-    } else {
-        $fecha_inicio = date('Y-m-d', mktime(0, 0, 0, $mes, 16, $anio));
-        $fecha_fin = date('Y-m-t', mktime(0, 0, 0, $mes, 1, $anio));
+if ($id_nomina_a_recalcular) {
+    // Es un RECALCULO. Obtenemos las fechas desde la nómina existente.
+    $stmt_recalc_info = $pdo->prepare("SELECT periodo_inicio, periodo_fin FROM NominasProcesadas WHERE id = ? AND tipo_nomina_procesada = 'Administrativa'");
+    $stmt_recalc_info->execute([$id_nomina_a_recalcular]);
+    $recalc_data = $stmt_recalc_info->fetch();
+    if ($recalc_data) {
+        $fecha_inicio = $recalc_data['periodo_inicio'];
+        $fecha_fin = $recalc_data['periodo_fin'];
     }
+} elseif ($fecha_inicio_form && $fecha_fin_form) {
+    // Es un NUEVO procesamiento desde el formulario de selección de mes.
+    $fecha_inicio = $fecha_inicio_form;
+    $fecha_fin = $fecha_fin_form;
+}
+
+// Si después de toda la lógica no tenemos fechas válidas, es un error.
+if (!$fecha_inicio || !$fecha_fin) {
+    header('Location: index.php?status=error&message=' . urlencode('Error crítico: Parámetros de período inválidos.'));
+    exit();
+}
+
+// A partir de las fechas correctas, definimos las variables de quincena, mes y año.
+$quincena = (int)date('d', strtotime($fecha_fin)) <= 15 ? 1 : 2;
+$mes = (int)date('m', strtotime($fecha_fin));
+$anio = (int)date('Y', strtotime($fecha_fin));
+
     
     $configs_db = $pdo->query("SELECT clave, valor FROM ConfiguracionGlobal")->fetchAll(PDO::FETCH_KEY_PAIR);
     $escala_isr = $pdo->query("SELECT * FROM escalasisr WHERE anio_fiscal = {$anio} ORDER BY desde_monto_anual ASC")->fetchAll(PDO::FETCH_ASSOC);

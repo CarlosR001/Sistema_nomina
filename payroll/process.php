@@ -13,10 +13,30 @@ function esUltimaSemanaDelMes($fecha_fin_periodo) {
     return ($dias_en_mes - $dia_fin_semana) < 7;
 }
 
-if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !isset($_POST['periodo_id'])) {
-    header('Location: ' . BASE_URL . 'payroll/index.php?status=error&message=Solicitud%20inv%C3%A1lida.');
+// --- Lógica Unificada de Entrada ---
+$id_nomina_a_recalcular = $_POST['id_nomina_a_recalcular'] ?? null;
+
+if (!$id_nomina_a_recalcular || !is_numeric($id_nomina_a_recalcular)) {
+    header('Location: ' . BASE_URL . 'payroll/index.php?status=error&message=Solicitud inválida para recalcular.');
     exit();
 }
+
+// Obtenemos los datos del período a través de la nómina que vamos a recalcular
+$stmt_recalc_info = $pdo->prepare("
+    SELECT pr.id, pr.fecha_inicio_periodo, pr.fecha_fin_periodo, pr.tipo_nomina
+    FROM PeriodosDeReporte pr
+    JOIN NominasProcesadas np ON pr.fecha_inicio_periodo = np.periodo_inicio AND pr.fecha_fin_periodo = np.periodo_fin
+    WHERE np.id = ? AND np.tipo_nomina_procesada = 'Inspectores'
+");
+$stmt_recalc_info->execute([$id_nomina_a_recalcular]);
+$periodo = $stmt_recalc_info->fetch();
+
+if (!$periodo) {
+    header('Location: ' . BASE_URL . 'payroll/review.php?status=error&message=Error: No se encontró el período de reporte asociado a la nómina de inspectores a recalcular.');
+    exit();
+}
+$periodo_id = $periodo['id']; // Asignamos el periodo_id para usarlo en el resto del script
+
 
 try {
     $periodo_id = $_POST['periodo_id'];
@@ -41,20 +61,19 @@ try {
     $porcentaje_sfs = (float)($configs_db['TSS_PORCENTAJE_SFS'] ?? 0.0304);
     $escala_isr = $pdo->query("SELECT * FROM escalasisr WHERE anio_fiscal = {$anio_actual} ORDER BY desde_monto_anual ASC")->fetchAll(PDO::FETCH_ASSOC);
 
-                    // --- INICIO BLOQUE 1 ---
-              // Busca si ya existe una nómina para este período usando los nombres de columna correctos.
+                           // --- INICIO BLOQUE 1 (CORREGIDO) ---
+              // Busca si ya existe una nómina para este período.
               $stmt_find_nomina = $pdo->prepare("SELECT id FROM NominasProcesadas WHERE periodo_inicio = ? AND periodo_fin = ? AND tipo_nomina_procesada = ?");
-              // CORRECCIÓN: Usar la variable correcta '$tipo_nomina' que sí está definida.
-              if ($stmt_find_nomina->execute([$periodo['fecha_inicio_periodo'], $periodo['fecha_fin_periodo'], $tipo_nomina]) && $existing_nomina = $stmt_find_nomina->fetch()) {
+              // CORRECCIÓN: Se usa la variable correcta '$tipo_nomina' que sí está definida en tu script.
+              if ($stmt_find_nomina->execute([$fecha_inicio, $fecha_fin, $tipo_nomina]) && $existing_nomina = $stmt_find_nomina->fetch()) {
                   // Si existe, la borra por completo para empezar de cero (Hijos primero, luego Padre).
                   $pdo->prepare("DELETE FROM NominaDetalle WHERE id_nomina_procesada = ?")->execute([$existing_nomina['id']]);
                   $pdo->prepare("DELETE FROM NominasProcesadas WHERE id = ?")->execute([$existing_nomina['id']]);
               }
           
-              // Crucial para Recálculo: Asegura que TODAS las novedades del período (manuales y automáticas)
-              // vuelvan a 'Pendiente' para ser procesadas de nuevo, usando el rango de fechas.
+              // Crucial para Recálculo: Las novedades vuelven a 'Pendiente'.
               $pdo->prepare("UPDATE NovedadesPeriodo SET estado_novedad = 'Pendiente' WHERE periodo_aplicacion BETWEEN ? AND ?")
-                  ->execute([$periodo['fecha_inicio_periodo'], $periodo['fecha_fin_periodo']]);
+                  ->execute([$fecha_inicio, $fecha_fin]);
               // --- FIN BLOQUE 1 ---
 
 
