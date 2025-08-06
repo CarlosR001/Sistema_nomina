@@ -13,6 +13,23 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 try {
     $pdo->beginTransaction();
 
+    // 1. Buscar y eliminar de forma segura cualquier cálculo anterior para este período
+    $stmt_find_old = $pdo->prepare("SELECT id FROM NominasProcesadas WHERE tipo_nomina_procesada = 'Administrativa' AND periodo_inicio = ? AND periodo_fin = ?");
+    $stmt_find_old->execute([$fecha_inicio, $fecha_fin]);
+    $old_nomina_id = $stmt_find_old->fetchColumn();
+
+    // Si encontramos una nómina vieja, la borramos junto con sus detalles.
+    if ($old_nomina_id) {
+        // Primero borramos los detalles (hijos)
+        $stmt_delete_detalles = $pdo->prepare("DELETE FROM NominaDetalle WHERE id_nomina_procesada = ?");
+        $stmt_delete_detalles->execute([$old_nomina_id]);
+
+        // Luego borramos la cabecera (padre)
+        $stmt_delete_nomina = $pdo->prepare("DELETE FROM NominasProcesadas WHERE id = ?");
+        $stmt_delete_nomina->execute([$old_nomina_id]);
+    }
+
+
     $mes = filter_input(INPUT_POST, 'mes', FILTER_VALIDATE_INT);
     $anio = filter_input(INPUT_POST, 'anio', FILTER_VALIDATE_INT);
     $quincena = filter_input(INPUT_POST, 'quincena', FILTER_VALIDATE_INT);
