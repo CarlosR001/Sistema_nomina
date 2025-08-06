@@ -158,7 +158,7 @@ $conceptos['BASE-ISR-SEMANAL'] = ['desc' => 'Base ISR Semanal', 'monto' => $base
     $stmt_cerrar->execute([$periodo_id]);
 
     $pdo->commit();
-    header('Location: ' . BASE_URL . 'payroll/show.php?id=' . $id_nomina_procesada . '&status=processed');
+    header('Location: show.php?id=' . $id_nomina_procesada . '&status=success&message=' . urlencode('Nómina de Inspectores recalculada correctamente.'));
     exit();
 
 } catch (Exception $e) {

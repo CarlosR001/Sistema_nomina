@@ -124,7 +124,7 @@ try {
     }
 
     $pdo->commit();
-    header('Location: '. BASE_URL . 'payroll/review.php?status=success&message=' . urlencode('Nómina administrativa procesada correctamente.'));
+    header('Location: ' . BASE_URL . 'payroll/show.php?id=' . $id_nomina_procesada . '&status=success&message=' . urlencode('Nómina Administrativa recalculada correctamente.'));
     exit();
 
 } catch (Exception $e) {
