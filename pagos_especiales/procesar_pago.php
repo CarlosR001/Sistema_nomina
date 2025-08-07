@@ -12,6 +12,47 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 try {
     $pdo->beginTransaction();
+    // --- INICIO: BLOQUE PARA PROCESAR REGALÍA ---
+    // Verificamos si el pago que se está procesando es 'regalia'.
+    if (isset($_POST['payment_type']) && $_POST['payment_type'] === 'regalia') {
+        
+        // 1. Rescatar los datos de la sesión preparados por la previsualización.
+        if (!isset($_SESSION['regalia_data'], $_SESSION['regalia_year'])) {
+            throw new Exception("No se encontraron datos de regalía para procesar. Por favor, genere una previsualización primero.");
+        }
+        $regalia_data = $_SESSION['regalia_data'];
+        $year = $_SESSION['regalia_year'];
+        
+        // 2. Asegurar que el concepto de nómina para la regalía exista.
+        $stmt_concepto = $pdo->prepare("SELECT id FROM ConceptosNomina WHERE codigo_concepto = 'ING-REGALIA'");
+        $stmt_concepto->execute();
+        if (!$stmt_concepto->fetchColumn()) {
+            $pdo->exec("INSERT INTO ConceptosNomina (codigo_concepto, descripcion_publica, tipo_concepto, origen_calculo, afecta_tss, afecta_isr) VALUES ('ING-REGALIA', 'Pago de Regalía Pascual', 'Ingreso', 'Formula', 0, 1)");
+        }
+
+        // 3. Crear la cabecera de la nómina de tipo 'Especial'.
+        $sql_nomina = "INSERT INTO NominasProcesadas (tipo_nomina_procesada, tipo_calculo_nomina, periodo_inicio, periodo_fin, id_usuario_ejecutor, estado_nomina) VALUES ('Directiva', 'Especial', ?, ?, ?, 'Calculada')";
+        $stmt_nomina = $pdo->prepare($sql_nomina);
+        $stmt_nomina->execute(["$year-12-01", "$year-12-31", $_SESSION['user_id']]);
+        $id_nomina_procesada = $pdo->lastInsertId();
+
+        // 4. Insertar una línea de detalle por cada empleado en la nómina.
+        $sql_detalle = "INSERT INTO NominaDetalle (id_nomina_procesada, id_contrato, codigo_concepto, descripcion_concepto, tipo_concepto, monto_resultado) VALUES (?, ?, 'ING-REGALIA', 'Pago de Regalía Pascual', 'Ingreso', ?)";
+        $stmt_detalle = $pdo->prepare($sql_detalle);
+
+        foreach ($regalia_data as $data) {
+            if ($data['monto_regalia'] > 0) {
+                $stmt_detalle->execute([$id_nomina_procesada, $data['contrato_id'], $data['monto_regalia']]);
+            }
+        }
+        
+        // 5. Limpiar la sesión y finalizar.
+        unset($_SESSION['regalia_data'], $_SESSION['regalia_year']);
+        $pdo->commit();
+        header('Location: ../payroll/review.php?status=success&message=' . urlencode('Nómina de regalía generada exitosamente.'));
+        exit(); // Detiene el script aquí para no ejecutar la lógica de pago manual.
+    }
+    // --- FIN: BLOQUE PARA PROCESAR REGALÍA ---
 
     // 1. Recoger datos generales
     $id_empleado = filter_input(INPUT_POST, 'id_empleado', FILTER_VALIDATE_INT);

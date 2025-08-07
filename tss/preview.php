@@ -1,5 +1,7 @@
 <?php
-// tss/preview.php - v1.2 (Vista Previa Detallada)
+// tss/preview.php - v1.3 (con Búfer de Salida para Redirecciones Seguras)
+
+ob_start(); // <-- LÍNEA 1 AÑADIDA: Inicia el búfer de salida.
 
 require_once '../auth.php';
 require_login();
@@ -12,7 +14,6 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !isset($_POST['year'], $_POST['mont
 
 $year = (int)$_POST['year'];
 $month = (int)$_POST['month'];
-$periodo_tss = sprintf('%04d%02d', $year, $month);
 
 try {
     $configs_db = $pdo->query("SELECT clave, valor FROM ConfiguracionGlobal")->fetchAll(PDO::FETCH_KEY_PAIR);
@@ -49,6 +50,7 @@ try {
     $_SESSION['tss_export_period'] = ['year' => $year, 'month' => $month];
 
 } catch (Exception $e) {
+    ob_end_clean(); // <-- LÍNEA 2 AÑADIDA: Limpia el búfer antes de redirigir.
     header('Location: index.php?status=error&message=' . urlencode($e->getMessage()));
     exit();
 }
@@ -113,4 +115,7 @@ require_once '../includes/header.php';
     </div>
 </div>
 
-<?php require_once '../includes/header.php'; ?>
+<?php 
+require_once '../includes/footer.php'; 
+ob_end_flush(); // <-- LÍNEA 3 AÑADIDA: Envía la salida del búfer al navegador.
+?>

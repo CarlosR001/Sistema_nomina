@@ -20,6 +20,7 @@ require_once '../includes/header.php';
     <div class="card-body">
         <form action="procesar_pago.php" method="POST" id="form-pago-especial" onsubmit="return validarFormulario();">
             <!-- Sección de Datos Generales -->
+            <input type="hidden" name="payment_type" value="manual">
             <div class="row g-3 mb-4">
                 <div class="col-md-6">
                     <label for="id_empleado" class="form-label">Empleado</label>

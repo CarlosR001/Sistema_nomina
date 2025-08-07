@@ -1,5 +1,5 @@
 <?php
-// includes/header.php - v2.2 (con enlace a TSS)
+// includes/header.php - v2.3 (con enlace a Regalía)
 
 if (session_status() == PHP_SESSION_NONE) {
     session_start();
@@ -42,7 +42,9 @@ $user_rol = $_SESSION['user_rol'] ?? null;
                                 <ul class="dropdown-menu" aria-labelledby="navbarDropdownNomina">
                                     <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>payroll/">Nómina Inspectores (Semanal)</a></li>
                                     <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>nomina_administrativa/">Nómina Administrativa (Quincenal)</a></li>
-                                    <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>pagos_especiales/">Procesar Pago Especial</a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>pagos_especiales/regalia.php">Calcular Regalía Pascual</a></li>
+                                    <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>pagos_especiales/index.php">Procesar Otro Pago Especial</a></li>
                                     <li><hr class="dropdown-divider"></li>
                                     <?php if (in_array($user_rol, ['Admin', 'Supervisor'])): ?>
                                     <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>approvals/">Aprobaciones (Inspectores)</a></li>
