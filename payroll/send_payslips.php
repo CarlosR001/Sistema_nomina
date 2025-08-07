@@ -1,19 +1,17 @@
 <?php
 // payroll/send_payslips.php - v1.3 (FINAL CON COMPOSER Y DEPURACIÓN)
 
-// Usar los namespaces de PHPMailer
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 use PHPMailer\PHPMailer\SMTP;
 
-// Inicia el búfer para capturar toda la salida y poder ver la depuración
-ob_start();
+ob_start(); // Inicia el búfer para capturar la salida de depuración
 
 require_once '../auth.php';
 require_login();
 require_role('Admin');
 
-// Cargar el autoloader de Composer
+// Cargar el autoloader de Composer (La forma correcta)
 require_once __DIR__ . '/../vendor/autoload.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !isset($_POST['nomina_id'])) {
