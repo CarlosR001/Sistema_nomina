@@ -1,8 +1,7 @@
 <?php
-// approvals/index.php - v2.5 (Corrección definitiva del modal de edición)
-// 1. Se añaden campos faltantes a la consulta SQL.
-// 2. Se añaden los atributos data-* correspondientes al botón de editar.
-// 3. Se reescribe el JavaScript para que lea los atributos del botón y rellene el modal correctamente.
+// approvals/index.php - v2.6 (Mejoras Visuales en la Tabla)
+// 1. El checkbox de transporte en la tabla ahora refleja su estado real desde la BD.
+// 2. Se añade un indicador visual (un badge) si el registro tiene horas de gracia aprobadas.
 
 require_once '../auth.php';
 require_login();
@@ -15,9 +14,8 @@ $view = $_GET['view'] ?? 'pendientes';
 $proyectos = $pdo->query("SELECT id, nombre_proyecto FROM Proyectos WHERE estado_proyecto = 'Activo'")->fetchAll();
 $zonas = $pdo->query("SELECT id, nombre_zona_o_muelle FROM ZonasTransporte")->fetchAll();
 
-// Consulta principal adaptada a la vista
+// Consulta principal adaptada a la vista (ya es correcta y trae todos los campos necesarios)
 $estado_a_buscar = ($view === 'aprobados') ? 'Aprobado' : 'Pendiente';
-// CORRECCIÓN 1: Añadir todos los campos necesarios para el modal
 $sql = "SELECT 
             r.id, r.fecha_trabajada, r.hora_inicio, r.hora_fin, r.transporte_aprobado,
             r.hora_gracia_antes, r.hora_gracia_despues,
@@ -57,7 +55,7 @@ require_once '../includes/header.php';
 <?php if ($view === 'pendientes'): ?>
     <form action="update_status.php" method="POST">
         <div class="table-responsive">
-            <table class="table table-striped table-hover">
+            <table class="table table-striped table-hover align-middle">
                 <thead class="table-dark">
                     <tr>
                         <th><input class="form-check-input" type="checkbox" id="selectAll"></th>
@@ -70,13 +68,22 @@ require_once '../includes/header.php';
                             <td><input class="form-check-input" type="checkbox" name="registros[<?php echo $row['id']; ?>][id]" value="<?php echo $row['id']; ?>"></td>
                             <td><?php echo htmlspecialchars($row['nombres'] . ' ' . $row['primer_apellido']); ?></td>
                             <td><?php echo htmlspecialchars($row['fecha_trabajada']); ?></td>
-                            <td><?php echo htmlspecialchars(date('H:i', strtotime($row['hora_inicio']))) . " - " . htmlspecialchars(date('H:i', strtotime($row['hora_fin']))); ?></td>
+                            <td>
+                                <?php echo htmlspecialchars(date('H:i', strtotime($row['hora_inicio']))) . " - " . htmlspecialchars(date('H:i', strtotime($row['hora_fin']))); ?>
+                                <!-- MEJORA 2: Se añade un badge si tiene horas de gracia -->
+                                <?php if ($row['hora_gracia_antes'] || $row['hora_gracia_despues']): ?>
+                                    <span class="badge bg-info ms-1" title="Incluye Hora de Gracia">+1H</span>
+                                <?php endif; ?>
+                            </td>
                             <td><?php echo htmlspecialchars($row['nombre_proyecto']); ?></td>
                             <td>
-                                <div class="form-check"><input class="form-check-input" type="checkbox" name="registros[<?php echo $row['id']; ?>][transporte]" value="1" checked><label class="form-check-label"><?php echo htmlspecialchars($row['nombre_zona_o_muelle']); ?> <span class="text-muted">($<?php echo number_format($row['monto_transporte_completo'], 2); ?>)</span></label></div>
+                                <!-- MEJORA 1: El checkbox ahora refleja el estado guardado en la BD -->
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="registros[<?php echo $row['id']; ?>][transporte]" value="1" <?php echo ($row['transporte_aprobado'] ? 'checked' : ''); ?>>
+                                    <label class="form-check-label"><?php echo htmlspecialchars($row['nombre_zona_o_muelle']); ?> <span class="text-muted">($<?php echo number_format($row['monto_transporte_completo'], 2); ?>)</span></label>
+                                </div>
                             </td>
                             <td class="text-center">
-                                <!-- CORRECCIÓN 2: Añadir todos los atributos data-* necesarios -->
                                 <button type="button" class="btn btn-sm btn-warning btn-edit" data-bs-toggle="modal" data-bs-target="#editModal"
                                         data-id="<?php echo $row['id']; ?>"
                                         data-fecha="<?php echo $row['fecha_trabajada']; ?>"
@@ -104,14 +111,19 @@ require_once '../includes/header.php';
     </form>
 <?php elseif ($view === 'aprobados'): ?>
     <div class="table-responsive">
-        <table class="table table-striped table-hover">
+        <table class="table table-striped table-hover align-middle">
             <thead class="table-dark"><tr><th>Empleado</th><th>Fecha</th><th>Horario</th><th>Proyecto</th><th>Aprobado Por</th><th>Fecha Aprobación</th><th class="text-center">Acciones</th></tr></thead>
             <tbody>
                  <?php foreach ($registros as $row): ?>
                     <tr>
                         <td><?php echo htmlspecialchars($row['nombres'] . ' ' . $row['primer_apellido']); ?></td>
                         <td><?php echo htmlspecialchars($row['fecha_trabajada']); ?></td>
-                        <td><?php echo htmlspecialchars(date('H:i', strtotime($row['hora_inicio']))) . " - " . htmlspecialchars(date('H:i', strtotime($row['hora_fin']))); ?></td>
+                        <td>
+                            <?php echo htmlspecialchars(date('H:i', strtotime($row['hora_inicio']))) . " - " . htmlspecialchars(date('H:i', strtotime($row['hora_fin']))); ?>
+                            <?php if ($row['hora_gracia_antes'] || $row['hora_gracia_despues']): ?>
+                                <span class="badge bg-info ms-1" title="Incluye Hora de Gracia">+1H</span>
+                            <?php endif; ?>
+                        </td>
                         <td><?php echo htmlspecialchars($row['nombre_proyecto']); ?></td>
                         <td><?php echo htmlspecialchars($row['aprobador']); ?></td>
                         <td><?php echo htmlspecialchars($row['fecha_aprobacion']); ?></td>
@@ -128,7 +140,7 @@ require_once '../includes/header.php';
     </div>
 <?php endif; ?>
 
-<!-- Modal de Edición -->
+<!-- Modal de Edición (sin cambios, ya era correcto) -->
 <div class="modal fade" id="editModal" tabindex="-1">
   <div class="modal-dialog">
     <div class="modal-content">
@@ -171,15 +183,14 @@ require_once '../includes/header.php';
   </div>
 </div>
 
-<!-- CORRECCIÓN 3: JavaScript reescrito para funcionar correctamente -->
+<!-- JavaScript (sin cambios, ya era correcto) -->
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     var editModal = document.getElementById('editModal');
     if (editModal) {
         editModal.addEventListener('show.bs.modal', function (event) {
-            var button = event.relatedTarget; // Botón que activó el modal
+            var button = event.relatedTarget; 
 
-            // Extraer información de los atributos data-* del botón
             var recordId = button.getAttribute('data-id');
             var fecha = button.getAttribute('data-fecha');
             var inicio = button.getAttribute('data-inicio');
@@ -190,7 +201,6 @@ document.addEventListener('DOMContentLoaded', function () {
             var graciaAntes = button.getAttribute('data-gracia-antes');
             var graciaDespues = button.getAttribute('data-gracia-despues');
 
-            // Poblar el formulario del modal
             document.getElementById('edit-registro-id').value = recordId;
             document.getElementById('edit-fecha').value = fecha;
             document.getElementById('edit-inicio').value = inicio;
@@ -199,14 +209,12 @@ document.addEventListener('DOMContentLoaded', function () {
             document.getElementById('edit-zona').value = zonaId;
             document.getElementById('editModalTitle').textContent = 'Editar Registro ID: ' + recordId;
 
-            // Para los checkboxes, '1' significa marcado, cualquier otro valor (incluyendo '0' o null) es desmarcado.
             document.getElementById('edit-transporte').checked = (transporteAprobado === '1');
             document.getElementById('edit-gracia-antes').checked = (graciaAntes === '1');
             document.getElementById('edit-gracia-despues').checked = (graciaDespues === '1');
         });
     }
 
-    // Lógica para el checkbox "seleccionar todo"
     var selectAll = document.getElementById('selectAll');
     if (selectAll) {
         selectAll.addEventListener('click', function(event) {
