@@ -98,6 +98,7 @@ try {
         // 5. Configurar y enviar el correo con PHPMailer
         $mail = new PHPMailer(true);
         try {
+            $mail->SMTPDebug = 2;
             $mail->isSMTP();
             $mail->Host = $configs_db['SMTP_HOST'];
             $mail->SMTPAuth = true;
