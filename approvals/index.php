@@ -1,7 +1,6 @@
 <?php
-// approvals/index.php - v2.6 (Mejoras Visuales en la Tabla)
-// 1. El checkbox de transporte en la tabla ahora refleja su estado real desde la BD.
-// 2. Se añade un indicador visual (un badge) si el registro tiene horas de gracia aprobadas.
+// approvals/index.php - v2.7 (Mejora Final del Badge de Horas de Gracia)
+// 1. El badge ahora suma y muestra el número correcto de horas de gracia (1 o 2).
 
 require_once '../auth.php';
 require_login();
@@ -14,7 +13,7 @@ $view = $_GET['view'] ?? 'pendientes';
 $proyectos = $pdo->query("SELECT id, nombre_proyecto FROM Proyectos WHERE estado_proyecto = 'Activo'")->fetchAll();
 $zonas = $pdo->query("SELECT id, nombre_zona_o_muelle FROM ZonasTransporte")->fetchAll();
 
-// Consulta principal adaptada a la vista (ya es correcta y trae todos los campos necesarios)
+// Consulta principal adaptada a la vista
 $estado_a_buscar = ($view === 'aprobados') ? 'Aprobado' : 'Pendiente';
 $sql = "SELECT 
             r.id, r.fecha_trabajada, r.hora_inicio, r.hora_fin, r.transporte_aprobado,
@@ -70,14 +69,19 @@ require_once '../includes/header.php';
                             <td><?php echo htmlspecialchars($row['fecha_trabajada']); ?></td>
                             <td>
                                 <?php echo htmlspecialchars(date('H:i', strtotime($row['hora_inicio']))) . " - " . htmlspecialchars(date('H:i', strtotime($row['hora_fin']))); ?>
-                                <!-- MEJORA 2: Se añade un badge si tiene horas de gracia -->
-                                <?php if ($row['hora_gracia_antes'] || $row['hora_gracia_despues']): ?>
-                                    <span class="badge bg-info ms-1" title="Incluye Hora de Gracia">+1H</span>
+                                <!-- MEJORA: El badge ahora suma y muestra el total de horas de gracia -->
+                                <?php
+                                    $horas_gracia_concedidas = 0;
+                                    if ($row['hora_gracia_antes']) { $horas_gracia_concedidas++; }
+                                    if ($row['hora_gracia_despues']) { $horas_gracia_concedidas++; }
+                                
+                                    if ($horas_gracia_concedidas > 0):
+                                ?>
+                                    <span class="badge bg-info ms-1" title="Incluye <?php echo $horas_gracia_concedidas; ?> hora(s) de gracia">+<?php echo $horas_gracia_concedidas; ?>H</span>
                                 <?php endif; ?>
                             </td>
                             <td><?php echo htmlspecialchars($row['nombre_proyecto']); ?></td>
                             <td>
-                                <!-- MEJORA 1: El checkbox ahora refleja el estado guardado en la BD -->
                                 <div class="form-check">
                                     <input class="form-check-input" type="checkbox" name="registros[<?php echo $row['id']; ?>][transporte]" value="1" <?php echo ($row['transporte_aprobado'] ? 'checked' : ''); ?>>
                                     <label class="form-check-label"><?php echo htmlspecialchars($row['nombre_zona_o_muelle']); ?> <span class="text-muted">($<?php echo number_format($row['monto_transporte_completo'], 2); ?>)</span></label>
@@ -120,8 +124,15 @@ require_once '../includes/header.php';
                         <td><?php echo htmlspecialchars($row['fecha_trabajada']); ?></td>
                         <td>
                             <?php echo htmlspecialchars(date('H:i', strtotime($row['hora_inicio']))) . " - " . htmlspecialchars(date('H:i', strtotime($row['hora_fin']))); ?>
-                            <?php if ($row['hora_gracia_antes'] || $row['hora_gracia_despues']): ?>
-                                <span class="badge bg-info ms-1" title="Incluye Hora de Gracia">+1H</span>
+                            <!-- MEJORA: El badge ahora suma y muestra el total de horas de gracia -->
+                            <?php
+                                $horas_gracia_concedidas = 0;
+                                if ($row['hora_gracia_antes']) { $horas_gracia_concedidas++; }
+                                if ($row['hora_gracia_despues']) { $horas_gracia_concedidas++; }
+                            
+                                if ($horas_gracia_concedidas > 0):
+                            ?>
+                                <span class="badge bg-info ms-1" title="Incluye <?php echo $horas_gracia_concedidas; ?> hora(s) de gracia">+<?php echo $horas_gracia_concedidas; ?>H</span>
                             <?php endif; ?>
                         </td>
                         <td><?php echo htmlspecialchars($row['nombre_proyecto']); ?></td>
@@ -140,7 +151,7 @@ require_once '../includes/header.php';
     </div>
 <?php endif; ?>
 
-<!-- Modal de Edición (sin cambios, ya era correcto) -->
+<!-- Modal de Edición (sin cambios) -->
 <div class="modal fade" id="editModal" tabindex="-1">
   <div class="modal-dialog">
     <div class="modal-content">
@@ -183,7 +194,7 @@ require_once '../includes/header.php';
   </div>
 </div>
 
-<!-- JavaScript (sin cambios, ya era correcto) -->
+<!-- JavaScript (sin cambios) -->
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     var editModal = document.getElementById('editModal');
