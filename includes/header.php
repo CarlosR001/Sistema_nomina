@@ -1,15 +1,12 @@
 <?php
-// includes/header.php
-// v2.1 - Unifica el uso de la variable de rol para corregir errores.
+// includes/header.php - v2.2 (con enlace a TSS)
 
-// Se unifican los includes y la inicialización de sesión aquí para consistencia.
 if (session_status() == PHP_SESSION_NONE) {
     session_start();
 }
 require_once __DIR__ . '/../config/init.php';
 require_once __DIR__ . '/../auth.php';
 
-// Esta es la única variable que usaremos para el rol en todo el archivo.
 $user_rol = $_SESSION['user_rol'] ?? null;
 ?>
 <!DOCTYPE html>
@@ -36,37 +33,37 @@ $user_rol = $_SESSION['user_rol'] ?? null;
                             <li class="nav-item">
                                 <a class="nav-link" href="<?php echo BASE_URL; ?>time_tracking/index.php">Portal de Registro de Horas</a>
                             </li>
-                        <?php else: // Para Admin, Supervisor, Contabilidad ?>
+                        <?php else: ?>
                             <li class="nav-item">
                                 <a class="nav-link" href="<?php echo BASE_URL; ?>index.php">Dashboard</a>
                             </li>
                             <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownNomina" role="button" data-bs-toggle="dropdown" aria-expanded="false">Nómina</a>
-                            <ul class="dropdown-menu" aria-labelledby="navbarDropdownNomina">
-                                <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>payroll/">Nómina Inspectores (Semanal)</a></li>
-                                <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>nomina_administrativa/">Nómina Administrativa (Quincenal)</a></li>
-                                <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>pagos_especiales/">Procesar Pago Especial</a></li>
-                                <li><hr class="dropdown-divider"></li>
-                                <?php if (in_array($user_rol, ['Admin', 'Supervisor'])): ?>
-                                <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>approvals/">Aprobaciones (Inspectores)</a></li>
-                                <?php endif; ?>
-                                <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>payroll/review.php">Revisión de Nóminas</a></li>
-                            </ul>
-                        </li>
-
-                         <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownNovedades" role="button" data-bs-toggle="dropdown" aria-expanded="false">Entrada de Datos</a>
-                            <ul class="dropdown-menu" aria-labelledby="navbarDropdownNovedades">
-                                <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>reporting_periods/index.php">Períodos de Reporte (Inspectores)</a></li>
-                                <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>payroll/generar_novedades.php">Generar Novedades de Horas</a></li>
-                                <li><hr class="dropdown-divider"></li>
-                                <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>novedades/index.php">Novedades Manuales (Comisiones, etc.)</a></li>
-                                <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>he_admin/">Registrar Horas Extras (Personal Fijo)</a></li>
-                                <li><hr class="dropdown-divider"></li>
-                                <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>novedades/ajuste_isr.php">Ajuste Manual de ISR</a></li>
-                            </ul>
-                        </li>
-
+                                <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownNomina" role="button" data-bs-toggle="dropdown" aria-expanded="false">Nómina</a>
+                                <ul class="dropdown-menu" aria-labelledby="navbarDropdownNomina">
+                                    <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>payroll/">Nómina Inspectores (Semanal)</a></li>
+                                    <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>nomina_administrativa/">Nómina Administrativa (Quincenal)</a></li>
+                                    <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>pagos_especiales/">Procesar Pago Especial</a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <?php if (in_array($user_rol, ['Admin', 'Supervisor'])): ?>
+                                    <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>approvals/">Aprobaciones (Inspectores)</a></li>
+                                    <?php endif; ?>
+                                    <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>payroll/review.php">Revisión de Nóminas</a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><a class="dropdown-item bg-info text-dark" href="<?php echo BASE_URL; ?>tss/index.php">Exportar TSS</a></li>
+                                </ul>
+                            </li>
+                            <li class="nav-item dropdown">
+                                <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownNovedades" role="button" data-bs-toggle="dropdown" aria-expanded="false">Entrada de Datos</a>
+                                <ul class="dropdown-menu" aria-labelledby="navbarDropdownNovedades">
+                                    <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>reporting_periods/index.php">Períodos de Reporte (Inspectores)</a></li>
+                                    <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>payroll/generar_novedades.php">Generar Novedades de Horas</a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>novedades/index.php">Novedades Manuales (Comisiones, etc.)</a></li>
+                                    <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>he_admin/">Registrar Horas Extras (Personal Fijo)</a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>novedades/ajuste_isr.php">Ajuste Manual de ISR</a></li>
+                                </ul>
+                            </li>
                             <li class="nav-item dropdown">
                                 <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownCatalogos" role="button" data-bs-toggle="dropdown" aria-expanded="false">Catálogos</a>
                                 <ul class="dropdown-menu" aria-labelledby="navbarDropdownCatalogos">
@@ -82,7 +79,7 @@ $user_rol = $_SESSION['user_rol'] ?? null;
                             <li class="nav-item dropdown">
                                 <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownConfig" role="button" data-bs-toggle="dropdown" aria-expanded="false">Sistema</a>
                                 <ul class="dropdown-menu" aria-labelledby="navbarDropdownConfig">
-                                    <?php if ($user_rol === 'Admin'): // Variable corregida ?>
+                                    <?php if ($user_rol === 'Admin'): ?>
                                     <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>users/index.php">Gestión de Usuarios</a></li>
                                     <?php endif; ?>
                                     <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>conceptos/index.php">Conceptos de Nómina</a></li>
