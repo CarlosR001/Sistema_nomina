@@ -1,5 +1,5 @@
 <?php
-// conceptos/edit.php
+// conceptos/edit.php - v2.0 (con Código TSS)
 
 require_once '../auth.php';
 require_login();
@@ -36,9 +36,13 @@ require_once '../includes/header.php';
                     <label for="codigo_concepto" class="form-label">Código del Concepto</label>
                     <input type="text" class="form-control" id="codigo_concepto" name="codigo_concepto" value="<?php echo htmlspecialchars($concepto['codigo_concepto']); ?>" required>
                 </div>
-                <div class="col-md-9 mb-3">
+                <div class="col-md-6 mb-3">
                     <label for="descripcion_publica" class="form-label">Descripción Pública</label>
                     <input type="text" class="form-control" id="descripcion_publica" name="descripcion_publica" value="<?php echo htmlspecialchars($concepto['descripcion_publica']); ?>" required>
+                </div>
+                <div class="col-md-3 mb-3">
+                    <label for="codigo_tss" class="form-label">Código TSS</label>
+                    <input type="text" class="form-control" id="codigo_tss" name="codigo_tss" value="<?php echo htmlspecialchars($concepto['codigo_tss'] ?? ''); ?>" placeholder="Ej: 01 (Opcional)">
                 </div>
             </div>
             <div class="row">
@@ -71,4 +75,4 @@ require_once '../includes/header.php';
     </div>
 </div>
 
-<?php require_once '../includes/footer.php'; ?>
+<?php require_once '../includes/header.php'; ?>

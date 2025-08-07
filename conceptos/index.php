@@ -1,6 +1,5 @@
 <?php
-// conceptos/index.php - v3.0 (Versión Sincronizada)
-// Asegura que el formulario y la tabla estén alineados con la BD.
+// conceptos/index.php - v3.1 (con Código TSS)
 
 require_once '../auth.php';
 require_login();
@@ -29,9 +28,13 @@ require_once '../includes/header.php';
                     <label for="codigo_concepto" class="form-label">Código del Concepto</label>
                     <input type="text" class="form-control" id="codigo_concepto" name="codigo_concepto" placeholder="Ej: ING-INCENTIVO" required>
                 </div>
-                <div class="col-md-9 mb-3">
+                <div class="col-md-5 mb-3">
                     <label for="descripcion_publica" class="form-label">Descripción Pública</label>
                     <input type="text" class="form-control" id="descripcion_publica" name="descripcion_publica" placeholder="Ej: Incentivo por Desempeño" required>
+                </div>
+                <div class="col-md-2 mb-3">
+                    <label for="codigo_tss" class="form-label">Código TSS</label>
+                    <input type="text" class="form-control" id="codigo_tss" name="codigo_tss" placeholder="Ej: 01 (Opcional)">
                 </div>
             </div>
             <div class="row">
@@ -79,6 +82,7 @@ require_once '../includes/header.php';
             <tr>
                 <th>Código</th>
                 <th>Descripción</th>
+                <th>Código TSS</th>
                 <th>Tipo</th>
                 <th>Origen</th>
                 <th>Afecta TSS</th>
@@ -91,6 +95,7 @@ require_once '../includes/header.php';
             <tr>
                 <td><strong><?php echo htmlspecialchars($concepto['codigo_concepto']); ?></strong></td>
                 <td><?php echo htmlspecialchars($concepto['descripcion_publica']); ?></td>
+                <td><span class="badge bg-info text-dark"><?php echo htmlspecialchars($concepto['codigo_tss'] ?? 'N/A'); ?></span></td>
                 <td><?php echo htmlspecialchars($concepto['tipo_concepto']); ?></td>
                 <td><?php echo htmlspecialchars($concepto['origen_calculo']); ?></td>
                 <td><span class="badge bg-<?php echo $concepto['afecta_tss'] ? 'success' : 'secondary'; ?>"><?php echo $concepto['afecta_tss'] ? 'Sí' : 'No'; ?></span></td>
