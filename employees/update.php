@@ -14,7 +14,8 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 // Recoger datos del formulario
 $id = $_POST['id'];
 $cedula = $_POST['cedula'];
-$nss = $_POST['nss'];
+// CORRECCIÓN: Si el NSS está vacío, trátalo como NULL para la base de datos.
+$nss = !empty($_POST['nss']) ? $_POST['nss'] : null; 
 $nombres = $_POST['nombres'];
 $primer_apellido = $_POST['primer_apellido'];
 $segundo_apellido = $_POST['segundo_apellido'];
