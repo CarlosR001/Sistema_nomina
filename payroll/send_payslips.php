@@ -1,17 +1,14 @@
 <?php
-// payroll/send_payslips.php - v1.3 (FINAL CON COMPOSER Y DEPURACIÓN)
+// payroll/send_payslips.php - v1.4 (Versión Final de Producción)
 
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
-use PHPMailer\PHPMailer\SMTP;
-
-ob_start(); // Inicia el búfer para capturar la salida de depuración
 
 require_once '../auth.php';
 require_login();
 require_role('Admin');
 
-// Cargar el autoloader de Composer (La forma correcta)
+// Cargar el autoloader de Composer
 require_once __DIR__ . '/../vendor/autoload.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !isset($_POST['nomina_id'])) {
@@ -58,44 +55,6 @@ try {
     $mail->setFrom($configs_db['SMTP_USER'], 'Departamento de Nómina');
     $mail->isHTML(true);
     $mail->CharSet = 'UTF-8';
-    
-  // Reemplazar todo el bloque final de "Resultados de la Depuración" con esto:
-$message = "Proceso de envío finalizado. Enviados: {$success_count}.";
-if ($error_count > 0) $message .= " Fallidos: {$error_count}.";
-if ($no_email_count > 0) $message .= " Sin email: {$no_email_count}.";
-
-header('Location: show.php?id=' . $id_nomina . '&status=success&message=' . urlencode($message));
-exit();
-<?php
-// payroll/send_payslips.php - v1.4 (Versión Final de Producción)
-
-use PHPMailer\PHPMailer\PHPMailer;
-use PHPMailer\PHPMailer\Exception;
-
-require_once '../auth.php';
-require_login();
-require_role('Admin');
-
-// Cargar el autoloader de Composer
-require_once __DIR__ . '/../vendor/autoload.php';
-
-if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !isset($_POST['nomina_id'])) {
-    header('Location: review.php');
-    exit();
-}
-
-$id_nomina = (int)$_POST['nomina_id'];
-$success_count = 0;
-$error_count = 0;
-$no_email_count = 0;
-
-try {
-    $configs_db = $pdo->query("SELECT clave, valor FROM ConfiguracionGlobal")->fetchAll(PDO::FETCH_KEY_PAIR);
-    
-    $stmt_nomina = $pdo->prepare("SELECT * FROM NominasProcesadas WHERE id = ?");
-    $stmt_nomina->execute
-
-    $mail->Debugoutput = 'html';
 
     foreach ($empleados as $empleado) {
         if (empty($empleado['email_personal']) || !filter_var($empleado['email_personal'], FILTER_VALIDATE_EMAIL)) {
@@ -129,24 +88,18 @@ try {
             $success_count++;
         } catch (Exception $e) {
             $error_count++;
-            echo "Error al enviar a {$empleado['email_personal']}: " . $mail->ErrorInfo . "<br/>";
+            error_log("PHPMailer Error para {$empleado['email_personal']}: {$mail->ErrorInfo}");
         }
     }
 
 } catch (Exception $e) {
-    ob_end_clean();
     header('Location: show.php?id=' . $id_nomina . '&status=error&message=' . urlencode('Error crítico: ' . $e->getMessage()));
     exit();
 }
 
-echo "<h1>Resultados de la Depuración de Envío</h1>";
-echo "<h3>Conversación con el servidor SMTP:</h3>";
-echo "<pre>";
-echo htmlspecialchars(ob_get_clean());
-echo "</pre>";
+$message = "Proceso de envío finalizado. Enviados: {$success_count}.";
+if ($error_count > 0) $message .= " Fallidos: {$error_count}.";
+if ($no_email_count > 0) $message .= " Sin email: {$no_email_count}.";
 
-$message = "Proceso finalizado. Enviados: {$success_count}. Fallidos: {$error_count}. Sin email: {$no_email_count}.";
-echo "<h3>Resumen</h3>";
-echo "<p><strong>{$message}</strong></p>";
-echo "<a href='show.php?id={$id_nomina}'>Volver a la nómina</a>";
+header('Location: show.php?id=' . $id_nomina . '&status=success&message=' . urlencode($message));
 exit();
