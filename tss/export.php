@@ -1,5 +1,5 @@
 <?php
-// tss/export.php - v1.0 (Motor de Exportación a TSS)
+// tss/export.php - v1.1 (Lógica de Empleados Corregida)
 
 require_once '../auth.php';
 require_login();
@@ -14,7 +14,6 @@ $year = (int)$_POST['year'];
 $month = (int)$_POST['month'];
 $periodo_tss = sprintf('%04d%02d', $year, $month);
 
-// Validar que el mes y año sean correctos
 if (!checkdate($month, 1, $year)) {
     header('Location: index.php?status=error&message=' . urlencode('Fecha inválida.'));
     exit();
@@ -29,8 +28,8 @@ try {
         throw new Exception("El RNC de la empresa no está configurado. Por favor, actualícelo en la Configuración Global.");
     }
     
-    // 2. OBTENER DATOS DE EMPLEADOS Y SUS NÓMINAS DEL MES
-    // Esta es la consulta principal que une todo.
+    // 2. OBTENER DATOS DE EMPLEADOS Y SUS TOTALES DEL MES
+    // La consulta ahora se asegura de traer el tipo_nomina para la lógica de negocio.
     $sql = "
         SELECT
             e.cedula,
@@ -40,21 +39,17 @@ try {
             e.segundo_apellido,
             e.sexo,
             e.fecha_nacimiento,
-            c.tipo_nomina,
-            SUM(CASE WHEN cn.afecta_tss = 1 THEN nd.monto_resultado ELSE 0 END) as salario_cotizable_tss,
-            SUM(CASE WHEN cn.afecta_isr = 1 THEN nd.monto_resultado ELSE 0 END) as base_isr,
-            SUM(CASE WHEN cn.afecta_tss = 0 AND cn.tipo_concepto = 'Ingreso' THEN nd.monto_resultado ELSE 0 END) as otras_remuneraciones,
-            (SELECT GROUP_CONCAT(DISTINCT cn2.codigo_tss) 
-             FROM NominaDetalle nd2 
-             JOIN ConceptosNomina cn2 ON nd2.codigo_concepto = cn2.codigo_concepto
-             WHERE nd2.id_nomina_procesada = np.id AND cn2.tipo_concepto = 'Ingreso' AND cn2.codigo_tss IS NOT NULL) as tipos_ingreso_tss
+            c.tipo_nomina, -- CAMPO CLAVE PARA LA LÓGICA
+            SUM(CASE WHEN cn.afecta_tss = 1 AND nd.tipo_concepto = 'Ingreso' THEN nd.monto_resultado ELSE 0 END) as salario_cotizable_tss,
+            SUM(CASE WHEN cn.afecta_isr = 1 AND nd.tipo_concepto = 'Ingreso' THEN nd.monto_resultado ELSE 0 END) as base_isr,
+            SUM(CASE WHEN cn.afecta_tss = 0 AND cn.tipo_concepto = 'Ingreso' THEN nd.monto_resultado ELSE 0 END) as otras_remuneraciones
         FROM NominasProcesadas np
         JOIN NominaDetalle nd ON np.id = nd.id_nomina_procesada
         JOIN Contratos c ON nd.id_contrato = c.id
         JOIN Empleados e ON c.id_empleado = e.id
         JOIN ConceptosNomina cn ON nd.codigo_concepto = cn.codigo_concepto
         WHERE YEAR(np.periodo_fin) = ? AND MONTH(np.periodo_fin) = ?
-        GROUP BY e.id, e.cedula, e.nss, e.nombres, e.primer_apellido, e.segundo_apellido, e.sexo, e.fecha_nacimiento, c.tipo_nomina
+        GROUP BY e.id, c.tipo_nomina -- Agrupamos por empleado y su tipo de nómina
         ORDER BY e.nombres, e.primer_apellido
     ";
 
@@ -72,39 +67,38 @@ try {
 
     foreach ($empleados_data as $emp) {
         
-        // Mapeo y formateo de datos
-        $tipo_doc = 'C'; // Asumimos Cédula
+        // --- INICIO DE LA LÓGICA CORREGIDA ---
+        // Asignamos el "Tipo de Ingreso" correcto según el tipo de nómina del empleado.
+        $tipo_ingreso_tss = '01'; // Por defecto, 'Normal' para empleados fijos.
+        if ($emp['tipo_nomina'] === 'Inspectores') {
+            $tipo_ingreso_tss = '05'; // Código para "Salario prorrateado semanal/bisemanal"
+        }
+        // --- FIN DE LA LÓGICA CORREGIDA ---
+
+        $tipo_doc = 'C';
         $sexo_tss = ($emp['sexo'] === 'Masculino') ? 'M' : 'F';
         $fecha_nac_tss = date('Ymd', strtotime($emp['fecha_nacimiento']));
-
-        // Lógica para Tipo de Ingreso
-        $codigos_tss_array = !empty($emp['tipos_ingreso_tss']) ? explode(',', $emp['tipos_ingreso_tss']) : [];
-        $tipo_ingreso_tss = '01'; // Valor por defecto: Normal
-        if(in_array('04', $codigos_tss_array)) {
-            $tipo_ingreso_tss = '04'; // Si hay algún pago por hora, se reporta como tal
-        }
         
-        // Construir la línea para el archivo
         $linea = [
-            $clave_nomina,                                  // Clave Nomina
-            $tipo_doc,                                      // tipo Doc ('C')
-            str_replace('-', '', $emp['cedula']),           // numero Documento (sin guiones)
-            $emp['nombres'],                                // Nombres
-            $emp['primer_apellido'],                         // 1er. apellido
-            $emp['segundo_apellido'] ?? '',                  // 2do. apellido
-            $sexo_tss,                                      // Sexo ('M' o 'F')
-            $fecha_nac_tss,                                 // Fecha de Nacimiento (YYYYMMDD)
-            number_format($emp['salario_cotizable_tss'], 2, '.', ''), // Salario cotizable
-            number_format(0, 2, '.', ''),                   // Aporte Voluntario
-            number_format($emp['base_isr'], 2, '.', ''),    // Salario ISR
-            $tipo_ingreso_tss,                              // Tipo ingreso (mapeado)
-            number_format($emp['otras_remuneraciones'], 2, '.', ''), // Otras Remuneraciones
-            '',                                             // RNC/Ced. Agente ret
-            number_format(0, 2, '.', ''),                   // Remuneraciones otros agentes
-            number_format(0, 2, '.', ''),                   // saldo a favor del periodo
-            number_format(0, 2, '.', ''),                   // Regalia Pascual(Saldo 13)
-            number_format(0, 2, '.', ''),                   // preaviso, cesantia...
-            number_format(0, 2, '.', ''),                   // Retencion pension alimenticia
+            $clave_nomina,
+            $tipo_doc,
+            str_replace('-', '', $emp['cedula']),
+            $emp['nombres'],
+            $emp['primer_apellido'],
+            $emp['segundo_apellido'] ?? '',
+            $sexo_tss,
+            $fecha_nac_tss,
+            number_format($emp['salario_cotizable_tss'], 2, '.', ''),
+            number_format(0, 2, '.', ''), // Aporte Voluntario
+            number_format($emp['base_isr'], 2, '.', ''),
+            $tipo_ingreso_tss, // Variable corregida
+            number_format($emp['otras_remuneraciones'], 2, '.', ''),
+            '', // RNC/Ced. Agente ret
+            number_format(0, 2, '.', ''), // Remuneraciones otros agentes
+            number_format(0, 2, '.', ''), // saldo a favor del periodo
+            number_format(0, 2, '.', ''), // Regalia Pascual(Saldo 13)
+            number_format(0, 2, '.', ''), // preaviso, cesantia...
+            number_format(0, 2, '.', ''), // Retencion pension alimenticia
             number_format($emp['salario_cotizable_tss'], 2, '.', ''), // salario infotep
         ];
 
@@ -113,15 +107,14 @@ try {
 
     // 4. GENERAR Y ENVIAR EL ARCHIVO
     $file_name = "AUTODETERMINACION_{$periodo_tss}.txt";
-    header('Content-Type: text/plain');
+    header('Content-Type: text/plain; charset=utf-8');
     header('Content-Disposition: attachment; filename="' . $file_name . '"');
 
     echo implode("\r\n", $file_content);
     exit();
 
 } catch (Exception $e) {
-    // Si algo sale mal, redirigimos a la página anterior con un mensaje de error.
-    header('Location: index.php?status=error&message=' . urlencode($e->getMessage()));
+    header('Location: index.php?status=error&message=' . urlencode('Error al generar el archivo: ' . $e->getMessage()));
     exit();
 }
 ?>
