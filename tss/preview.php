@@ -1,5 +1,5 @@
 <?php
-// tss/preview.php - v1.0 (Página de Previsualización de Datos para TSS)
+// tss/preview.php - v1.1 (Consulta de Totales Corregida)
 
 require_once '../auth.php';
 require_login();
@@ -15,7 +15,6 @@ $month = (int)$_POST['month'];
 $periodo_tss = sprintf('%04d%02d', $year, $month);
 
 try {
-    // La lógica de cálculo es idéntica a la que teníamos en export.php
     $configs_db = $pdo->query("SELECT clave, valor FROM ConfiguracionGlobal")->fetchAll(PDO::FETCH_KEY_PAIR);
     $rnc_empresa = $configs_db['RNC_EMPRESA'] ?? '';
 
@@ -23,12 +22,15 @@ try {
         throw new Exception("El RNC de la empresa no está configurado.");
     }
 
+    // --- CONSULTA CORREGIDA ---
+    // Se añade la condición "nd.tipo_concepto = 'Ingreso'" dentro de cada SUM para asegurar
+    // que solo se totalicen los ingresos y no las deducciones.
     $sql = "
         SELECT
             e.cedula, e.nss, e.nombres, e.primer_apellido, e.segundo_apellido, e.sexo, e.fecha_nacimiento, c.tipo_nomina,
             SUM(CASE WHEN cn.afecta_tss = 1 AND nd.tipo_concepto = 'Ingreso' THEN nd.monto_resultado ELSE 0 END) as salario_cotizable_tss,
             SUM(CASE WHEN cn.afecta_isr = 1 AND nd.tipo_concepto = 'Ingreso' THEN nd.monto_resultado ELSE 0 END) as base_isr,
-            SUM(CASE WHEN cn.afecta_tss = 0 AND cn.tipo_concepto = 'Ingreso' THEN nd.monto_resultado ELSE 0 END) as otras_remuneraciones
+            SUM(CASE WHEN cn.afecta_tss = 0 AND nd.tipo_concepto = 'Ingreso' THEN nd.monto_resultado ELSE 0 END) as otras_remuneraciones
         FROM NominasProcesadas np
         JOIN NominaDetalle nd ON np.id = nd.id_nomina_procesada
         JOIN Contratos c ON nd.id_contrato = c.id
@@ -43,10 +45,9 @@ try {
     $empleados_data = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     if (empty($empleados_data)) {
-        throw new Exception("No se encontraron datos de nómina procesados para el período seleccionado ($month/$year).");
+        throw new Exception("No se encontraron datos de nómina procesados para el período seleccionado ($month/$year). Verifique que las nóminas del mes estén finalizadas.");
     }
 
-    // Guardamos los datos procesados en la sesión para que el script de exportación los pueda usar.
     $_SESSION['tss_export_data'] = $empleados_data;
     $_SESSION['tss_export_period'] = ['year' => $year, 'month' => $month];
 
@@ -67,17 +68,16 @@ require_once '../includes/header.php';
             <tr>
                 <th>Cédula</th>
                 <th>Nombres</th>
-                <th>Salario Cotizable</th>
-                <th>Salario ISR</th>
-                <th>Otras Remun.</th>
-                <th>Tipo Ingreso</th>
-                <th>Salario INFOTEP</th>
+                <th class="text-end">Salario Cotizable</th>
+                <th class="text-end">Salario ISR</th>
+                <th class="text-end">Otras Remun.</th>
+                <th class="text-center">Tipo Ingreso</th>
+                <th class="text-end">Salario INFOTEP</th>
             </tr>
         </thead>
         <tbody>
             <?php foreach ($empleados_data as $emp): ?>
                 <?php
-                    // Replicamos la misma lógica de mapeo que usará el exportador
                     $tipo_ingreso_tss = ($emp['tipo_nomina'] === 'Inspectores') ? '05' : '01';
                 ?>
                 <tr>
@@ -108,4 +108,4 @@ require_once '../includes/header.php';
 </div>
 
 
-<?php require_once '../includes/footer.php'; ?>
+<?php require_once '../includes/header.php'; ?>
