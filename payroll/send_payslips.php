@@ -66,6 +66,34 @@ if ($no_email_count > 0) $message .= " Sin email: {$no_email_count}.";
 
 header('Location: show.php?id=' . $id_nomina . '&status=success&message=' . urlencode($message));
 exit();
+<?php
+// payroll/send_payslips.php - v1.4 (Versión Final de Producción)
+
+use PHPMailer\PHPMailer\PHPMailer;
+use PHPMailer\PHPMailer\Exception;
+
+require_once '../auth.php';
+require_login();
+require_role('Admin');
+
+// Cargar el autoloader de Composer
+require_once __DIR__ . '/../vendor/autoload.php';
+
+if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !isset($_POST['nomina_id'])) {
+    header('Location: review.php');
+    exit();
+}
+
+$id_nomina = (int)$_POST['nomina_id'];
+$success_count = 0;
+$error_count = 0;
+$no_email_count = 0;
+
+try {
+    $configs_db = $pdo->query("SELECT clave, valor FROM ConfiguracionGlobal")->fetchAll(PDO::FETCH_KEY_PAIR);
+    
+    $stmt_nomina = $pdo->prepare("SELECT * FROM NominasProcesadas WHERE id = ?");
+    $stmt_nomina->execute
 
     $mail->Debugoutput = 'html';
 
