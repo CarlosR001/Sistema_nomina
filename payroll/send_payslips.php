@@ -67,7 +67,7 @@ try {
     $mail->CharSet = 'UTF-8';
     
     // --- MODO DE DEPURACIÓN MÁXIMO ---
-    $mail->SMTPDebug = SMTP::DEBUG_SERVER; 
+    $mail->SMTPDebug = 2; // Nivel de depuración: Muestra la conversación cliente-servidor
     $mail->Debugoutput = 'html';
 
     // 3. Bucle para enviar un correo a cada empleado
