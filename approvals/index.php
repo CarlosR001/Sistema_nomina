@@ -1,6 +1,8 @@
 <?php
-// approvals/index.php - v2.4 (Definitivo y Corregido)
-// Restaura el código HTML y JavaScript del modal de edición que fue eliminado por error.
+// approvals/index.php - v2.5 (Corrección definitiva del modal de edición)
+// 1. Se añaden campos faltantes a la consulta SQL.
+// 2. Se añaden los atributos data-* correspondientes al botón de editar.
+// 3. Se reescribe el JavaScript para que lea los atributos del botón y rellene el modal correctamente.
 
 require_once '../auth.php';
 require_login();
@@ -15,8 +17,10 @@ $zonas = $pdo->query("SELECT id, nombre_zona_o_muelle FROM ZonasTransporte")->fe
 
 // Consulta principal adaptada a la vista
 $estado_a_buscar = ($view === 'aprobados') ? 'Aprobado' : 'Pendiente';
+// CORRECCIÓN 1: Añadir todos los campos necesarios para el modal
 $sql = "SELECT 
             r.id, r.fecha_trabajada, r.hora_inicio, r.hora_fin, r.transporte_aprobado,
+            r.hora_gracia_antes, r.hora_gracia_despues,
             e.nombres, e.primer_apellido, 
             p.nombre_proyecto, p.id as proyecto_id, 
             r.id_zona_trabajo, z.nombre_zona_o_muelle, z.monto_transporte_completo,
@@ -72,9 +76,19 @@ require_once '../includes/header.php';
                                 <div class="form-check"><input class="form-check-input" type="checkbox" name="registros[<?php echo $row['id']; ?>][transporte]" value="1" checked><label class="form-check-label"><?php echo htmlspecialchars($row['nombre_zona_o_muelle']); ?> <span class="text-muted">($<?php echo number_format($row['monto_transporte_completo'], 2); ?>)</span></label></div>
                             </td>
                             <td class="text-center">
+                                <!-- CORRECCIÓN 2: Añadir todos los atributos data-* necesarios -->
                                 <button type="button" class="btn btn-sm btn-warning btn-edit" data-bs-toggle="modal" data-bs-target="#editModal"
-                                        data-id="<?php echo $row['id']; ?>" data-fecha="<?php echo $row['fecha_trabajada']; ?>" data-inicio="<?php echo date('H', strtotime($row['hora_inicio'])); ?>" data-fin="<?php echo (date('H:i', strtotime($row['hora_fin'])) == '23:59') ? 24 : date('H', strtotime($row['hora_fin'])); ?>"
-                                        data-proyecto-id="<?php echo $row['proyecto_id']; ?>" data-zona-id="<?php echo $row['id_zona_trabajo']; ?>">Editar</button>
+                                        data-id="<?php echo $row['id']; ?>"
+                                        data-fecha="<?php echo $row['fecha_trabajada']; ?>"
+                                        data-inicio="<?php echo (int)date('H', strtotime($row['hora_inicio'])); ?>"
+                                        data-fin="<?php echo (date('H:i', strtotime($row['hora_fin'])) == '23:59') ? 24 : (int)date('H', strtotime($row['hora_fin'])); ?>"
+                                        data-proyecto-id="<?php echo $row['proyecto_id']; ?>"
+                                        data-zona-id="<?php echo $row['id_zona_trabajo']; ?>"
+                                        data-transporte-aprobado="<?php echo $row['transporte_aprobado']; ?>"
+                                        data-gracia-antes="<?php echo $row['hora_gracia_antes']; ?>"
+                                        data-gracia-despues="<?php echo $row['hora_gracia_despues']; ?>">
+                                    Editar
+                                </button>
                             </td>
                         </tr>
                     <?php endforeach; ?>
@@ -114,87 +128,95 @@ require_once '../includes/header.php';
     </div>
 <?php endif; ?>
 
-        <!-- Modal de Edición (VERSIÓN CORREGIDA Y MEJORADA) -->
-        <div class="modal fade" id="editModal" tabindex="-1">
-          <div class="modal-dialog">
-            <div class="modal-content">
-              <div class="modal-header">
-                <h5 class="modal-title">Editar y Aprobar Registro</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-              </div>
-              <form action="update_record.php" method="POST" id="editForm">
-                <div class="modal-body">
-                    <input type="hidden" id="edit-registro-id" name="registro_id">
-                    <div class="row g-3">
-                        <div class="col-md-6"><label for="edit-fecha" class="form-label">Fecha Trabajada</label><input type="date" class="form-control" id="edit-fecha" name="fecha_trabajada" required></div>
-                        <div class="col-md-6"><label for="edit-proyecto" class="form-label">Proyecto</label><select class="form-select" id="edit-proyecto" name="id_proyecto" required><?php foreach ($proyectos as $proyecto): ?><option value="<?php echo $proyecto['id']; ?>"><?php echo htmlspecialchars($proyecto['nombre_proyecto']); ?></option><?php endforeach; ?></select></div>
-                        <div class="col-md-6"><label for="edit-inicio" class="form-label">Hora Inicio (24h)</label><input type="number" class="form-control" id="edit-inicio" name="hora_inicio" min="0" max="24" required></div>
-                        <div class="col-md-6"><label for="edit-fin" class="form-label">Hora Fin (24h)</label><input type="number" class="form-control" id="edit-fin" name="hora_fin" min="0" max="24" required></div>
-                        <div class="col-12"><label for="edit-zona" class="form-label">Zona / Muelle</label><select class="form-select" id="edit-zona" name="id_zona_trabajo" required><?php foreach ($zonas as $zona): ?><option value="<?php echo $zona['id']; ?>"><?php echo htmlspecialchars($zona['nombre_zona_o_muelle']); ?></option><?php endforeach; ?></select></div>
-                        <div class="col-12"><hr>
-                            <label class="form-label fw-bold">Gestión de Pagos Adicionales:</label>
-                            <div class="form-check form-switch">
-                                <input class="form-check-input" type="checkbox" name="transporte_aprobado" id="edit-transporte" value="1">
-                                <label class="form-check-label" for="edit-transporte">Aprobar pago de transporte</label>
-                            </div>
-                            <div class="form-check form-switch">
-                                <input class="form-check-input" type="checkbox" name="hora_gracia_antes" id="edit-gracia-antes" value="1">
-                                <label class="form-check-label" for="edit-gracia-antes">Aprobar hora de gracia ANTES del turno</label>
-                            </div>
-                            <div class="form-check form-switch">
-                                <input class="form-check-input" type="checkbox" name="hora_gracia_despues" id="edit-gracia-despues" value="1">
-                                <label class="form-check-label" for="edit-gracia-despues">Aprobar hora de gracia DESPUÉS del turno</label>
-                            </div>
-                        </div>
+<!-- Modal de Edición -->
+<div class="modal fade" id="editModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="editModalTitle">Editar Registro</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form action="update_record.php" method="POST" id="editForm">
+        <div class="modal-body">
+            <input type="hidden" id="edit-registro-id" name="registro_id">
+            <div class="row g-3">
+                <div class="col-md-6"><label for="edit-fecha" class="form-label">Fecha Trabajada</label><input type="date" class="form-control" id="edit-fecha" name="fecha_trabajada" required></div>
+                <div class="col-md-6"><label for="edit-proyecto" class="form-label">Proyecto</label><select class="form-select" id="edit-proyecto" name="id_proyecto" required><?php foreach ($proyectos as $proyecto): ?><option value="<?php echo $proyecto['id']; ?>"><?php echo htmlspecialchars($proyecto['nombre_proyecto']); ?></option><?php endforeach; ?></select></div>
+                <div class="col-md-6"><label for="edit-inicio" class="form-label">Hora Inicio (0-24)</label><input type="number" class="form-control" id="edit-inicio" name="hora_inicio" min="0" max="24" required></div>
+                <div class="col-md-6"><label for="edit-fin" class="form-label">Hora Fin (0-24)</label><input type="number" class="form-control" id="edit-fin" name="hora_fin" min="0" max="24" required></div>
+                <div class="col-12"><label for="edit-zona" class="form-label">Zona / Muelle</label><select class="form-select" id="edit-zona" name="id_zona_trabajo" required><?php foreach ($zonas as $zona): ?><option value="<?php echo $zona['id']; ?>"><?php echo htmlspecialchars($zona['nombre_zona_o_muelle']); ?></option><?php endforeach; ?></select></div>
+                <div class="col-12"><hr>
+                    <label class="form-label fw-bold">Gestión de Pagos Adicionales:</label>
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" name="transporte_aprobado" id="edit-transporte" value="1">
+                        <label class="form-check-label" for="edit-transporte">Aprobar pago de transporte</label>
+                    </div>
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" name="hora_gracia_antes" id="edit-gracia-antes" value="1">
+                        <label class="form-check-label" for="edit-gracia-antes">Aprobar hora de gracia ANTES del turno</label>
+                    </div>
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" name="hora_gracia_despues" id="edit-gracia-despues" value="1">
+                        <label class="form-check-label" for="edit-gracia-despues">Aprobar hora de gracia DESPUÉS del turno</label>
                     </div>
                 </div>
-                <div class="modal-footer">
-                  <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                  <button type="submit" class="btn btn-primary">Guardar Cambios</button>
-                </div>
-              </form>
             </div>
-          </div>
         </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Guardar Cambios</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
 
-
+<!-- CORRECCIÓN 3: JavaScript reescrito para funcionar correctamente -->
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     var editModal = document.getElementById('editModal');
-    if(editModal) {
-             editModal.addEventListener('show.bs.modal', function (event) {
-                 var button = event.relatedTarget;
-                 var recordId = button.getAttribute('data-id');
-                 // Corregido: Asegurarse de que el JSON se parsea desde el elemento correcto
-                 var recordDataElement = document.getElementById('record-' + recordId);
-                 if (!recordDataElement) return; // Salir si no se encuentra el registro
-                 var record = JSON.parse(recordDataElement.textContent);
+    if (editModal) {
+        editModal.addEventListener('show.bs.modal', function (event) {
+            var button = event.relatedTarget; // Botón que activó el modal
 
-                 // --- IDs CORREGIDOS Y COMPLETOS ---
-                 document.getElementById('edit-registro-id').value = recordId;
-                 document.getElementById('edit-fecha').value = record.fecha_trabajada;
-                 document.getElementById('edit-inicio').value = record.hora_inicio.substring(0, 2); // Tomar solo la hora
-                 document.getElementById('edit-fin').value = record.hora_fin.substring(0, 2); // Tomar solo la hora
-                 document.getElementById('edit-proyecto').value = record.id_proyecto;
-                 document.getElementById('edit-zona').value = record.id_zona_trabajo;
-                 
-                 // El !!parseInt() convierte el '1' o '0' de la BD a true/false para los checkboxes
-                 document.getElementById('edit-transporte').checked = !!parseInt(record.transporte_aprobado);
-                 document.getElementById('edit-gracia-antes').checked = !!parseInt(record.hora_gracia_antes);
-                 document.getElementById('edit-gracia-despues').checked = !!parseInt(record.hora_gracia_despues);
-             });
-         }
+            // Extraer información de los atributos data-* del botón
+            var recordId = button.getAttribute('data-id');
+            var fecha = button.getAttribute('data-fecha');
+            var inicio = button.getAttribute('data-inicio');
+            var fin = button.getAttribute('data-fin');
+            var proyectoId = button.getAttribute('data-proyecto-id');
+            var zonaId = button.getAttribute('data-zona-id');
+            var transporteAprobado = button.getAttribute('data-transporte-aprobado');
+            var graciaAntes = button.getAttribute('data-gracia-antes');
+            var graciaDespues = button.getAttribute('data-gracia-despues');
 
+            // Poblar el formulario del modal
+            document.getElementById('edit-registro-id').value = recordId;
+            document.getElementById('edit-fecha').value = fecha;
+            document.getElementById('edit-inicio').value = inicio;
+            document.getElementById('edit-fin').value = fin;
+            document.getElementById('edit-proyecto').value = proyectoId;
+            document.getElementById('edit-zona').value = zonaId;
+            document.getElementById('editModalTitle').textContent = 'Editar Registro ID: ' + recordId;
 
+            // Para los checkboxes, '1' significa marcado, cualquier otro valor (incluyendo '0' o null) es desmarcado.
+            document.getElementById('edit-transporte').checked = (transporteAprobado === '1');
+            document.getElementById('edit-gracia-antes').checked = (graciaAntes === '1');
+            document.getElementById('edit-gracia-despues').checked = (graciaDespues === '1');
+        });
+    }
 
+    // Lógica para el checkbox "seleccionar todo"
     var selectAll = document.getElementById('selectAll');
-    if(selectAll) {
+    if (selectAll) {
         selectAll.addEventListener('click', function(event) {
-            document.querySelectorAll('input[name^="registros["][type="checkbox"]').forEach(c => c.checked = event.target.checked);
+            var checkboxes = document.querySelectorAll('input[name^="registros["][type="checkbox"]');
+            checkboxes.forEach(function(checkbox) {
+                checkbox.checked = event.target.checked;
+            });
         });
     }
 });
 </script>
-<!-- FIN DEL CÓDIGO RESTAURADO -->
 
 <?php require_once '../includes/footer.php'; ?>
