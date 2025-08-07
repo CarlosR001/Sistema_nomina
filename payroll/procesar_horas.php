@@ -72,7 +72,19 @@ try {
     $conceptos = $pdo->query("SELECT codigo_concepto, id FROM ConceptosNomina")->fetchAll(PDO::FETCH_KEY_PAIR);
     $zonas = $pdo->query("SELECT id, monto_transporte_completo FROM ZonasTransporte")->fetchAll(PDO::FETCH_KEY_PAIR);
     
-    $sql_horas = "SELECT c.id as contrato_id, c.tarifa_por_hora, e.nombres, e.primer_apellido, rh.fecha_trabajada, rh.hora_inicio, rh.hora_fin, rh.id_zona_trabajo, rh.transporte_aprobado FROM Contratos c JOIN Empleados e ON c.id_empleado = e.id JOIN RegistroHoras rh ON c.id = rh.id_contrato WHERE c.tipo_nomina = 'Inspectores' AND rh.estado_registro = 'Aprobado' AND rh.fecha_trabajada BETWEEN ? AND ? ORDER BY c.id, rh.fecha_trabajada, rh.hora_inicio";
+    $sql_horas = "SELECT 
+                    c.id as contrato_id, c.tarifa_por_hora, 
+                    e.nombres, e.primer_apellido, 
+                    rh.fecha_trabajada, rh.hora_inicio, rh.hora_fin, 
+                    rh.id_zona_trabajo, rh.transporte_aprobado,
+                    rh.hora_gracia_antes, rh.hora_gracia_despues 
+                  FROM Contratos c 
+                  JOIN Empleados e ON c.id_empleado = e.id 
+                  JOIN RegistroHoras rh ON c.id = rh.id_contrato 
+                  WHERE c.tipo_nomina = 'Inspectores' 
+                    AND rh.estado_registro = 'Aprobado' 
+                    AND rh.fecha_trabajada BETWEEN ? AND ? 
+                  ORDER BY c.id, rh.fecha_trabajada, rh.hora_inicio";
     $stmt_horas = $pdo->prepare($sql_horas);
     $stmt_horas->execute([$fecha_inicio, $fecha_fin]);
     $horas_aprobadas = $stmt_horas->fetchAll(PDO::FETCH_ASSOC | PDO::FETCH_GROUP);
@@ -81,10 +93,11 @@ try {
 
     foreach ($horas_aprobadas as $contrato_id => $registros) {
         $tarifa_hora = (float)$registros[0]['tarifa_por_hora'];
-        $total_horas_feriado = 0; $total_horas_laborales = 0; $total_horas_nocturnas_bono = 0;
+        $total_horas_feriado = 0; $total_horas_laborales = 0; $total_horas_nocturnas_bono = 0; $total_horas_gracia = 0;
         $zonas_trabajadas_por_dia = [];
 
         foreach ($registros as $reg) {
+            // ... (código de cálculo de duración y horas feriado/laborales sin cambios)
             $inicio = new DateTime($reg['hora_inicio']);
             $fin = new DateTime($reg['hora_fin']);
             if ($fin <= $inicio) $fin->modify('+1 day');
@@ -97,6 +110,11 @@ try {
             }
             
             $total_horas_nocturnas_bono += calcular_horas_nocturnas_reales($inicio, $fin);
+
+            // --- INICIO: Lógica Añadida ---
+            if ($reg['hora_gracia_antes']) $total_horas_gracia++;
+            if ($reg['hora_gracia_despues']) $total_horas_gracia++;
+            // --- FIN: Lógica Añadida ---
 
             if ($reg['transporte_aprobado']) {
                 $zonas_trabajadas_por_dia[$reg['fecha_trabajada']][] = $reg['id_zona_trabajo'];
@@ -112,6 +130,7 @@ try {
         $pago_extra_100 = $horas_extra_100 * $tarifa_hora * 2.0;
         $pago_extra_total = $pago_extra_35 + $pago_extra_100;
         $pago_nocturno = $total_horas_nocturnas_bono * $tarifa_hora * 0.15;
+        $pago_gracia = $total_horas_gracia * $tarifa_hora; // --- LÍNEA AÑADIDA ---
         $pago_transporte = 0;
         foreach ($zonas_trabajadas_por_dia as $zonas_dia) {
             $zonas_unicas = array_unique($zonas_dia);
@@ -120,13 +139,19 @@ try {
             foreach ($zonas_unicas as $zona_id) { $pago_transporte += (float)($zonas[$zona_id] ?? 0) * 0.5; }
         }
         
+        // --- INICIO: Bloque de Resultados Actualizado ---
         $results[$contrato_id] = [
             'nombre_empleado' => $registros[0]['nombres'] . ' ' . $registros[0]['primer_apellido'],
-            'pago_normal' => round($pago_normal, 2), 'pago_extra' => round($pago_extra_total, 2),
-            'pago_feriado' => round($pago_feriado, 2), 'pago_nocturno' => round($pago_nocturno, 2),
+            'pago_normal' => round($pago_normal, 2), 
+            'pago_extra' => round($pago_extra_total, 2),
+            'pago_feriado' => round($pago_feriado, 2), 
+            'pago_nocturno' => round($pago_nocturno, 2),
+            'pago_gracia' => round($pago_gracia, 2), // Nuevo resultado
             'pago_transporte' => round($pago_transporte, 2),
-            'ingreso_bruto' => round($pago_normal + $pago_extra_total + $pago_feriado + $pago_nocturno + $pago_transporte, 2)
+            'ingreso_bruto' => round($pago_normal + $pago_extra_total + $pago_feriado + $pago_nocturno + $pago_gracia + $pago_transporte, 2)
         ];
+        // --- FIN: Bloque de Resultados Actualizado ---
+
     }
 
     if ($mode === 'preview') {
@@ -165,6 +190,7 @@ try {
             if ($res['pago_feriado'] > 0) $stmt_insert->execute([$contrato_id, $conceptos['ING-FERIADO'], $fecha_inicio, $res['pago_feriado'], 'Pendiente']);
             if ($res['pago_nocturno'] > 0) $stmt_insert->execute([$contrato_id, $conceptos['ING-NOCTURNO'], $fecha_inicio, $res['pago_nocturno'], 'Pendiente']);
             if ($res['pago_transporte'] > 0) $stmt_insert->execute([$contrato_id, $conceptos['ING-TRANSP'], $fecha_inicio, $res['pago_transporte'], 'Pendiente']);
+            if ($res['pago_gracia'] > 0) $stmt_insert->execute([$contrato_id, $conceptos['ING-GRACIA'], $fecha_inicio, $res['pago_gracia'], 'Pendiente']);
         }
 
         foreach ($novedades_manuales_rescatadas as $novedad_manual) {

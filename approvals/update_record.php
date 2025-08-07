@@ -18,6 +18,10 @@ $hora_inicio_num = $_POST['hora_inicio'] ?? null;
 $hora_fin_num = $_POST['hora_fin'] ?? null;
 $id_proyecto = $_POST['id_proyecto'] ?? null;
 $id_zona_trabajo = $_POST['id_zona_trabajo'] ?? null;
+$transporte_aprobado = isset($_POST['transporte_aprobado']) ? 1 : 0;
+$hora_gracia_antes = isset($_POST['hora_gracia_antes']) ? 1 : 0;
+$hora_gracia_despues = isset($_POST['hora_gracia_despues']) ? 1 : 0;
+
 
 if (empty($registro_id) || empty($fecha_trabajada) || !is_numeric($hora_inicio_num) || !is_numeric($hora_fin_num) || empty($id_proyecto) || empty($id_zona_trabajo)) {
     header("Location: index.php?status=error&message=Faltan campos requeridos en el formulario de edición.");
@@ -35,24 +39,34 @@ $hora_fin = ($hora_fin_num == 24) ? "23:59:59" : $hora_fin_num . ":00:00";
 // --- FIN DE LA CONVERSIÓN ---
 
 try {
+    // --- INICIO: Consulta SQL Actualizada ---
     $sql = "UPDATE RegistroHoras SET
                 fecha_trabajada = :fecha_trabajada,
                 hora_inicio = :hora_inicio,
                 hora_fin = :hora_fin,
                 id_proyecto = :id_proyecto,
-                id_zona_trabajo = :id_zona_trabajo
+                id_zona_trabajo = :id_zona_trabajo,
+                transporte_aprobado = :transporte_aprobado,
+                hora_gracia_antes = :hora_gracia_antes,
+                hora_gracia_despues = :hora_gracia_despues
             WHERE id = :id AND estado_registro = 'Pendiente'";
+    // --- FIN: Consulta SQL Actualizada ---
             
     $stmt = $pdo->prepare($sql);
     
+    // --- INICIO: Ejecución con nuevos parámetros ---
     $stmt->execute([
         ':fecha_trabajada' => $fecha_trabajada,
         ':hora_inicio' => $hora_inicio,
         ':hora_fin' => $hora_fin,
         ':id_proyecto' => $id_proyecto,
         ':id_zona_trabajo' => $id_zona_trabajo,
+        ':transporte_aprobado' => $transporte_aprobado,
+        ':hora_gracia_antes' => $hora_gracia_antes,
+        ':hora_gracia_despues' => $hora_gracia_despues,
         ':id' => $registro_id
     ]);
+    // --- FIN: Ejecución con nuevos parámetros ---
 
     if ($stmt->rowCount() > 0) {
         header('Location: index.php?status=success&message=Registro #' . $registro_id . ' actualizado correctamente.');
@@ -65,4 +79,5 @@ try {
     header('Location: index.php?status=error&message=' . urlencode('Error al actualizar el registro: ' . $e->getMessage()));
     exit();
 }
+
 ?>

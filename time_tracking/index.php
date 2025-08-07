@@ -84,39 +84,57 @@ require_once '../includes/header.php';
             <form action="store.php" method="POST">
                 <input type="hidden" name="id_contrato" value="<?php echo htmlspecialchars($contrato_inspector_id); ?>">
                 <input type="hidden" name="id_periodo_reporte" value="<?php echo htmlspecialchars($periodo_seleccionado['id']); ?>">
-                
                 <div class="row g-3">
-                    <div class="col-md-3">
-                        <label for="fecha_trabajada" class="form-label">Fecha</label>
-                        <input type="date" class="form-control" name="fecha_trabajada" min="<?php echo htmlspecialchars($periodo_seleccionado['fecha_inicio_periodo']); ?>" max="<?php echo htmlspecialchars($periodo_seleccionado['fecha_fin_periodo']); ?>" required>
-                    </div>
-                    <div class="col-md-3">
-                        <label for="hora_inicio" class="form-label">Hora Inicio (Formato 24h)</label>
-                        <input type="number" class="form-control" name="hora_inicio" min="0" max="24" step="0.01" placeholder="Ej: 7 o 19.5" required>
-                    </div>
-                    <div class="col-md-3">
-                        <label for="hora_fin" class="form-label">Hora Fin (Formato 24h)</label>
-                        <input type="number" class="form-control" name="hora_fin" min="0" max="24" step="0.01" placeholder="Ej: 15.5 o 24" required>
-                    </div>
-                    <div class="col-md-3">
-                        <label for="id_proyecto" class="form-label">Proyecto</label>
-                        <select class="form-select" name="id_proyecto" required>
-                            <option value="">Seleccionar...</option>
-                            <?php foreach ($proyectos as $proyecto): ?><option value="<?php echo htmlspecialchars($proyecto['id']); ?>"><?php echo htmlspecialchars($proyecto['nombre_proyecto']); ?></option><?php endforeach; ?>
-                        </select>
-                    </div>
-                    <div class="col-md-9">
-                        <label for="id_zona_trabajo" class="form-label">Zona / Muelle</label>
-                        <select class="form-select" name="id_zona_trabajo" required>
-                            <option value="">Seleccionar...</option>
-                            <?php foreach ($zonas as $zona): ?><option value="<?php echo htmlspecialchars($zona['id']); ?>"><?php echo htmlspecialchars($zona['nombre_zona_o_muelle']); ?></option><?php endforeach; ?>
-                        </select>
-                    </div>
-                    <div class="col-md-3 d-grid">
-                        <label class="form-label">&nbsp;</label>
-                        <button type="submit" class="btn btn-primary">Registrar Horas</button>
-                    </div>
-                </div>
+                          <div class="col-md-4">
+                              <label for="fecha_trabajada" class="form-label">Fecha</label>
+                              <input type="date" class="form-control" name="fecha_trabajada" min="<?php echo htmlspecialchars($periodo_seleccionado['fecha_inicio_periodo']); ?>" max="<?php echo htmlspecialchars($periodo_seleccionado['fecha_fin_periodo']); ?>" required>
+                          </div>
+                          <div class="col-md-4">
+                              <label for="hora_inicio" class="form-label">Hora Inicio (Formato 24h)</label>
+                              <input type="number" class="form-control" name="hora_inicio" min="0" max="24" step="0.01" placeholder="Ej: 7 o 19.5" required>
+                          </div>
+                          <div class="col-md-4">
+                              <label for="hora_fin" class="form-label">Hora Fin (Formato 24h)</label>
+                              <input type="number" class="form-control" name="hora_fin" min="0" max="24" step="0.01" placeholder="Ej: 15.5 o 24" required>
+                          </div>
+                          <div class="col-md-6">
+                              <label for="id_proyecto" class="form-label">Proyecto</label>
+                              <select class="form-select" name="id_proyecto" required>
+                                  <option value="">Seleccionar...</option>
+                                  <?php foreach ($proyectos as $proyecto): ?><option value="<?php echo htmlspecialchars($proyecto['id']); ?>"><?php echo htmlspecialchars($proyecto['nombre_proyecto']); ?></option><?php endforeach; ?>
+                              </select>
+                          </div>
+                          <div class="col-md-6">
+                              <label for="id_zona_trabajo" class="form-label">Zona / Muelle</label>
+                              <select class="form-select" name="id_zona_trabajo" required>
+                                  <option value="">Seleccionar...</option>
+                                  <?php foreach ($zonas as $zona): ?><option value="<?php echo htmlspecialchars($zona['id']); ?>"><?php echo htmlspecialchars($zona['nombre_zona_o_muelle']); ?></option><?php endforeach; ?>
+                              </select>
+                          </div>
+
+                          <!-- INICIO: Bloque de Horas de Gracia -->
+                          <div class="col-12 mt-3">
+                                <hr>
+                                <label class="form-label fw-bold">Horas de Gracia (Opcional):</label>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="hora_gracia_antes" value="1" id="hora_gracia_antes">
+                                    <label class="form-check-label" for="hora_gracia_antes">
+                                        Incluir 1 hora de gracia ANTES del turno
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="hora_gracia_despues" value="1" id="hora_gracia_despues">
+                                    <label class="form-check-label" for="hora_gracia_despues">
+                                        Incluir 1 hora de gracia DESPUÉS del turno
+                                    </label>
+                                </div>
+                          </div>
+                          <!-- FIN: Bloque de Horas de Gracia -->
+
+                          <div class="col-12 d-grid mt-4">
+                              <button type="submit" class="btn btn-primary btn-lg">Registrar Horas</button>
+                          </div>
+                      </div>
             </form>
 
         <?php else: ?>
