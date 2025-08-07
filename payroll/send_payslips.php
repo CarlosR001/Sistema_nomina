@@ -59,7 +59,14 @@ try {
     $mail->isHTML(true);
     $mail->CharSet = 'UTF-8';
     
-    $mail->SMTPDebug = 2; // Nivel de depuración
+  // Reemplazar todo el bloque final de "Resultados de la Depuración" con esto:
+$message = "Proceso de envío finalizado. Enviados: {$success_count}.";
+if ($error_count > 0) $message .= " Fallidos: {$error_count}.";
+if ($no_email_count > 0) $message .= " Sin email: {$no_email_count}.";
+
+header('Location: show.php?id=' . $id_nomina . '&status=success&message=' . urlencode($message));
+exit();
+
     $mail->Debugoutput = 'html';
 
     foreach ($empleados as $empleado) {
