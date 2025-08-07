@@ -24,10 +24,10 @@ require_once '../includes/header.php';
         Seleccionar Período a Exportar
     </div>
     <div class="card-body">
-        <p>Seleccione el mes y el año para generar el archivo <code>.txt</code> que se subirá al portal SUIR de la TSS.</p>
-        <p><strong>Importante:</strong> Asegúrese de que todas las nóminas (tanto de inspectores como administrativas) de ese mes hayan sido procesadas y finalizadas antes de generar el archivo.</p>
+        <p>Seleccione el mes y el año para generar una previsualización de los datos que se enviarán a la TSS.</p>
+        <p><strong>Importante:</strong> Asegúrese de que todas las nóminas (tanto de inspectores como administrativas) de ese mes hayan sido procesadas y finalizadas.</p>
         
-        <form action="export.php" method="POST" target="_blank">
+        <form action="preview.php" method="POST">
             <div class="row g-3 align-items-end">
                 <div class="col-md-4">
                     <label for="year" class="form-label">Año</label>
@@ -48,8 +48,8 @@ require_once '../includes/header.php';
                     </select>
                 </div>
                 <div class="col-md-4">
-                    <button type="submit" class="btn btn-primary w-100">
-                        <i class="bi bi-download"></i> Generar Archivo TSS
+                    <button type="submit" class="btn btn-info w-100">
+                        <i class="bi bi-eye"></i> Previsualizar Datos
                     </button>
                 </div>
             </div>
