@@ -121,14 +121,24 @@ try {
             error_log("PHPMailer Error para {$empleado['email_personal']}: {$mail->ErrorInfo}");
         }
     }
+        // 6. Crear mensaje de resumen y redirigir
+        $message = "Proceso de envío finalizado. Enviados: {$success_count}.";
+        if ($error_count > 0) $message .= " Fallidos: {$error_count}.";
+        if ($no_email_count > 0) $message .= " Sin email: {$no_email_count}.";
+        
+        // --- INICIO DE LA MODIFICACIÓN PARA DEPURAR ---
 
-    // 6. Crear mensaje de resumen y redirigir
-    $message = "Proceso de envío finalizado. Enviados: {$success_count}.";
-    if ($error_count > 0) $message .= " Fallidos: {$error_count}.";
-    if ($no_email_count > 0) $message .= " Sin email: {$no_email_count}.";
-    
-    header('Location: show.php?id=' . $id_nomina . '&status=success&message=' . urlencode($message));
-    exit();
+        // Mostramos un mensaje final y detenemos el script para poder ver la salida de depuración.
+        echo "<h2>Depuración Finalizada</h2>";
+        echo "<p>{$message}</p>";
+        echo "<a href='show.php?id={$id_nomina}'>Volver a la nómina</a>";
+        exit(); // Detenemos el script aquí.
+
+        // La redirección original queda temporalmente desactivada.
+        // header('Location: show.php?id=' . $id_nomina . '&status=success&message=' . urlencode($message));
+        // exit();
+        
+        // --- FIN DE LA MODIFICACIÓN ---
 
 } catch (Exception $e) {
     header('Location: show.php?id=' . $id_nomina . '&status=error&message=' . urlencode('Error general: ' . $e->getMessage()));
