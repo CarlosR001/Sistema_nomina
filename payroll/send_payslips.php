@@ -1,5 +1,5 @@
 <?php
-// payroll/send_payslips.php - v1.2 (VERSIÓN FINAL DE DEPURACIÓN)
+// payroll/send_payslips.php - v1.3 (FINAL CON COMPOSER Y DEPURACIÓN)
 
 // Usar los namespaces de PHPMailer
 use PHPMailer\PHPMailer\PHPMailer;
@@ -13,7 +13,6 @@ require_once '../auth.php';
 require_login();
 require_role('Admin');
 
-// Cargar PHPMailer manualmente
 // Cargar el autoloader de Composer
 require_once __DIR__ . '/../vendor/autoload.php';
 
@@ -28,7 +27,6 @@ $error_count = 0;
 $no_email_count = 0;
 
 try {
-    // 1. Obtener la configuración y los datos de la nómina
     $configs_db = $pdo->query("SELECT clave, valor FROM ConfiguracionGlobal")->fetchAll(PDO::FETCH_KEY_PAIR);
     
     $stmt_nomina = $pdo->prepare("SELECT * FROM NominasProcesadas WHERE id = ?");
@@ -50,10 +48,8 @@ try {
         ORDER BY nd.tipo_concepto DESC, nd.monto_resultado DESC
     ");
 
-    // 2. Crear y configurar el objeto PHPMailer UNA SOLA VEZ
     $mail = new PHPMailer(true);
     
-    // Configuración del servidor
     $mail->isSMTP();
     $mail->Host       = $configs_db['SMTP_HOST'];
     $mail->SMTPAuth   = true;
@@ -65,22 +61,18 @@ try {
     $mail->isHTML(true);
     $mail->CharSet = 'UTF-8';
     
-    // --- MODO DE DEPURACIÓN MÁXIMO ---
-    $mail->SMTPDebug = 2; // Nivel de depuración: Muestra la conversación cliente-servidor
+    $mail->SMTPDebug = 2; // Nivel de depuración
     $mail->Debugoutput = 'html';
 
-    // 3. Bucle para enviar un correo a cada empleado
     foreach ($empleados as $empleado) {
         if (empty($empleado['email_personal']) || !filter_var($empleado['email_personal'], FILTER_VALIDATE_EMAIL)) {
             $no_email_count++;
             continue;
         }
 
-        // Limpiar destinatarios y adjuntos de la iteración anterior
         $mail->clearAddresses();
         $mail->addAddress($empleado['email_personal'], $empleado['nombres'] . ' ' . $empleado['primer_apellido']);
 
-        // Generar el cuerpo del correo (volante)
         $stmt_payslip->execute([$id_nomina, $empleado['contrato_id']]);
         $detalles = $stmt_payslip->fetchAll(PDO::FETCH_ASSOC);
         $total_ingresos = 0; $total_deducciones = 0; $ingresos_html = ''; $deducciones_html = '';
@@ -104,23 +96,20 @@ try {
             $success_count++;
         } catch (Exception $e) {
             $error_count++;
-            // Guardamos el error para mostrarlo al final
             echo "Error al enviar a {$empleado['email_personal']}: " . $mail->ErrorInfo . "<br/>";
         }
     }
 
 } catch (Exception $e) {
-    // Si algo falla ANTES del bucle (ej. conexión a BD)
-    ob_end_clean(); // Limpiar el búfer
+    ob_end_clean();
     header('Location: show.php?id=' . $id_nomina . '&status=error&message=' . urlencode('Error crítico: ' . $e->getMessage()));
     exit();
 }
 
-// 4. Mostrar el resultado final de la depuración
 echo "<h1>Resultados de la Depuración de Envío</h1>";
 echo "<h3>Conversación con el servidor SMTP:</h3>";
 echo "<pre>";
-echo htmlspecialchars(ob_get_clean()); // Muestra todo lo que PHPMailer "habló"
+echo htmlspecialchars(ob_get_clean());
 echo "</pre>";
 
 $message = "Proceso finalizado. Enviados: {$success_count}. Fallidos: {$error_count}. Sin email: {$no_email_count}.";
