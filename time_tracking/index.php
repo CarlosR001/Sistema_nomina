@@ -13,8 +13,24 @@ if (!$contrato_inspector_id) {
 }
 
 // 1. Buscar TODOS los períodos de reporte abiertos para Inspectores
-$stmt_periodos = $pdo->query("SELECT * FROM PeriodosDeReporte WHERE tipo_nomina = 'Inspectores' AND estado_periodo = 'Abierto' ORDER BY fecha_inicio_periodo DESC");
-$periodos_abiertos = $stmt_periodos->fetchAll();
+// 4. Cargar los registros para el período seleccionado
+$registros_del_periodo = [];
+if ($periodo_seleccionado) {
+    $stmt_registros = $pdo->prepare("
+        SELECT 
+            r.fecha_trabajada, r.hora_inicio, r.hora_fin, r.estado_registro,
+            r.hora_gracia_antes, r.hora_gracia_despues, r.transporte_aprobado,
+            p.nombre_proyecto, z.nombre_zona_o_muelle
+        FROM RegistroHoras r
+        JOIN Proyectos p ON r.id_proyecto = p.id
+        JOIN ZonasTransporte z ON r.id_zona_trabajo = z.id
+        WHERE r.id_contrato = ? AND r.id_periodo_reporte = ?
+        ORDER BY r.fecha_trabajada DESC, r.hora_inicio DESC
+    ");
+    $stmt_registros->execute([$contrato_inspector_id, $periodo_seleccionado['id']]);
+    $registros_del_periodo = $stmt_registros->fetchAll();
+}
+
 $num_periodos_abiertos = count($periodos_abiertos);
 
 // 2. Determinar el período seleccionado
@@ -144,32 +160,53 @@ require_once '../includes/header.php';
     </div>
 </div>
 
-<h3 class="mt-5">Mis Registros Recientes</h3>
-<table class="table table-sm table-striped">
-    <thead class="table-light"><tr><th>Fecha</th><th>Horario</th><th>Proyecto</th><th>Estado</th></tr></thead>
-    <tbody>
-    <?php if ($registros_recientes): ?>
-        <?php foreach ($registros_recientes as $registro): ?>
-            <tr>
-                <td><?php echo htmlspecialchars($registro['fecha_trabajada']); ?></td>
-                <td><?php echo htmlspecialchars(date('H:i', strtotime($registro['hora_inicio']))) . " - " . htmlspecialchars(date('H:i', strtotime($registro['hora_fin']))); ?></td>
-                <td><?php echo htmlspecialchars($registro['nombre_proyecto']); ?></td>
-                <td>
-                    <?php
-                    $estado = $registro['estado_registro'];
-                    $clase_badge = 'bg-secondary';
-                    if ($estado == 'Aprobado') $clase_badge = 'bg-success';
-                    if ($estado == 'Pendiente') $clase_badge = 'bg-warning text-dark';
-                    if ($estado == 'Rechazado') $clase_badge = 'bg-danger';
-                    ?><span class="badge <?php echo $clase_badge; ?>"><?php echo htmlspecialchars($estado); ?></span>
-                </td>
-            </tr>
-        <?php endforeach; ?>
-    <?php else: ?>
-        <tr><td colspan="4" class="text-center text-muted">No tienes registros de horas recientes.</td></tr>
-    <?php endif; ?>
-    </tbody>
-</table>
+<h3 class="mt-5">Horas Reportadas en este Período</h3>
+<div class="table-responsive">
+    <table class="table table-striped table-hover align-middle">
+        <thead class="table-dark">
+            <tr><th>Fecha</th><th>Proyecto</th><th>Horario</th><th>Transporte</th><th class="text-center">Estado</th></tr>
+        </thead>
+        <tbody>
+            <?php if (empty($registros_del_periodo)): ?>
+                <tr><td colspan="5" class="text-center">Aún no has reportado horas para este período.</td></tr>
+            <?php else: ?>
+                <?php foreach ($registros_del_periodo as $registro): ?>
+                    <tr>
+                        <td><?php echo date('d/m/Y', strtotime($registro['fecha_trabajada'])); ?></td>
+                        <td><?php echo htmlspecialchars($registro['nombre_proyecto']); ?></td>
+                        <td>
+                            <?php echo htmlspecialchars(date('H:i', strtotime($registro['hora_inicio']))) . " - " . htmlspecialchars(date('H:i', strtotime($registro['hora_fin']))); ?>
+                            <?php
+                                $horas_gracia = ($registro['hora_gracia_antes'] ? 1 : 0) + ($registro['hora_gracia_despues'] ? 1 : 0);
+                                if ($horas_gracia > 0):
+                            ?>
+                                <span class="badge bg-info ms-1" title="Incluye <?php echo $horas_gracia; ?> hora(s) de gracia">+<?php echo $horas_gracia; ?>H</span>
+                            <?php endif; ?>
+                        </td>
+                        <td>
+                            <?php echo htmlspecialchars($registro['nombre_zona_o_muelle']); ?>
+                            <?php if ($registro['transporte_aprobado']): ?>
+                                <i class="bi bi-check-circle-fill text-success" title="Transporte Aprobado"></i>
+                            <?php else: ?>
+                                <i class="bi bi-x-circle-fill text-danger" title="Transporte Denegado"></i>
+                            <?php endif; ?>
+                        </td>
+                        <td class="text-center">
+                            <?php
+                                $estado = $registro['estado_registro'];
+                                $clase_badge = 'bg-secondary';
+                                if ($estado == 'Aprobado') $clase_badge = 'bg-success';
+                                if ($estado == 'Pendiente') $clase_badge = 'bg-warning text-dark';
+                                if ($estado == 'Rechazado') $clase_badge = 'bg-danger';
+                            ?>
+                            <span class="badge <?php echo $clase_badge; ?>"><?php echo htmlspecialchars($estado); ?></span>
+                        </td>
+                    </tr>
+                <?php endforeach; ?>
+            <?php endif; ?>
+        </tbody>
+    </table>
+</div>
 
 <?php require_once '../includes/footer.php'; ?>
   
