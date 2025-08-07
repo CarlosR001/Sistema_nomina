@@ -4,7 +4,7 @@
 
 require_once 'auth.php';
 require_login(); 
-
+ 
 // Ya no es necesario comprobar el rol aquí, porque el login en auth.php ya habría redirigido a los inspectores.
 // Si llegamos a este punto, es porque el rol es Admin, Supervisor o Contabilidad.
 
