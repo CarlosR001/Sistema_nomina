@@ -1,5 +1,5 @@
 <?php
-// conceptos/store.php - v4.2 (con Código TSS)
+// conceptos/store.php - v4.3 (con Visibilidad en Volante)
 
 require_once '../auth.php';
 require_login();
@@ -11,15 +11,14 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 try {
-    // Leer los 7 campos que se envían desde el formulario
+    // Leer todos los campos del formulario, incluyendo el nuevo
     $codigo_concepto = trim($_POST['codigo_concepto']);
     $descripcion_publica = trim($_POST['descripcion_publica']);
     $tipo_concepto = $_POST['tipo_concepto'];
-    $origen_calculo = $_POST['origen_calculo'];
     $afecta_tss = $_POST['afecta_tss'];
     $afecta_isr = $_POST['afecta_isr'];
-    // El nuevo campo puede estar vacío
     $codigo_tss = trim($_POST['codigo_tss']) ?: null;
+    $incluir_en_volante = $_POST['incluir_en_volante']; // Nuevo campo
 
     if (empty($codigo_concepto) || empty($descripcion_publica)) {
         header("Location: index.php?status=error&message=El código y la descripción son obligatorios.");
@@ -27,20 +26,20 @@ try {
     }
 
     // Consulta SQL con la nueva columna
-    $sql = "INSERT INTO ConceptosNomina (codigo_concepto, descripcion_publica, tipo_concepto, origen_calculo, afecta_tss, afecta_isr, codigo_tss) 
-            VALUES (?, ?, ?, ?, ?, ?, ?)";
+    $sql = "INSERT INTO ConceptosNomina (codigo_concepto, descripcion_publica, tipo_concepto, origen_calculo, afecta_tss, afecta_isr, codigo_tss, incluir_en_volante) 
+            VALUES (?, ?, ?, 'Novedad', ?, ?, ?, ?)";
     
     $stmt = $pdo->prepare($sql);
     
-    // Ejecutar con los 7 valores
+    // Ejecutar con todos los valores
     $stmt->execute([
         $codigo_concepto,
         $descripcion_publica,
         $tipo_concepto,
-        $origen_calculo,
         $afecta_tss,
         $afecta_isr,
-        $codigo_tss
+        $codigo_tss,
+        $incluir_en_volante
     ]);
 
     header("Location: index.php?status=success&message=Concepto guardado exitosamente.");
