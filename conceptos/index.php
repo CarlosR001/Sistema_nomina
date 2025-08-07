@@ -82,9 +82,8 @@ require_once '../includes/header.php';
             <tr>
                 <th>Código</th>
                 <th>Descripción</th>
-                <th>Código TSS</th>
+                <th>Visible en Volante</th>
                 <th>Tipo</th>
-                <th>Origen</th>
                 <th>Afecta TSS</th>
                 <th>Afecta ISR</th>
                 <th>Acciones</th>
@@ -95,22 +94,16 @@ require_once '../includes/header.php';
             <tr>
                 <td><strong><?php echo htmlspecialchars($concepto['codigo_concepto']); ?></strong></td>
                 <td><?php echo htmlspecialchars($concepto['descripcion_publica']); ?></td>
-                <td><span class="badge bg-info text-dark"><?php echo htmlspecialchars($concepto['codigo_tss'] ?? 'N/A'); ?></span></td>
+                <td><span class="badge bg-<?php echo $concepto['incluir_en_volante'] ? 'primary' : 'secondary'; ?>"><?php echo $concepto['incluir_en_volante'] ? 'Sí' : 'No'; ?></span></td>
                 <td><?php echo htmlspecialchars($concepto['tipo_concepto']); ?></td>
-                <td><?php echo htmlspecialchars($concepto['origen_calculo']); ?></td>
                 <td><span class="badge bg-<?php echo $concepto['afecta_tss'] ? 'success' : 'secondary'; ?>"><?php echo $concepto['afecta_tss'] ? 'Sí' : 'No'; ?></span></td>
                 <td><span class="badge bg-<?php echo $concepto['afecta_isr'] ? 'success' : 'secondary'; ?>"><?php echo $concepto['afecta_isr'] ? 'Sí' : 'No'; ?></span></td>
                 <td>
                     <a href="edit.php?id=<?php echo $concepto['id']; ?>" class="btn btn-sm btn-outline-primary">Editar</a>
-                    <form action="delete.php" method="POST" class="d-inline" onsubmit="return confirm('¿Está seguro de que desea eliminar este concepto?');">
-                        <input type="hidden" name="id" value="<?php echo $concepto['id']; ?>">
-                        <button type="submit" class="btn btn-sm btn-outline-danger">Eliminar</button>
-                    </form>
                 </td>
             </tr>
             <?php endforeach; ?>
         </tbody>
     </table>
 </div>
-
 <?php require_once '../includes/footer.php'; ?>
