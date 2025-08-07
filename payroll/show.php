@@ -60,14 +60,34 @@ require_once '../includes/header.php';
             </div>
             <div class="col-md-4 text-end">
                 
-                <!-- BLOQUE DE ACCIONES CORREGIDO Y SEGURO -->
-                <?php if ($nomina['estado_nomina'] !== 'Aprobada y Finalizada'): ?>
+                              <!-- INICIO DEL BLOQUE A REEMPLAZAR -->
+                       <?php if ($nomina['estado_nomina'] !== 'Aprobada y Finalizada'): ?>
                     <?php
-                        // Determinar el script de procesamiento correcto
                         $recalc_script_url = ($nomina['tipo_nomina_procesada'] === 'Administrativa')
                             ? BASE_URL . 'nomina_administrativa/procesar_nomina_admin.php'
                             : BASE_URL . 'payroll/process.php';
                     ?>
+
+                    <!-- Formulario de Recálculo -->
+                    <form action="<?php echo $recalc_script_url; ?>" method="POST" class="d-inline" onsubmit="return confirm('¿Recalcular? Los datos actuales se borrarán y se volverán a generar.');">
+                        <input type="hidden" name="id_nomina_a_recalcular" value="<?php echo htmlspecialchars($id_nomina); ?>">
+                        <button type="submit" class="btn btn-warning"><i class="bi bi-arrow-clockwise"></i> Recalcular</button>
+                    </form>
+                    
+                    <!-- Formulario de Finalización -->
+                    <form action="<?php echo BASE_URL . 'payroll/finalize.php' ?>" method="POST" class="d-inline" onsubmit="return confirm('Este proceso es irreversible. ¿Finalizar y aprobar esta nómina?');">
+                        <input type="hidden" name="nomina_id" value="<?php echo htmlspecialchars($id_nomina); ?>">
+                        <button type="submit" class="btn btn-success"><i class="bi bi-check-circle"></i> Finalizar</button>
+                    </form>
+
+                <?php else: ?>
+                    <!-- NUEVO BOTÓN DE ENVÍO DE CORREOS -->
+                    <form action="<?php echo BASE_URL . 'payroll/send_payslips.php' ?>" method="POST" class="d-inline" onsubmit="return confirm('Se enviarán los volantes de pago por correo a todos los empleados de esta nómina que tengan un email registrado. ¿Continuar?');">
+                        <input type="hidden" name="nomina_id" value="<?php echo htmlspecialchars($id_nomina); ?>">
+                        <button type="submit" class="btn btn-info"><i class="bi bi-envelope"></i> Enviar Volantes por Correo</button>
+                    </form>
+                <?php endif; ?>
+                <!-- FIN DEL BLOQUE A REEMPLAZAR -->
 
                     <!-- Formulario de Recálculo (siempre envía el ID de la nómina) -->
                     <form action="<?php echo $recalc_script_url; ?>" method="POST" class="d-inline" onsubmit="return confirm('¿Recalcular? Los datos actuales se borrarán y se volverán a generar con las novedades más recientes.');">

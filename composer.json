@@ -1,0 +1,13 @@
+{
+    "name": "sgs/sistema-nomina",
+    "description": "Sistema de Nómina para J&C",
+    "require": {
+        "phpmailer/phpmailer": "^6.8"
+    },
+    "authors": [
+        {
+            "name": "SGS-01",
+            "email": "your_email@example.com"
+        }
+    ]
+}
