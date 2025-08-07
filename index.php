@@ -10,7 +10,7 @@ require_login();
 
 require_once 'includes/header.php'; 
 ?>
-
+ 
 <div class="p-5 mb-4 bg-light rounded-3">
     <div class="container-fluid py-5">
         <h1 class="display-5 fw-bold">Bienvenido a NóminaSYS</h1>
