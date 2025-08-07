@@ -1,5 +1,5 @@
 <?php
-// tss/preview.php - v1.1 (Consulta de Totales Corregida)
+// tss/preview.php - v1.2 (Vista Previa Detallada)
 
 require_once '../auth.php';
 require_login();
@@ -22,9 +22,6 @@ try {
         throw new Exception("El RNC de la empresa no está configurado.");
     }
 
-    // --- CONSULTA CORREGIDA ---
-    // Se añade la condición "nd.tipo_concepto = 'Ingreso'" dentro de cada SUM para asegurar
-    // que solo se totalicen los ingresos y no las deducciones.
     $sql = "
         SELECT
             e.cedula, e.nss, e.nombres, e.primer_apellido, e.segundo_apellido, e.sexo, e.fecha_nacimiento, c.tipo_nomina,
@@ -59,19 +56,23 @@ try {
 require_once '../includes/header.php';
 ?>
 
-<h1 class="mb-4">Previsualización de Archivo TSS para el período <?php echo "$month/$year"; ?></h1>
-<p>Verifica que los datos sean correctos antes de generar el archivo final. Cualquier corrección debe hacerse en los módulos correspondientes (Empleados, Nóminas, etc.) y luego volver a generar esta previsualización.</p>
+<h1 class="mb-4">Previsualización Detallada para TSS (<?php echo "$month/$year"; ?>)</h1>
+<p>Verifica que los datos sean correctos. El archivo final `.txt` contendrá todos los campos requeridos por la TSS, incluyendo los que aquí aparecen vacíos o con valor 0.</p>
 
 <div class="table-responsive">
-    <table class="table table-bordered table-sm table-hover">
+    <table class="table table-bordered table-sm table-hover" style="font-size: 0.8rem;">
         <thead class="table-dark">
             <tr>
                 <th>Cédula</th>
-                <th>Nombres</th>
+                <th>NSS</th>
+                <th>Nombres y Apellidos</th>
+                <th>Sexo</th>
+                <th>Fecha Nac.</th>
                 <th class="text-end">Salario Cotizable</th>
                 <th class="text-end">Salario ISR</th>
                 <th class="text-end">Otras Remun.</th>
-                <th class="text-center">Tipo Ingreso</th>
+                <th>Tipo Ingreso</th>
+                <th class="text-end">Aporte Vol.</th>
                 <th class="text-end">Salario INFOTEP</th>
             </tr>
         </thead>
@@ -79,14 +80,19 @@ require_once '../includes/header.php';
             <?php foreach ($empleados_data as $emp): ?>
                 <?php
                     $tipo_ingreso_tss = ($emp['tipo_nomina'] === 'Inspectores') ? '05' : '01';
+                    $sexo_tss = ($emp['sexo'] === 'Masculino') ? 'M' : 'F';
                 ?>
                 <tr>
                     <td><?php echo htmlspecialchars($emp['cedula']); ?></td>
+                    <td><?php echo htmlspecialchars($emp['nss']); ?></td>
                     <td><?php echo htmlspecialchars($emp['nombres'] . ' ' . $emp['primer_apellido']); ?></td>
-                    <td class="text-end"><?php echo number_format($emp['salario_cotizable_tss'], 2); ?></td>
+                    <td class="text-center"><?php echo $sexo_tss; ?></td>
+                    <td><?php echo date('d/m/Y', strtotime($emp['fecha_nacimiento'])); ?></td>
+                    <td class="text-end fw-bold"><?php echo number_format($emp['salario_cotizable_tss'], 2); ?></td>
                     <td class="text-end"><?php echo number_format($emp['base_isr'], 2); ?></td>
                     <td class="text-end"><?php echo number_format($emp['otras_remuneraciones'], 2); ?></td>
                     <td class="text-center"><span class="badge bg-secondary"><?php echo $tipo_ingreso_tss; ?></span></td>
+                    <td class="text-end"><?php echo number_format(0, 2); ?></td>
                     <td class="text-end"><?php echo number_format($emp['salario_cotizable_tss'], 2); ?></td>
                 </tr>
             <?php endforeach; ?>
@@ -106,6 +112,5 @@ require_once '../includes/header.php';
         <a href="index.php" class="btn btn-secondary btn-lg">Cancelar</a>
     </div>
 </div>
-
 
 <?php require_once '../includes/header.php'; ?>
