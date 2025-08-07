@@ -36,14 +36,25 @@ if (empty($id) || empty($cedula) || empty($nombres) || empty($primer_apellido) |
 
 
 try {
-    // CORRECCIÓN: El nombre de la tabla es 'empleados', no 'Empleados'.
-    $stmt_check = $pdo->prepare("SELECT id FROM empleados WHERE (cedula = ? OR nss = ?) AND id != ?");
-    $stmt_check->execute([$cedula, $nss, $id]);
-    if ($stmt_check->fetch()) {
-        header('Location: edit.php?id=' . $id . '&status=error&message=La cédula o el NSS ya están registrados para otro empleado.');
+    // Validación #1: Verificar si la CÉDULA ya existe en otro empleado.
+    $stmt_check_cedula = $pdo->prepare("SELECT id FROM empleados WHERE cedula = ? AND id != ?");
+    $stmt_check_cedula->execute([$cedula, $id]);
+    if ($stmt_check_cedula->fetch()) {
+        header('Location: edit.php?id=' . $id . '&status=error&message=' . urlencode('La cédula introducida ya está registrada para otro empleado.'));
         exit();
     }
 
+    // Validación #2: Si se proporcionó un NSS, verificar que sea único en otro empleado.
+    if (!empty($nss)) {
+        $stmt_check_nss = $pdo->prepare("SELECT id FROM empleados WHERE nss = ? AND id != ?");
+        $stmt_check_nss->execute([$nss, $id]);
+        if ($stmt_check_nss->fetch()) {
+            header('Location: edit.php?id=' . $id . '&status=error&message=' . urlencode('El NSS introducido ya está registrado para otro empleado.'));
+            exit();
+        }
+    }
+
+    // Si todas las validaciones pasan, proceder con la actualización.
     $sql = "UPDATE empleados SET 
                 cedula = :cedula, nss = :nss, nombres = :nombres, primer_apellido = :primer_apellido,
                 segundo_apellido = :segundo_apellido, fecha_nacimiento = :fecha_nacimiento, sexo = :sexo,
@@ -70,4 +81,5 @@ try {
     header('Location: edit.php?id=' . $id . '&status=error&message=' . urlencode('Error de base de datos: ' . $e->getMessage()));
     exit();
 }
+
 ?>
