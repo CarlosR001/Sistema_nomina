@@ -72,20 +72,26 @@ try {
     $conceptos = $pdo->query("SELECT codigo_concepto, id FROM ConceptosNomina")->fetchAll(PDO::FETCH_KEY_PAIR);
     $zonas = $pdo->query("SELECT id, monto_transporte_completo FROM ZonasTransporte")->fetchAll(PDO::FETCH_KEY_PAIR);
     
+        // --- INICIO DE LA MODIFICACIÓN CLAVE ---
+    // La consulta principal ahora se une con `ordenes` para obtener el `id_lugar` (zona).
+    // Se usa un alias (AS) para que el resto del script no necesite cambios.
     $sql_horas = "SELECT 
                     c.id as contrato_id, c.tarifa_por_hora, 
                     e.nombres, e.primer_apellido, 
                     rh.fecha_trabajada, rh.hora_inicio, rh.hora_fin, 
-                    rh.id_zona_trabajo, rh.transporte_aprobado,
+                    o.id_lugar AS id_zona_trabajo, -- <-- Se obtiene de la orden y se renombra
+                    rh.transporte_aprobado,
                     rh.hora_gracia_antes, rh.hora_gracia_despues 
                   FROM Contratos c 
                   JOIN Empleados e ON c.id_empleado = e.id 
-                  JOIN RegistroHoras rh ON c.id = rh.id_contrato 
+                  JOIN RegistroHoras rh ON c.id = rh.id_contrato
+                  LEFT JOIN ordenes o ON rh.id_orden = o.id -- <-- Nueva unión
                   WHERE c.tipo_nomina = 'Inspectores' 
                     AND rh.estado_registro = 'Aprobado' 
                     AND rh.fecha_trabajada BETWEEN ? AND ? 
                   ORDER BY c.id, rh.fecha_trabajada, rh.hora_inicio";
-    $stmt_horas = $pdo->prepare($sql_horas);
+    // --- FIN DE LA MODIFICACIÓN CLAVE ---
+   $stmt_horas = $pdo->prepare($sql_horas);
     $stmt_horas->execute([$fecha_inicio, $fecha_fin]);
     $horas_aprobadas = $stmt_horas->fetchAll(PDO::FETCH_ASSOC | PDO::FETCH_GROUP);
     
