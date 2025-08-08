@@ -12,11 +12,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $id_lugar = $_POST['id_lugar'] ?? null;
     $id_producto = $_POST['id_producto'] ?? null;
     $id_operacion = $_POST['id_operacion'] ?? null;
-    $id_division = $_POST['id_division'] ?? null; // <-- NUEVO
+    $id_supervisor = $_POST['id_supervisor'] ?? null; // <-- NUEVO
+    $id_division = $_POST['id_division'] ?? null;
     $fecha_creacion = $_POST['fecha_creacion'] ?? null;
-    $fecha_finalizacion = !empty($_POST['fecha_finalizacion']) ? $_POST['fecha_finalizacion'] : null; // <-- NUEVO (maneja opcional)
+    $fecha_finalizacion = !empty($_POST['fecha_finalizacion']) ? $_POST['fecha_finalizacion'] : null;
     $estado_orden = $_POST['estado_orden'] ?? 'Pendiente';
     $id_usuario_creador = $_SESSION['user_id'];
+
 
 
     // Validaciones básicas
@@ -27,14 +29,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     try {
         $stmt = $pdo->prepare(
-            "INSERT INTO ordenes (codigo_orden, id_cliente, id_lugar, id_producto, id_operacion, id_division, fecha_creacion, fecha_finalizacion, id_usuario_creador, estado_orden) 
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+            "INSERT INTO ordenes (codigo_orden, id_cliente, id_lugar, id_producto, id_operacion, id_supervisor, id_division, fecha_creacion, fecha_finalizacion, id_usuario_creador, estado_orden) 
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
         );
-        $stmt->execute([$codigo_orden, $id_cliente, $id_lugar, $id_producto, $id_operacion, $id_division, $fecha_creacion, $fecha_finalizacion, $id_usuario_creador, $estado_orden]);
+        $stmt->execute([$codigo_orden, $id_cliente, $id_lugar, $id_producto, $id_operacion, $id_supervisor, $id_division, $fecha_creacion, $fecha_finalizacion, $id_usuario_creador, $estado_orden]);
 
         $id_orden_creada = $pdo->lastInsertId();
 
-        // Redirigir a la página de asignación de inspectores para la nueva orden
         header('Location: assign.php?id=' . $id_orden_creada . '&status=success&message=' . urlencode('Orden creada. Ahora asigne los inspectores.'));
         exit;
     } catch (PDOException $e) {
@@ -46,7 +47,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         header('Location: create.php?status=error&message=' . $message);
         exit;
     }
-
 
 } else {
     header('Location: index.php');

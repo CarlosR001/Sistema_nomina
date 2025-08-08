@@ -7,24 +7,25 @@ require_role(['Admin', 'Supervisor']);
 
 // Consulta para obtener las órdenes con los nombres de las tablas relacionadas
 $stmt = $pdo->query("
-    SELECT 
+       SELECT 
         o.id, 
         o.codigo_orden, 
         c.nombre_cliente, 
-        l.nombre_zona_o_muelle as lugar, -- Se usa el alias 'l' de lugares
+        l.nombre_zona_o_muelle as lugar,
         p.nombre_producto,
         op.nombre_operacion,
         d.nombre_division,
+        CONCAT(sup.nombres, ' ', sup.primer_apellido) AS supervisor, -- Se añade el nombre del supervisor
         o.fecha_creacion,
         o.fecha_finalizacion,
         o.estado_orden
     FROM ordenes o
     JOIN clientes c ON o.id_cliente = c.id
-    JOIN lugares l ON o.id_lugar = l.id -- CORRECCIÓN: zonastransporte -> lugares
+    JOIN lugares l ON o.id_lugar = l.id
     JOIN productos p ON o.id_producto = p.id
     JOIN operaciones op ON o.id_operacion = op.id
     LEFT JOIN divisiones d ON o.id_division = d.id
-    ORDER BY o.fecha_creacion DESC, o.id DESC
+    LEFT JOIN empleados sup ON o.id_supervisor = sup.id DESC
 ");
 $ordenes = $stmt->fetchAll();
 
@@ -53,31 +54,25 @@ require_once '../includes/header.php';
         <div class="card-body">
             <div class="table-responsive">
             <table id="datatablesSimple" class="table table-bordered table-striped table-hover">
-    <thead class="table-dark">
-        <tr>
-            <th>Código</th>
-            <th>Cliente</th>
-            <th>División</th>
-            <th>Operación</th>
-            <th>Fecha Creación</th>
-            <th>Fecha Fin</th>
-            <th>Estado</th>
-            <th class="text-center">Acciones</th>
-        </tr>
-    </thead>
-    <tbody>
-        <?php if (empty($ordenes)): ?>
-            <tr>
-                <td colspan="8" class="text-center">No hay órdenes registradas.</td>
-            </tr>
-        <?php else: ?>
-            <?php foreach ($ordenes as $orden): ?>
+            <thead class="table-dark">
                 <tr>
-                    <td><?php echo htmlspecialchars($orden['codigo_orden']); ?></td>
-                    <td><?php echo htmlspecialchars($orden['nombre_cliente']); ?></td>
-                    <td><?php echo htmlspecialchars($orden['nombre_division'] ?? 'N/A'); ?></td>
-                    <td><?php echo htmlspecialchars($orden['nombre_operacion']); ?></td>
-                    <td><?php echo date("d/m/Y", strtotime($orden['fecha_creacion'])); ?></td>
+                    <th>Código</th>
+                    <th>Cliente</th>
+                    <th>Supervisor</th>
+                    <th>División</th>
+                    <th>Fecha Creación</th>
+                    <th>Estado</th>
+                    <th class="text-center">Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                <?php foreach ($ordenes as $orden): ?>
+                    <tr>
+                        <td><?php echo htmlspecialchars($orden['codigo_orden']); ?></td>
+                        <td><?php echo htmlspecialchars($orden['nombre_cliente']); ?></td>
+                        <td><?php echo htmlspecialchars($orden['supervisor'] ?? 'N/A'); ?></td>
+                        <td><?php echo htmlspecialchars($orden['nombre_division'] ?? 'N/A'); ?></td>
+                        <td><?php echo date("d/m/Y", strtotime($orden['fecha_creacion'])); ?></td>
                     <td><?php echo $orden['fecha_finalizacion'] ? date("d/m/Y", strtotime($orden['fecha_finalizacion'])) : 'N/A'; ?></td>
                     <td>
                         <span class="badge bg-<?php 

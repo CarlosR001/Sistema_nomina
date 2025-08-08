@@ -23,10 +23,12 @@ if (!$orden) {
 
 // Cargar datos para los dropdowns
 $clientes = $pdo->query("SELECT id, nombre_cliente FROM clientes WHERE estado = 'Activo' ORDER BY nombre_cliente")->fetchAll();
-$lugares = $pdo->query("SELECT id, nombre_zona_o_muelle FROM lugares ORDER BY nombre_zona_o_muelle")->fetchAll(); // <-- CORREGIDO
+$lugares = $pdo->query("SELECT id, nombre_zona_o_muelle FROM lugares ORDER BY nombre_zona_o_muelle")->fetchAll();
 $productos = $pdo->query("SELECT id, nombre_producto FROM productos ORDER BY nombre_producto")->fetchAll();
 $operaciones = $pdo->query("SELECT id, nombre_operacion FROM operaciones ORDER BY nombre_operacion")->fetchAll();
 $divisiones = $pdo->query("SELECT id, nombre_division FROM divisiones ORDER BY nombre_division")->fetchAll();
+// AÑADIDO: Cargar lista de supervisores
+$supervisores = $pdo->query("SELECT e.id, e.nombres, e.primer_apellido FROM empleados e JOIN usuarios u ON e.id = u.id_empleado WHERE u.rol = 'Supervisor' ORDER BY e.nombres")->fetchAll();
 
 require_once '../includes/header.php';
 ?>
@@ -59,6 +61,16 @@ require_once '../includes/header.php';
                     <div class="col-md-4"><label for="id_operacion" class="form-label">Operación</label><select class="form-select" id="id_operacion" name="id_operacion" required>
                         <?php foreach ($operaciones as $operacion): ?><option value="<?php echo $operacion['id']; ?>" <?php echo ($orden['id_operacion'] == $operacion['id']) ? 'selected' : ''; ?>><?php echo htmlspecialchars($operacion['nombre_operacion']); ?></option><?php endforeach; ?>
                     </select></div>
+                    <div class="col-md-4"><label for="id_supervisor" class="form-label">Supervisor Asignado</label>
+    <select class="form-select" id="id_supervisor" name="id_supervisor" required>
+        <?php foreach ($supervisores as $supervisor): ?>
+            <option value="<?php echo $supervisor['id']; ?>" <?php echo ($orden['id_supervisor'] == $supervisor['id']) ? 'selected' : ''; ?>>
+                <?php echo htmlspecialchars($supervisor['nombres'] . ' ' . $supervisor['primer_apellido']); ?>
+            </option>
+        <?php endforeach; ?>
+    </select>
+</div>
+
                     <div class="col-md-4"><label for="id_division" class="form-label">División</label>
     <select class="form-select" id="id_division" name="id_division" required>
         <?php foreach ($divisiones as $division): ?>

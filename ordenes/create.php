@@ -11,7 +11,7 @@ $lugares = $pdo->query("SELECT id, nombre_zona_o_muelle FROM lugares ORDER BY no
 $productos = $pdo->query("SELECT id, nombre_producto FROM productos ORDER BY nombre_producto")->fetchAll();
 $operaciones = $pdo->query("SELECT id, nombre_operacion FROM operaciones ORDER BY nombre_operacion")->fetchAll();
 $divisiones = $pdo->query("SELECT id, nombre_division FROM divisiones ORDER BY nombre_division")->fetchAll();
-
+$supervisores = $pdo->query("SELECT e.id, e.nombres, e.primer_apellido FROM empleados e JOIN usuarios u ON e.id = u.id_empleado WHERE u.rol = 'Supervisor' ORDER BY e.nombres")->fetchAll();
 require_once '../includes/header.php';
 ?>
 
@@ -75,6 +75,16 @@ require_once '../includes/header.php';
                             <?php endforeach; ?>
                         </select>
                     </div>
+                    <div class="col-md-4">
+                        <label for="id_supervisor" class="form-label">Supervisor Asignado</label>
+                        <select class="form-select" id="id_supervisor" name="id_supervisor" required>
+                            <option value="">Seleccionar...</option>
+                            <?php foreach ($supervisores as $supervisor): ?>
+                                <option value="<?php echo $supervisor['id']; ?>"><?php echo htmlspecialchars($supervisor['nombres'] . ' ' . $supervisor['primer_apellido']); ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+           
                     <div class="col-md-4">
                         <label for="id_division" class="form-label">División</label>
                         <select class="form-select" id="id_division" name="id_division" required>

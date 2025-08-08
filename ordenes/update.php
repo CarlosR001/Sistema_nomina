@@ -13,9 +13,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $id_lugar = $_POST['id_lugar'] ?? null;
     $id_producto = $_POST['id_producto'] ?? null;
     $id_operacion = $_POST['id_operacion'] ?? null;
-    $id_division = $_POST['id_division'] ?? null; // <-- NUEVO
+    $id_supervisor = $_POST['id_supervisor'] ?? null; // <-- NUEVO
+    $id_division = $_POST['id_division'] ?? null;
     $fecha_creacion = $_POST['fecha_creacion'] ?? null;
-    $fecha_finalizacion = !empty($_POST['fecha_finalizacion']) ? $_POST['fecha_finalizacion'] : null; // <-- NUEVO (maneja opcional)
+    $fecha_finalizacion = !empty($_POST['fecha_finalizacion']) ? $_POST['fecha_finalizacion'] : null;
     $estado_orden = $_POST['estado_orden'] ?? 'Pendiente';
 
     if (!$id || empty($codigo_orden) || !$id_cliente || !$id_lugar || !$id_producto || !$id_operacion || !$fecha_creacion) {
@@ -27,15 +28,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt = $pdo->prepare(
             "UPDATE ordenes SET 
                 codigo_orden = ?, id_cliente = ?, id_lugar = ?, 
-                id_producto = ?, id_operacion = ?, id_division = ?, 
-                fecha_creacion = ?, fecha_finalizacion = ?, estado_orden = ? 
+                id_producto = ?, id_operacion = ?, id_supervisor = ?, 
+                id_division = ?, fecha_creacion = ?, fecha_finalizacion = ?, 
+                estado_orden = ? 
              WHERE id = ?"
         );
         $stmt->execute([
             $codigo_orden, $id_cliente, $id_lugar, 
-            $id_producto, $id_operacion, $id_division, 
-            $fecha_creacion, $fecha_finalizacion, $estado_orden, 
-            $id
+            $id_producto, $id_operacion, $id_supervisor, 
+            $id_division, $fecha_creacion, $fecha_finalizacion, 
+            $estado_orden, $id
         ]);
 
         header('Location: index.php?status=success&message=' . urlencode('Orden actualizada correctamente.'));
@@ -49,4 +51,5 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         header('Location: edit.php?id=' . $id . '&status=error&message=' . $message);
         exit;
     }
+
 
