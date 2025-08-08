@@ -1,5 +1,5 @@
 <?php
-// ordenes/index.php
+// ordenes/index.php - v2.1 (Con Supervisor y sin errores de sintaxis)
 
 require_once '../auth.php';
 require_login();
@@ -7,7 +7,7 @@ require_role(['Admin', 'Supervisor']);
 
 // Consulta para obtener las órdenes con los nombres de las tablas relacionadas
 $stmt = $pdo->query("
-       SELECT 
+    SELECT 
         o.id, 
         o.codigo_orden, 
         c.nombre_cliente, 
@@ -15,7 +15,7 @@ $stmt = $pdo->query("
         p.nombre_producto,
         op.nombre_operacion,
         d.nombre_division,
-        CONCAT(sup.nombres, ' ', sup.primer_apellido) AS supervisor, -- Se añade el nombre del supervisor
+        CONCAT(sup.nombres, ' ', sup.primer_apellido) AS supervisor,
         o.fecha_creacion,
         o.fecha_finalizacion,
         o.estado_orden
@@ -25,12 +25,10 @@ $stmt = $pdo->query("
     JOIN productos p ON o.id_producto = p.id
     JOIN operaciones op ON o.id_operacion = op.id
     LEFT JOIN divisiones d ON o.id_division = d.id
-    LEFT JOIN empleados sup ON o.id_supervisor = sup.id DESC
+    LEFT JOIN empleados sup ON o.id_supervisor = sup.id
+    ORDER BY o.fecha_creacion DESC, o.id DESC
 ");
 $ordenes = $stmt->fetchAll();
-
-
-
 
 require_once '../includes/header.php';
 ?>
@@ -53,51 +51,55 @@ require_once '../includes/header.php';
         </div>
         <div class="card-body">
             <div class="table-responsive">
-            <table id="datatablesSimple" class="table table-bordered table-striped table-hover">
-            <thead class="table-dark">
-                <tr>
-                    <th>Código</th>
-                    <th>Cliente</th>
-                    <th>Supervisor</th>
-                    <th>División</th>
-                    <th>Fecha Creación</th>
-                    <th>Estado</th>
-                    <th class="text-center">Acciones</th>
-                </tr>
-            </thead>
-            <tbody>
-                <?php foreach ($ordenes as $orden): ?>
-                    <tr>
-                        <td><?php echo htmlspecialchars($orden['codigo_orden']); ?></td>
-                        <td><?php echo htmlspecialchars($orden['nombre_cliente']); ?></td>
-                        <td><?php echo htmlspecialchars($orden['supervisor'] ?? 'N/A'); ?></td>
-                        <td><?php echo htmlspecialchars($orden['nombre_division'] ?? 'N/A'); ?></td>
-                        <td><?php echo date("d/m/Y", strtotime($orden['fecha_creacion'])); ?></td>
-                    <td><?php echo $orden['fecha_finalizacion'] ? date("d/m/Y", strtotime($orden['fecha_finalizacion'])) : 'N/A'; ?></td>
-                    <td>
-                        <span class="badge bg-<?php 
-                            switch ($orden['estado_orden']) {
-                                case 'Pendiente': echo 'secondary'; break;
-                                case 'En Proceso': echo 'primary'; break;
-                                case 'Completada': echo 'success'; break;
-                                case 'Cancelada': echo 'danger'; break;
-                                default: echo 'light';
-                            }
-                        ?>"><?php echo htmlspecialchars($orden['estado_orden']); ?></span>
-                    </td>
-                    <td class="text-center">
-                        <a href="edit.php?id=<?php echo $orden['id']; ?>" class="btn btn-warning btn-sm" title="Editar"><i class="bi bi-pencil-square"></i></a>
-                        <a href="assign.php?id=<?php echo $orden['id']; ?>" class="btn btn-info btn-sm" title="Asignar Inspectores"><i class="bi bi-person-plus"></i></a>
-                        <form action="delete.php" method="POST" class="d-inline" onsubmit="return confirm('¿Estás seguro de que deseas eliminar esta orden?');">
-                            <input type="hidden" name="id" value="<?php echo $orden['id']; ?>">
-                            <button type="submit" class="btn btn-danger btn-sm" title="Eliminar"><i class="bi bi-trash"></i></button>
-                        </form>
-                    </td>
-                </tr>
-            <?php endforeach; ?>
-        <?php endif; ?>
-    </tbody>
-</table>
+                <table id="datatablesSimple" class="table table-bordered table-striped table-hover">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Código</th>
+                            <th>Cliente</th>
+                            <th>Supervisor</th>
+                            <th>División</th>
+                            <th>Fecha Creación</th>
+                            <th>Estado</th>
+                            <th class="text-center">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php if (empty($ordenes)): ?>
+                            <tr>
+                                <td colspan="7" class="text-center">No hay órdenes registradas.</td>
+                            </tr>
+                        <?php else: ?>
+                            <?php foreach ($ordenes as $orden): ?>
+                                <tr>
+                                    <td><?php echo htmlspecialchars($orden['codigo_orden']); ?></td>
+                                    <td><?php echo htmlspecialchars($orden['nombre_cliente']); ?></td>
+                                    <td><?php echo htmlspecialchars($orden['supervisor'] ?? 'N/A'); ?></td>
+                                    <td><?php echo htmlspecialchars($orden['nombre_division'] ?? 'N/A'); ?></td>
+                                    <td><?php echo date("d/m/Y", strtotime($orden['fecha_creacion'])); ?></td>
+                                    <td>
+                                        <span class="badge bg-<?php 
+                                            switch ($orden['estado_orden']) {
+                                                case 'Pendiente': echo 'secondary'; break;
+                                                case 'En Proceso': echo 'primary'; break;
+                                                case 'Completada': echo 'success'; break;
+                                                case 'Cancelada': echo 'danger'; break;
+                                                default: echo 'light';
+                                            }
+                                        ?>"><?php echo htmlspecialchars($orden['estado_orden']); ?></span>
+                                    </td>
+                                    <td class="text-center">
+                                        <a href="edit.php?id=<?php echo $orden['id']; ?>" class="btn btn-warning btn-sm" title="Editar"><i class="bi bi-pencil-square"></i></a>
+                                        <a href="assign.php?id=<?php echo $orden['id']; ?>" class="btn btn-info btn-sm" title="Asignar Inspectores"><i class="bi bi-person-plus"></i></a>
+                                        <form action="delete.php" method="POST" class="d-inline" onsubmit="return confirm('¿Estás seguro de que deseas eliminar esta orden?');">
+                                            <input type="hidden" name="id" value="<?php echo $orden['id']; ?>">
+                                            <button type="submit" class="btn btn-danger btn-sm" title="Eliminar"><i class="bi bi-trash"></i></button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>
