@@ -29,6 +29,7 @@ try {
     $datos_exportacion = [];
     $empleados_sin_cuenta = [];
     $empleados_pago_cero = [];
+    $linea_num = 1; // <-- INICIO: Se añade el contador de secuencia
 
     foreach ($contratos as $contrato_id) {
         // 2. Obtener los datos del empleado
@@ -45,7 +46,7 @@ try {
         // 3. PRIMERA VALIDACIÓN: Verificar si tiene cuenta bancaria
         if (empty($empleado['numero_cuenta_bancaria'])) {
             $empleados_sin_cuenta[] = $nombre_completo;
-            continue; // Omitir este empleado y continuar con el siguiente
+            continue;
         }
 
         // 4. Calcular el neto a pagar
@@ -63,21 +64,24 @@ try {
         // 5. SEGUNDA VALIDACIÓN: Verificar si el pago neto es positivo
         if ($neto_a_pagar <= 0) {
             $empleados_pago_cero[] = $nombre_completo;
-            continue; // Omitir este empleado
+            continue;
         }
         
-        // Si pasa todas las validaciones, se formatea y añade a la lista
         $tipo_cuenta = ($empleado['tipo_cuenta_bancaria'] == 'Corriente') ? '2' : '1';
-        $monto_neto = number_format($neto_a_pagar, 2, '.', '');
+        $monto_neto = $neto_a_pagar; // Sin redondear
 
+        // Se añade la secuencia a la línea de exportación
         $datos_exportacion[] = [
             $empleado['numero_cuenta_bancaria'],
             $nombre_completo,
-            $tipo_cuenta,
+            $linea_num, // <-- CAMBIO: Se inserta el número de secuencia
             $monto_neto,
             $descripcion_pago
         ];
+        
+        $linea_num++; // <-- FIN: Se incrementa el contador
     }
+
 
     // 6. REPORTE FINAL: Si después de todo, no hay datos, mostrar el informe de errores.
     if (empty($datos_exportacion)) {
