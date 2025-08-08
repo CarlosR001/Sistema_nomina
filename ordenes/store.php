@@ -31,7 +31,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $id_orden_creada = $pdo->lastInsertId();
 
-        // Redirigir a la página de asignación de inspectores para la nueva orden
         header('Location: assign.php?id=' . $id_orden_creada . '&status=success&message=' . urlencode('Orden creada. Ahora asigne los inspectores.'));
         exit;
     } catch (PDOException $e) {
@@ -43,6 +42,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         header('Location: create.php?status=error&message=' . $message);
         exit;
     }
+
 } else {
     header('Location: index.php');
     exit;
