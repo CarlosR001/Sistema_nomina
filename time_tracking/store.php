@@ -71,41 +71,50 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         header("Location: " . $redirect_url . $separator . "status=error&message=Conflicto%20de%20horario:%20Ya%20existe%20un%20registro%20que%20se%20solapa.");
         exit();
     }
+             // --- Obtener id_lugar (zona) desde la orden seleccionada ---
+             $stmt_lugar = $pdo->prepare("SELECT id_lugar FROM ordenes WHERE id = ?");
+             $stmt_lugar->execute([$id_orden]);
+             $orden_data = $stmt_lugar->fetch();
+             if (!$orden_data) {
+                 header("Location: " . $redirect_url . $separator . "status=error&message=La%20orden%20seleccionada%20no%20es%20v%C3%A1lida.");
+                 exit();
+             }
+             $id_zona_trabajo_from_orden = $orden_data['id_lugar'];
     
-       // --- Inserción en la base de datos ---
-       try {
-        // CORRECCIÓN: Se incluyen los campos obsoletos y se les pasa NULL para asegurar la compatibilidad.
-        $sql_insert = "INSERT INTO RegistroHoras 
-                        (id_contrato, id_orden, id_proyecto, id_zona_trabajo, id_periodo_reporte, fecha_trabajada, hora_inicio, hora_fin, 
-                         estado_registro, transporte_aprobado, hora_gracia_antes, hora_gracia_despues) 
-                       VALUES 
-                        (?, ?, NULL, NULL, ?, ?, ?, ?, 'Pendiente', 1, ?, ?)";
-
-        $stmt_insert = $pdo->prepare($sql_insert);
-        
-        $stmt_insert->execute([
-            $id_contrato, 
-            $id_orden,
-            $id_periodo_reporte,
-            $fecha_trabajada, 
-            $hora_inicio, 
-            $hora_fin,
-            $hora_gracia_antes,
-            $hora_gracia_despues
-        ]);
-
-        $success_message = urlencode("Horas registradas correctamente.");
-        // Se usa la URL de redirección correcta (corregida en el Bloque 1)
-        header("Location: " . $redirect_url . $separator . "status=success&message=" . $success_message);
-        exit();
-
-    } catch (PDOException $e) {
-        error_log("Error en store.php: " . $e->getMessage());
-        $error_message = urlencode("Error al guardar el registro. Por favor, contacte a un administrador.");
-        header("Location: " . $redirect_url . $separator . "status=error&message=" . $error_message);
-        exit();
-    }
-
+                // --- Inserción en la base de datos ---
+                try {
+                    // CORRECCIÓN FINAL: Se inserta el id_zona_trabajo obtenido de la orden
+                    $sql_insert = "INSERT INTO RegistroHoras 
+                                    (id_contrato, id_orden, id_proyecto, id_zona_trabajo, id_periodo_reporte, fecha_trabajada, hora_inicio, hora_fin, 
+                                     estado_registro, transporte_aprobado, hora_gracia_antes, hora_gracia_despues) 
+                                   VALUES 
+                                    (?, ?, NULL, ?, ?, ?, ?, ?, 'Pendiente', 1, ?, ?)";
+    
+                    $stmt_insert = $pdo->prepare($sql_insert);
+                    
+                    $stmt_insert->execute([
+                        $id_contrato, 
+                        $id_orden,
+                        $id_zona_trabajo_from_orden, // <-- VALOR CORREGIDO
+                        $id_periodo_reporte,
+                        $fecha_trabajada, 
+                        $hora_inicio, 
+                        $hora_fin,
+                        $hora_gracia_antes,
+                        $hora_gracia_despues
+                    ]);
+    
+                    $success_message = urlencode("Horas registradas correctamente.");
+                    header("Location: " . $redirect_url . $separator . "status=success&message=" . $success_message);
+                    exit();
+    
+                } catch (PDOException $e) {
+                    error_log("Error en store.php: " . $e->getMessage());
+                    $error_message = urlencode("Error al guardar el registro. Por favor, contacte a un administrador.");
+                    header("Location: " . $redirect_url . $separator . "status=error&message=" . $error_message);
+                    exit();
+                }
+    
 }
 
 // Redirección por defecto si el script es accedido incorrectamente
