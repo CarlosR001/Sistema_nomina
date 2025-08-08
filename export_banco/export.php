@@ -1,5 +1,5 @@
 <?php
-// export_banco/export.php
+// export_banco/export.php - v1.1 (Con Reporte de Errores)
 
 require_once '../auth.php';
 require_login();
@@ -23,14 +23,32 @@ try {
     $contratos = $stmt_contratos->fetchAll(PDO::FETCH_COLUMN);
 
     if (empty($contratos)) {
-        die("No se encontraron empleados en la nómina seleccionada.");
+        die("Error: No se encontraron registros de empleados en la nómina seleccionada (ID: {$nomina_id}).");
     }
 
     $datos_exportacion = [];
-    $linea_num = 1;
+    $empleados_sin_cuenta = [];
+    $empleados_pago_cero = [];
 
     foreach ($contratos as $contrato_id) {
-        // 2. Para cada contrato, calcular el neto a pagar
+        // 2. Obtener los datos del empleado
+        $stmt_empleado = $pdo->prepare("
+            SELECT e.nombres, e.primer_apellido, e.segundo_apellido, e.numero_cuenta_bancaria, e.tipo_cuenta_bancaria
+            FROM empleados e
+            JOIN contratos c ON e.id = c.id_empleado
+            WHERE c.id = ?
+        ");
+        $stmt_empleado->execute([$contrato_id]);
+        $empleado = $stmt_empleado->fetch();
+        $nombre_completo = trim($empleado['nombres'] . ' ' . $empleado['primer_apellido'] . ' ' . $empleado['segundo_apellido']);
+
+        // 3. PRIMERA VALIDACIÓN: Verificar si tiene cuenta bancaria
+        if (empty($empleado['numero_cuenta_bancaria'])) {
+            $empleados_sin_cuenta[] = $nombre_completo;
+            continue; // Omitir este empleado y continuar con el siguiente
+        }
+
+        // 4. Calcular el neto a pagar
         $stmt_neto = $pdo->prepare("
             SELECT
                 SUM(CASE WHEN tipo_concepto = 'Ingreso' THEN monto_resultado ELSE 0 END) as total_ingresos,
@@ -40,57 +58,60 @@ try {
         ");
         $stmt_neto->execute([$contrato_id, $nomina_id]);
         $montos = $stmt_neto->fetch();
-        
         $neto_a_pagar = ($montos['total_ingresos'] ?? 0) - ($montos['total_deducciones'] ?? 0);
 
-        // Si el neto es cero o negativo, no se incluye en el archivo
+        // 5. SEGUNDA VALIDACIÓN: Verificar si el pago neto es positivo
         if ($neto_a_pagar <= 0) {
-            continue;
-        }
-
-        // 3. Obtener los datos del empleado y su cuenta bancaria
-        $stmt_empleado = $pdo->prepare("
-            SELECT e.nombres, e.primer_apellido, e.segundo_apellido, e.numero_cuenta_bancaria, e.tipo_cuenta_bancaria
-            FROM empleados e
-            JOIN contratos c ON e.id = c.id_empleado
-            WHERE c.id = ?
-        ");
-        $stmt_empleado->execute([$contrato_id]);
-        $empleado = $stmt_empleado->fetch();
-
-        // Validar que el empleado tenga cuenta bancaria
-        if (empty($empleado['numero_cuenta_bancaria'])) {
-            // Opcional: podrías registrar un log de empleados sin cuenta
-            continue;
+            $empleados_pago_cero[] = $nombre_completo;
+            continue; // Omitir este empleado
         }
         
-        // Formatear los datos según la especificación
-        $numero_cuenta = $empleado['numero_cuenta_bancaria'];
-        $nombre_completo = trim($empleado['nombres'] . ' ' . $empleado['primer_apellido'] . ' ' . $empleado['segundo_apellido']);
+        // Si pasa todas las validaciones, se formatea y añade a la lista
         $tipo_cuenta = ($empleado['tipo_cuenta_bancaria'] == 'Corriente') ? '2' : '1';
-        $monto_neto = number_format($neto_a_pagar, 2, '.', ''); // Formato sin comas, con punto decimal
+        $monto_neto = number_format($neto_a_pagar, 2, '.', '');
 
         $datos_exportacion[] = [
-            $numero_cuenta,
+            $empleado['numero_cuenta_bancaria'],
             $nombre_completo,
             $tipo_cuenta,
             $monto_neto,
             $descripcion_pago
         ];
-        $linea_num++;
     }
 
-    // 4. Generar el archivo CSV y forzar la descarga
+    // 6. REPORTE FINAL: Si después de todo, no hay datos, mostrar el informe de errores.
+    if (empty($datos_exportacion)) {
+        $html_error = '<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Error de Exportación</title>';
+        $html_error .= '<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet"></head>';
+        $html_error .= '<body class="bg-light"><div class="container mt-5"><div class="alert alert-danger">';
+        $html_error .= '<h4 class="alert-heading">No se generó el archivo de exportación</h4>';
+        $html_error .= '<p>No se encontraron empleados que cumplan los requisitos para el pago.</p><hr>';
+        
+        if (!empty($empleados_sin_cuenta)) {
+            $html_error .= '<p class="mb-1"><strong>Empleados omitidos por no tener cuenta bancaria registrada:</strong></p><ul>';
+            foreach ($empleados_sin_cuenta as $nombre) { $html_error .= '<li>' . htmlspecialchars($nombre) . '</li>'; }
+            $html_error .= '</ul>';
+        }
+        if (!empty($empleados_pago_cero)) {
+            $html_error .= '<p class="mb-1"><strong>Empleados omitidos por tener pago neto cero o negativo:</strong></p><ul>';
+            foreach ($empleados_pago_cero as $nombre) { $html_error .= '<li>' . htmlspecialchars($nombre) . '</li>'; }
+            $html_error .= '</ul>';
+        }
+        
+        $html_error .= '<hr><p>Por favor, actualice los datos de los empleados o revise la nómina y vuelva a intentarlo.</p>';
+        $html_error .= '</div></div></body></html>';
+        die($html_error);
+    }
+
+    // 7. Si hay datos, generar el archivo como antes
     $nombre_archivo = "pago_nomina_ID-{$nomina_id}_" . date('Y-m-d') . ".txt";
     header('Content-Type: text/csv; charset=utf-8');
     header('Content-Disposition: attachment; filename="' . $nombre_archivo . '"');
 
     $output = fopen('php://output', 'w');
-
     foreach ($datos_exportacion as $linea) {
         fputcsv($output, $linea, ';');
     }
-    
     fclose($output);
     exit();
 

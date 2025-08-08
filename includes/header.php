@@ -93,7 +93,10 @@ $user_rol = $_SESSION['user_rol'] ?? null;
                                           <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>positions/index.php">Posiciones</a></li>
                                           <li><hr class="dropdown-divider"></li>
                                           <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>zones/index.php">Zonas de Transporte</a></li>
-                                      </ul>
+                                          <li><hr class="dropdown-divider"></li>
+                                          <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>bancos/index.php">Bancos</a></li>
+
+                                        </ul>
                                   </li>
 
                             <li class="nav-item dropdown">
