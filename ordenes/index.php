@@ -11,7 +11,7 @@ $stmt = $pdo->query("
         o.id, 
         o.codigo_orden, 
         c.nombre_cliente, 
-        z.nombre_zona_o_muelle as lugar,
+        l.nombre_zona_o_muelle as lugar, -- Se usa el alias 'l' de lugares
         p.nombre_producto,
         op.nombre_operacion,
         d.nombre_division,
@@ -20,13 +20,15 @@ $stmt = $pdo->query("
         o.estado_orden
     FROM ordenes o
     JOIN clientes c ON o.id_cliente = c.id
-    JOIN zonastransporte z ON o.id_lugar = z.id
+    JOIN lugares l ON o.id_lugar = l.id -- CORRECCIÓN: zonastransporte -> lugares
     JOIN productos p ON o.id_producto = p.id
     JOIN operaciones op ON o.id_operacion = op.id
-    LEFT JOIN divisiones d ON o.id_division = d.id -- Se añade LEFT JOIN por si una orden no tiene división
+    LEFT JOIN divisiones d ON o.id_division = d.id
     ORDER BY o.fecha_creacion DESC, o.id DESC
 ");
 $ordenes = $stmt->fetchAll();
+
+
 
 
 require_once '../includes/header.php';
