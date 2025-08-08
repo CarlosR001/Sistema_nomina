@@ -23,44 +23,52 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['username'], $_POST['p
         $user = $stmt->fetch();
 
         if ($user && password_verify($_POST['password'], $user['contrasena'])) {
-            // Asignaciones de sesión
+            // Asignaciones de sesión básicas
             $_SESSION['user_id'] = $user['id'];
             $_SESSION['username'] = $user['nombre_usuario'];
-            $_SESSION['user_rol'] = $user['rol'];
 
-            // --- LÓGICA DE CONTRATO RESTAURADA (LA CORRECCIÓN) ---
-            if ($user['rol'] === 'Inspector' && $user['id_empleado']) {
+            // Cargar todos los permisos del usuario a través de sus roles
+            $stmt_perms = $pdo->prepare("
+                SELECT DISTINCT p.clave_permiso
+                FROM permisos p
+                JOIN rol_permiso rp ON p.id = rp.id_permiso
+                JOIN usuario_rol ur ON rp.id_rol = ur.id_rol
+                WHERE ur.id_usuario = ?
+            ");
+            $stmt_perms->execute([$user['id']]);
+            $permissions = $stmt_perms->fetchAll(PDO::FETCH_COLUMN, 0);
+            $_SESSION['user_permissions'] = $permissions;
+
+            // --- LÓGICA DE CONTRATO Y EMPLEADO (AHORA BASADA EN PERMISOS) ---
+            if (in_array('horas.registrar', $permissions) && $user['id_empleado']) {
                 $stmt_contrato = $pdo->prepare("SELECT id FROM contratos WHERE id_empleado = ? AND tipo_nomina = 'Inspectores' AND estado_contrato = 'Vigente' LIMIT 1");
                 $stmt_contrato->execute([$user['id_empleado']]);
                 $contrato = $stmt_contrato->fetch();
                 if ($contrato) {
                     $_SESSION['contrato_inspector_id'] = $contrato['id'];
                 }
-
-            }           // --- LÓGICA PARA ROL REPORTE HORAS EXTRAS ---
-            elseif ($user['rol'] === 'ReporteHorasExtras' && $user['id_empleado']) {
-                            // Guardamos el id_empleado en la sesión para que el portal lo pueda usar.
-                            $_SESSION['user_id_empleado'] = $user['id_empleado'];
-             }
-          
-    
-                        // --- REDIRECCIÓN INTELIGENTE BASADA EN ROL ---
-                        if ($user['rol'] === 'Inspector') {
-                            header('Location: ' . BASE_URL . 'time_tracking/index.php');
-                        } elseif ($user['rol'] === 'ReporteHorasExtras') {
-                            header('Location: ' . BASE_URL . 'he_admin/index.php');
-                        } else {
-                            // Admin, Supervisor, Contabilidad, etc., van al dashboard.
-                            header('Location: ' . BASE_URL . 'index.php');
-                        }
+            }
+            if (in_array('reportes.horas_extras.ver', $permissions) && $user['id_empleado']) {
+                $_SESSION['user_id_empleado'] = $user['id_empleado'];
+            }
+      
+            // --- REDIRECCIÓN INTELIGENTE (AHORA BASADA EN PERMISOS) ---
+            if (in_array('horas.registrar', $permissions)) {
+                header('Location: ' . BASE_URL . 'time_tracking/index.php');
+            } elseif (in_array('reportes.horas_extras.ver', $permissions)) {
+                header('Location: ' . BASE_URL . 'he_admin/index.php');
+            } else {
+                // Admin, Supervisor, Contabilidad, etc., van al dashboard.
+                header('Location: ' . BASE_URL . 'index.php');
+            }
+            exit();
+        } else {
+            // Si la contraseña es incorrecta
+            header('Location: ' . BASE_URL . 'login.php?error=1');
             exit();
         }
-    }
-    // Si el login falla, redirige con error.
-    header('Location: ' . BASE_URL . 'login.php?error=1');
-    exit();
-}
-
+    } // Cierre del if(isset($pdo))
+} // Cierre del if($_SERVER['REQUEST_METHOD'] === 'POST' ...)
 
 // --- Definición de Funciones Auxiliares ---
 
@@ -79,17 +87,26 @@ if (!function_exists('require_login')) {
     }
 }
 
-if (!function_exists('require_role')) {
-    function require_role($role) {
-        $user_rol = $_SESSION['user_rol'] ?? null;
-        if (!$user_rol) {
-            header('HTTP/1.0 403 Forbidden');
-            die('Acceso denegado. Rol no definido.');
-        }
-        $is_allowed = is_array($role) ? in_array($user_rol, $role) : ($user_rol === $role);
-        if (!$is_allowed) {
-            header('HTTP/1.0 403 Forbidden');
-            die('Acceso denegado. No tienes los permisos necesarios.');
-        }
+/**
+ * Comprueba si el usuario logueado tiene un permiso específico.
+ * Es la nueva función central de seguridad.
+ */
+function has_permission($permission) {
+    if (isset($_SESSION['user_permissions']) && in_array('*', $_SESSION['user_permissions'])) {
+        return true; // El permiso '*' concede acceso a todo
+    }
+    return isset($_SESSION['user_permissions']) && in_array($permission, $_SESSION['user_permissions']);
+}
+
+/**
+ * Exige que un usuario tenga un permiso para acceder. Si no, redirige.
+ * Reemplaza a la antigua require_role().
+ */
+function require_permission($permission) {
+    require_login(); // Primero nos aseguramos de que esté logueado
+    if (!has_permission($permission)) {
+        // Redirigir a una página de 'acceso denegado' o al inicio.
+        header('Location: ' . BASE_URL . 'index.php?status=error&message=' . urlencode('Acceso no autorizado a esta sección.'));
+        exit();
     }
 }
