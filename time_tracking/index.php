@@ -31,28 +31,44 @@ if (isset($_GET['periodo_id'])) {
 }
 
 // 3. Si un período está seleccionado, cargar toda la data necesaria.
-$proyectos = [];
-$zonas = [];
+// 3. Si un período está seleccionado, cargar toda la data necesaria.
+$ordenes_asignadas = [];
 $registros_del_periodo = [];
 if ($periodo_seleccionado) {
-    $proyectos = $pdo->query("SELECT id, nombre_proyecto FROM Proyectos WHERE estado_proyecto = 'Activo'")->fetchAll();
-    $zonas = $pdo->query("SELECT id, nombre_zona_o_muelle FROM ZonasTransporte")->fetchAll();
     
-    // Carga los registros del período seleccionado
+    // Cargar las ÓRDENES asignadas al inspector con todos sus detalles
+    $stmt_ordenes = $pdo->prepare("
+        SELECT 
+            o.id, o.codigo_orden, c.nombre_cliente,
+            z.nombre_zona_o_muelle AS lugar, p.nombre_producto, op.nombre_operacion
+        FROM ordenes o
+        JOIN orden_asignaciones oa ON o.id = oa.id_orden
+        JOIN clientes c ON o.id_cliente = c.id
+        JOIN zonastransporte z ON o.id_lugar = z.id
+        JOIN productos p ON o.id_producto = p.id
+        JOIN operaciones op ON o.id_operacion = op.id
+        WHERE oa.id_contrato_inspector = ? AND o.estado_orden = 'En Proceso'
+        ORDER BY o.codigo_orden
+    ");
+    $stmt_ordenes->execute([$contrato_inspector_id]);
+    $ordenes_asignadas = $stmt_ordenes->fetchAll();
+
+    // Cargar los registros de horas del período, ahora vinculados a órdenes
     $stmt_registros = $pdo->prepare("
         SELECT 
             r.fecha_trabajada, r.hora_inicio, r.hora_fin, r.estado_registro,
             r.hora_gracia_antes, r.hora_gracia_despues, r.transporte_aprobado,
-            p.nombre_proyecto, z.nombre_zona_o_muelle
+            ord.codigo_orden, z.nombre_zona_o_muelle
         FROM RegistroHoras r
-        JOIN Proyectos p ON r.id_proyecto = p.id
-        JOIN ZonasTransporte z ON r.id_zona_trabajo = z.id
+        LEFT JOIN ordenes ord ON r.id_orden = ord.id
+        LEFT JOIN zonastransporte z ON ord.id_lugar = z.id
         WHERE r.id_contrato = ? AND r.id_periodo_reporte = ?
         ORDER BY r.fecha_trabajada DESC, r.hora_inicio DESC
     ");
     $stmt_registros->execute([$contrato_inspector_id, $periodo_seleccionado['id']]);
     $registros_del_periodo = $stmt_registros->fetchAll();
 }
+
 
 require_once '../includes/header.php';
 ?>
@@ -96,14 +112,44 @@ require_once '../includes/header.php';
             <form action="store.php" method="POST">
                 <input type="hidden" name="id_periodo_reporte" value="<?php echo htmlspecialchars($periodo_seleccionado['id']); ?>">
                 <div class="row g-3">
-                    <div class="col-md-4"><label for="fecha_trabajada" class="form-label">Fecha</label><input type="date" class="form-control" name="fecha_trabajada" min="<?php echo htmlspecialchars($periodo_seleccionado['fecha_inicio_periodo']); ?>" max="<?php echo htmlspecialchars($periodo_seleccionado['fecha_fin_periodo']); ?>" required></div>
-                    <div class="col-md-4"><label for="hora_inicio" class="form-label">Hora Inicio (24h)</label><input type="number" class="form-control" name="hora_inicio" min="0" max="24" required></div>
-                    <div class="col-md-4"><label for="hora_fin" class="form-label">Hora Fin (24h)</label><input type="number" class="form-control" name="hora_fin" min="0" max="24" required></div>
-                    <div class="col-md-6"><label for="id_proyecto" class="form-label">Proyecto</label><select class="form-select" name="id_proyecto" required><option value="">Seleccionar...</option><?php foreach ($proyectos as $proyecto): ?><option value="<?php echo htmlspecialchars($proyecto['id']); ?>"><?php echo htmlspecialchars($proyecto['nombre_proyecto']); ?></option><?php endforeach; ?></select></div>
-                    <div class="col-md-6"><label for="id_zona_trabajo" class="form-label">Zona / Muelle</label><select class="form-select" name="id_zona_trabajo" required><option value="">Seleccionar...</option><?php foreach ($zonas as $zona): ?><option value="<?php echo htmlspecialchars($zona['id']); ?>"><?php echo htmlspecialchars($zona['nombre_zona_o_muelle']); ?></option><?php endforeach; ?></select></div>
-                    <div class="col-12 mt-3"><hr><label class="form-label fw-bold">Horas de Gracia (Opcional):</label><div class="form-check"><input class="form-check-input" type="checkbox" name="hora_gracia_antes" value="1" id="hora_gracia_antes"><label class="form-check-label" for="hora_gracia_antes">Solicitar 1 hora de gracia ANTES del turno</label></div><div class="form-check"><input class="form-check-input" type="checkbox" name="hora_gracia_despues" value="1" id="hora_gracia_despues"><label class="form-check-label" for="hora_gracia_despues">Solicitar 1 hora de gracia DESPUÉS del turno</label></div></div>
-                    <div class="col-12 d-grid mt-4"><button type="submit" class="btn btn-primary btn-lg">Registrar Horas</button></div>
-                </div>
+    <div class="col-md-6">
+        <label for="id_orden" class="form-label">Orden de Trabajo</label>
+        <select class="form-select" id="id_orden" name="id_orden" required>
+            <option value="">Seleccionar...</option>
+            <?php foreach ($ordenes_asignadas as $orden): ?>
+                <option 
+                    value="<?php echo $orden['id']; ?>"
+                    data-lugar="<?php echo htmlspecialchars($orden['lugar']); ?>"
+                    data-producto="<?php echo htmlspecialchars($orden['nombre_producto']); ?>"
+                    data-operacion="<?php echo htmlspecialchars($orden['nombre_operacion']); ?>">
+                    <?php echo htmlspecialchars($orden['codigo_orden'] . ' - ' . $orden['nombre_cliente']); ?>
+                </option>
+            <?php endforeach; ?>
+        </select>
+    </div>
+    <div class="col-md-6">
+        <label for="fecha_trabajada" class="form-label">Fecha Trabajada</label>
+        <input type="date" class="form-control" id="fecha_trabajada" name="fecha_trabajada" min="<?php echo htmlspecialchars($periodo_seleccionado['fecha_inicio_periodo']); ?>" max="<?php echo htmlspecialchars($periodo_seleccionado['fecha_fin_periodo']); ?>" required>
+    </div>
+
+    <!-- Contenedor para mostrar detalles -->
+    <div class="col-md-12" id="orden-details-container" style="display: none;">
+        <div class="alert alert-secondary py-2">
+            <ul class="mb-0 small">
+                <li><strong>Lugar:</strong> <span id="orden-lugar"></span></li>
+                <li><strong>Producto:</strong> <span id="orden-producto"></span></li>
+                <li><strong>Operación:</strong> <span id="orden-operacion"></span></li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="col-md-6"><label for="hora_inicio" class="form-label">Hora Inicio (24h)</label><input type="number" class="form-control" id="hora_inicio" name="hora_inicio" min="0" max="24" required></div>
+    <div class="col-md-6"><label for="hora_fin" class="form-label">Hora Fin (24h)</label><input type="number" class="form-control" id="hora_fin" name="hora_fin" min="0" max="24" required></div>
+    
+    <div class="col-12 mt-2"><hr><label class="form-label fw-bold">Horas de Gracia (Opcional):</label><div class="form-check"><input class="form-check-input" type="checkbox" name="hora_gracia_antes" value="1" id="hora_gracia_antes"><label class="form-check-label" for="hora_gracia_antes">Solicitar 1 hora de gracia ANTES</label></div><div class="form-check"><input class="form-check-input" type="checkbox" name="hora_gracia_despues" value="1" id="hora_gracia_despues"><label class="form-check-label" for="hora_gracia_despues">Solicitar 1 hora de gracia DESPUÉS</label></div></div>
+    <div class="col-12 d-grid mt-3"><button type="submit" class="btn btn-primary btn-lg">Registrar Horas</button></div>
+</div>
+
             </form>
 
         <?php else: ?>
@@ -160,5 +206,28 @@ require_once '../includes/header.php';
         </tbody>
     </table>
 </div>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const ordenSelect = document.getElementById('id_orden');
+    const detailsContainer = document.getElementById('orden-details-container');
+    if (!ordenSelect || !detailsContainer) return;
+
+    const lugarSpan = document.getElementById('orden-lugar');
+    const productoSpan = document.getElementById('orden-producto');
+    const operacionSpan = document.getElementById('orden-operacion');
+
+    ordenSelect.addEventListener('change', function() {
+        if (this.value === '') {
+            detailsContainer.style.display = 'none';
+            return;
+        }
+        const selectedOption = this.options[this.selectedIndex];
+        lugarSpan.textContent = selectedOption.dataset.lugar;
+        productoSpan.textContent = selectedOption.dataset.producto;
+        operacionSpan.textContent = selectedOption.dataset.operacion;
+        detailsContainer.style.display = 'block';
+    });
+});
+</script>
 
 <?php require_once '../includes/footer.php'; ?>

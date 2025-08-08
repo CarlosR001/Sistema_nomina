@@ -8,43 +8,38 @@ require_role('Inspector');
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     
-            // Recoger datos del formulario
-    $id_periodo_reporte = $_POST['id_periodo_reporte'] ?? null;
-    $fecha_trabajada = $_POST['fecha_trabajada'] ?? null;
-    $hora_inicio_num = $_POST['hora_inicio'] ?? null;
-    $hora_fin_num = $_POST['hora_fin'] ?? null;
-    $id_proyecto = $_POST['id_proyecto'] ?? null;
-    $id_zona_trabajo = $_POST['id_zona_trabajo'] ?? null;
-
-    // Usar directamente el ID de contrato de la sesión. Es la única fuente segura.
-    $id_contrato = $_SESSION['contrato_inspector_id'] ?? null;
-    
-    // Capturar la solicitud de horas de gracia (sin duplicados)
-    $hora_gracia_antes = isset($_POST['hora_gracia_antes']) ? 1 : 0;
-    $hora_gracia_despues = isset($_POST['hora_gracia_despues']) ? 1 : 0;
-
-    // Construir la URL de redirección base
-    $redirect_url = "index.php" . ($id_periodo_reporte ? "?periodo_id=" . urlencode($id_periodo_reporte) : "");
-    $separator = $id_periodo_reporte ? "&" : "?";
-
-    // --- Validaciones ---
-    // Esta es la validación correcta y segura.
-    if (!is_numeric($id_contrato)) {
-        $error_message = urlencode("Acceso no autorizado o sesión inválida.");
-        header("Location: " . $redirect_url . $separator . "status=error&message=" . $error_message);
-        exit();
-    }
-
- 
-         if (empty($fecha_trabajada) || !is_numeric($hora_inicio_num) || !is_numeric($hora_fin_num) || empty($id_proyecto) || empty($id_zona_trabajo) || empty($id_periodo_reporte)) {
-             header("Location: " . $redirect_url . $separator . "status=error&message=Faltan%20campos%20requeridos.");
-             exit();
-         }
- 
-         if ($hora_fin_num <= $hora_inicio_num) {
-             header("Location: " . $redirect_url . $separator . "status=error&message=La%20hora%20fin%20debe%20ser%20posterior%20a%20la%20hora%20de%20inicio.");
-             exit();
-         }
+       // --- Recoger datos del nuevo formulario ---
+       $id_periodo_reporte = $_POST['id_periodo_reporte'] ?? null;
+       $id_orden = $_POST['id_orden'] ?? null; // <-- Clave: Se recibe id_orden
+       $fecha_trabajada = $_POST['fecha_trabajada'] ?? null;
+       $hora_inicio_num = $_POST['hora_inicio'] ?? null;
+       $hora_fin_num = $_POST['hora_fin'] ?? null;
+       $id_contrato = $_SESSION['contrato_inspector_id'] ?? null;
+       
+       $hora_gracia_antes = isset($_POST['hora_gracia_antes']) ? 1 : 0;
+       $hora_gracia_despues = isset($_POST['hora_gracia_despues']) ? 1 : 0;
+   
+       // Construir la URL de redirección base (ahora es más simple)
+       $redirect_url = "index.php";
+       $separator = "?";
+   
+       // --- Validaciones ---
+       if (!is_numeric($id_contrato)) {
+           header("Location: " . $redirect_url . $separator . "status=error&message=Acceso%20no%20autorizado.");
+           exit();
+       }
+   
+       // Se valida id_orden en lugar de los campos antiguos
+       if (empty($id_orden) || empty($fecha_trabajada) || !is_numeric($hora_inicio_num) || !is_numeric($hora_fin_num) || empty($id_periodo_reporte)) {
+           header("Location: " . $redirect_url . $separator . "status=error&message=Faltan%20campos%20requeridos.");
+           exit();
+       }
+   
+       if ($hora_fin_num <= $hora_inicio_num) {
+           header("Location: " . $redirect_url . $separator . "status=error&message=La%20hora%20fin%20debe%20ser%20posterior%20a%20la%20hora%20de%20inicio.");
+           exit();
+       }
+   
  
     
     // --- Conversión de hora ---
@@ -78,44 +73,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     
  // --- Inserción en la base de datos ---
-try {
-    // 1. Definir la consulta SQL completa
+  // --- Inserción en la base de datos ---
+  try {
+    // La consulta ahora inserta id_orden. Los campos id_proyecto y id_zona_trabajo se omiten.
     $sql_insert = "INSERT INTO RegistroHoras 
-                    (id_contrato, id_proyecto, id_zona_trabajo, id_periodo_reporte, fecha_trabajada, hora_inicio, hora_fin, 
+                    (id_contrato, id_orden, id_periodo_reporte, fecha_trabajada, hora_inicio, hora_fin, 
                      estado_registro, transporte_aprobado, hora_gracia_antes, hora_gracia_despues) 
                    VALUES 
-                    (:id_contrato, :id_proyecto, :id_zona, :id_periodo, :fecha, :inicio, :fin, 
-                     'Pendiente', 1, :gracia_antes, :gracia_despues)";
+                    (?, ?, ?, ?, ?, ?, 'Pendiente', 1, ?, ?)";
 
-    // 2. Preparar la consulta
     $stmt_insert = $pdo->prepare($sql_insert);
     
-    // 3. Ejecutar la consulta con todos los parámetros
     $stmt_insert->execute([
-        ':id_contrato' => $id_contrato, 
-        ':id_proyecto' => $id_proyecto, 
-        ':id_zona' => $id_zona_trabajo, 
-        ':id_periodo' => $id_periodo_reporte,
-        ':fecha' => $fecha_trabajada, 
-        ':inicio' => $hora_inicio, 
-        ':fin' => $hora_fin,
-        ':gracia_antes' => $hora_gracia_antes,
-        ':gracia_despues' => $hora_gracia_despues
+        $id_contrato, 
+        $id_orden,
+        $id_periodo_reporte,
+        $fecha_trabajada, 
+        $hora_inicio, 
+        $hora_fin,
+        $hora_gracia_antes,
+        $hora_gracia_despues
     ]);
 
-    // 4. Redirigir con mensaje de éxito (ESTA LÍNEA ESTÁ CORREGIDA)
     $success_message = urlencode("Horas registradas correctamente.");
     header("Location: " . $redirect_url . $separator . "status=success&message=" . $success_message);
     exit();
 
 } catch (PDOException $e) {
-    // Manejo de errores (no necesita cambios)
     error_log("Error en store.php: " . $e->getMessage());
     $error_message = urlencode("Error al guardar el registro. Por favor, contacte a un administrador.");
     header("Location: " . $redirect_url . $separator . "status=error&message=" . $error_message);
     exit();
 }
-
 
 }
 
