@@ -45,6 +45,8 @@ $user_rol = $_SESSION['user_rol'] ?? null;
                                     <li><hr class="dropdown-divider"></li>
                                     <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>pagos_especiales/regalia.php">Calcular Regalía Pascual</a></li>
                                     <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>liquidaciones/index.php">Calcular Liquidación</a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>export_banco/index.php">Exportar para Banco</a></li>
                                     <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>pagos_especiales/index.php">Procesar Otro Pago Especial</a></li>
                                     <li><hr class="dropdown-divider"></li>
                                     <?php if (in_array($user_rol, ['Admin', 'Supervisor'])): ?>
