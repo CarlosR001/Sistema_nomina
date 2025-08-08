@@ -7,30 +7,36 @@ require_permission('reportes.horas_extras.ver');
 
 $user_id_empleado = $_SESSION['user_id_empleado'] ?? null;
 
+$user_id_empleado = $_SESSION['user_id_empleado'] ?? null;
 $empleados_para_el_formulario = [];
-$empleado_actual_nombre = '';
 
-if ($user_rol === 'Admin') {
+// Se usa la nueva función is_admin() que se basa en permisos.
+if (is_admin()) {
+    // El Admin puede ver a todos los empleados con permiso de horas extras.
+    // Se corrige la consulta para devolver el ID del empleado (e.id).
     $stmt = $pdo->query("
-        SELECT c.id as id_contrato, e.nombres, e.primer_apellido 
-        FROM Contratos c 
-        JOIN Empleados e ON c.id_empleado = e.id 
+        SELECT DISTINCT e.id, e.nombres, e.primer_apellido 
+        FROM empleados e
+        JOIN contratos c ON e.id = c.id_empleado
         WHERE c.permite_horas_extras = 1 AND c.estado_contrato = 'Vigente'
         ORDER BY e.nombres
     ");
     $empleados_para_el_formulario = $stmt->fetchAll();
-} else { // Rol: ReporteHorasExtras
-    if (!$user_id_empleado) {
-        die('Error: Su cuenta de usuario no está vinculada a un registro de empleado.');
-    }
+} elseif ($user_id_empleado) {
+    // Un usuario con el rol 'ReporteHorasExtras' solo se ve a sí mismo.
     $stmt = $pdo->prepare("
-        SELECT c.id as id_contrato, e.nombres, e.primer_apellido 
-        FROM Contratos c 
-        JOIN Empleados e ON c.id_empleado = e.id 
+        SELECT e.id, e.nombres, e.primer_apellido 
+        FROM empleados e
+        JOIN contratos c ON e.id = c.id_empleado
         WHERE c.permite_horas_extras = 1 AND c.estado_contrato = 'Vigente' AND e.id = ?
     ");
     $stmt->execute([$user_id_empleado]);
     $empleado_actual = $stmt->fetch();
+    if ($empleado_actual) {
+        $empleados_para_el_formulario[] = $empleado_actual;
+    }
+}
+
     
     if(!$empleado_actual){
         // Usamos die() porque el header.php ya se cargó

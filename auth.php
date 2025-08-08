@@ -39,18 +39,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['username'], $_POST['p
             $permissions = $stmt_perms->fetchAll(PDO::FETCH_COLUMN, 0);
             $_SESSION['user_permissions'] = $permissions;
 
-            // --- LÓGICA DE CONTRATO Y EMPLEADO (AHORA BASADA EN PERMISOS) ---
-            if (in_array('horas.registrar', $permissions) && $user['id_empleado']) {
-                $stmt_contrato = $pdo->prepare("SELECT id FROM contratos WHERE id_empleado = ? AND tipo_nomina = 'Inspectores' AND estado_contrato = 'Vigente' LIMIT 1");
-                $stmt_contrato->execute([$user['id_empleado']]);
-                $contrato = $stmt_contrato->fetch();
-                if ($contrato) {
-                    $_SESSION['contrato_inspector_id'] = $contrato['id'];
-                }
-            }
-            if (in_array('reportes.horas_extras.ver', $permissions) && $user['id_empleado']) {
-                $_SESSION['user_id_empleado'] = $user['id_empleado'];
-            }
+                       // --- LÓGICA DE CONTRATO Y EMPLEADO (AHORA BASADA EN PERMISOS) ---
+                       if ($user['id_empleado']) {
+                        // Si el usuario está vinculado a un empleado, guardar siempre el ID de empleado
+                        $_SESSION['user_id_empleado'] = $user['id_empleado'];
+        
+                        // Si además tiene permiso para registrar horas, buscar su contrato
+                        if (in_array('horas.registrar', $permissions)) {
+                            $stmt_contrato = $pdo->prepare("SELECT id FROM contratos WHERE id_empleado = ? AND tipo_nomina = 'Inspectores' AND estado_contrato = 'Vigente' LIMIT 1");
+                            $stmt_contrato->execute([$user['id_empleado']]);
+                            $contrato = $stmt_contrato->fetch();
+                            if ($contrato) {
+                                $_SESSION['contrato_inspector_id'] = $contrato['id'];
+                            }
+                        }
+                    }
+        
       
             // --- REDIRECCIÓN INTELIGENTE (AHORA BASADA EN PERMISOS) ---
             if (in_array('horas.registrar', $permissions)) {
