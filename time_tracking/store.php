@@ -19,10 +19,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
        $hora_gracia_antes = isset($_POST['hora_gracia_antes']) ? 1 : 0;
        $hora_gracia_despues = isset($_POST['hora_gracia_despues']) ? 1 : 0;
    
-       // Construir la URL de redirección base (ahora es más simple)
-       $redirect_url = "index.php";
-       $separator = "?";
-   
+                 // Construir la URL de redirección base para mantener el estado
+                 $redirect_url = "index.php" . ($id_periodo_reporte ? "?periodo_id=" . urlencode($id_periodo_reporte) : "");
+                 $separator = $id_periodo_reporte ? "&" : "?";
+     
        // --- Validaciones ---
        if (!is_numeric($id_contrato)) {
            header("Location: " . $redirect_url . $separator . "status=error&message=Acceso%20no%20autorizado.");
@@ -72,39 +72,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit();
     }
     
- // --- Inserción en la base de datos ---
-  // --- Inserción en la base de datos ---
-  try {
-    // La consulta ahora inserta id_orden. Los campos id_proyecto y id_zona_trabajo se omiten.
-    $sql_insert = "INSERT INTO RegistroHoras 
-                    (id_contrato, id_orden, id_periodo_reporte, fecha_trabajada, hora_inicio, hora_fin, 
-                     estado_registro, transporte_aprobado, hora_gracia_antes, hora_gracia_despues) 
-                   VALUES 
-                    (?, ?, ?, ?, ?, ?, 'Pendiente', 1, ?, ?)";
+       // --- Inserción en la base de datos ---
+       try {
+        // CORRECCIÓN: Se incluyen los campos obsoletos y se les pasa NULL para asegurar la compatibilidad.
+        $sql_insert = "INSERT INTO RegistroHoras 
+                        (id_contrato, id_orden, id_proyecto, id_zona_trabajo, id_periodo_reporte, fecha_trabajada, hora_inicio, hora_fin, 
+                         estado_registro, transporte_aprobado, hora_gracia_antes, hora_gracia_despues) 
+                       VALUES 
+                        (?, ?, NULL, NULL, ?, ?, ?, ?, 'Pendiente', 1, ?, ?)";
 
-    $stmt_insert = $pdo->prepare($sql_insert);
-    
-    $stmt_insert->execute([
-        $id_contrato, 
-        $id_orden,
-        $id_periodo_reporte,
-        $fecha_trabajada, 
-        $hora_inicio, 
-        $hora_fin,
-        $hora_gracia_antes,
-        $hora_gracia_despues
-    ]);
+        $stmt_insert = $pdo->prepare($sql_insert);
+        
+        $stmt_insert->execute([
+            $id_contrato, 
+            $id_orden,
+            $id_periodo_reporte,
+            $fecha_trabajada, 
+            $hora_inicio, 
+            $hora_fin,
+            $hora_gracia_antes,
+            $hora_gracia_despues
+        ]);
 
-    $success_message = urlencode("Horas registradas correctamente.");
-    header("Location: " . $redirect_url . $separator . "status=success&message=" . $success_message);
-    exit();
+        $success_message = urlencode("Horas registradas correctamente.");
+        // Se usa la URL de redirección correcta (corregida en el Bloque 1)
+        header("Location: " . $redirect_url . $separator . "status=success&message=" . $success_message);
+        exit();
 
-} catch (PDOException $e) {
-    error_log("Error en store.php: " . $e->getMessage());
-    $error_message = urlencode("Error al guardar el registro. Por favor, contacte a un administrador.");
-    header("Location: " . $redirect_url . $separator . "status=error&message=" . $error_message);
-    exit();
-}
+    } catch (PDOException $e) {
+        error_log("Error en store.php: " . $e->getMessage());
+        $error_message = urlencode("Error al guardar el registro. Por favor, contacte a un administrador.");
+        header("Location: " . $redirect_url . $separator . "status=error&message=" . $error_message);
+        exit();
+    }
 
 }
 
