@@ -8,34 +8,33 @@ require_role('Inspector');
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     
-         // Recoger y validar datos
-         $id_contrato_post = $_POST['id_contrato'] ?? null;
-         $id_periodo_reporte = $_POST['id_periodo_reporte'] ?? null;
-         $fecha_trabajada = $_POST['fecha_trabajada'] ?? null;
-         $hora_inicio_num = $_POST['hora_inicio'] ?? null;
-         $hora_fin_num = $_POST['hora_fin'] ?? null;
-         $id_proyecto = $_POST['id_proyecto'] ?? null;
-         $id_zona_trabajo = $_POST['id_zona_trabajo'] ?? null;
-         $id_contrato_sesion = $_SESSION['contrato_inspector_id'] ?? null;
-         // Obtener los valores de los checkboxes. Si no están marcados, no se envían, así que usamos isset() para asignarles 1 o 0.
-        $solicita_gracia_antes = isset($_POST['hora_gracia_antes']) ? 1 : 0;
-        $solicita_gracia_despues = isset($_POST['hora_gracia_despues']) ? 1 : 0;
+            // Recoger datos del formulario
+    $id_periodo_reporte = $_POST['id_periodo_reporte'] ?? null;
+    $fecha_trabajada = $_POST['fecha_trabajada'] ?? null;
+    $hora_inicio_num = $_POST['hora_inicio'] ?? null;
+    $hora_fin_num = $_POST['hora_fin'] ?? null;
+    $id_proyecto = $_POST['id_proyecto'] ?? null;
+    $id_zona_trabajo = $_POST['id_zona_trabajo'] ?? null;
 
-         // --- INICIO: Recoger los nuevos datos de Horas de Gracia ---
-         $hora_gracia_antes = isset($_POST['hora_gracia_antes']) ? 1 : 0;
-         $hora_gracia_despues = isset($_POST['hora_gracia_despues']) ? 1 : 0;
-         // --- FIN: Recoger los nuevos datos ---
- 
-         // Construir la URL de redirección base
-         $redirect_url = "index.php" . ($id_periodo_reporte ? "?periodo_id=" . urlencode($id_periodo_reporte) : "");
-         $separator = $id_periodo_reporte ? "&" : "?";
- 
-         // --- Validaciones ---
-         if ($id_contrato_post != $id_contrato_sesion || !is_numeric($id_contrato_sesion)) {
-             header("Location: " . $redirect_url . $separator . "status=error&message=Acceso%20no%20autorizado.");
-             exit();
-         }
-         $id_contrato = $id_contrato_sesion;
+    // Usar directamente el ID de contrato de la sesión. Es la única fuente segura.
+    $id_contrato = $_SESSION['contrato_inspector_id'] ?? null;
+    
+    // Capturar la solicitud de horas de gracia (sin duplicados)
+    $hora_gracia_antes = isset($_POST['hora_gracia_antes']) ? 1 : 0;
+    $hora_gracia_despues = isset($_POST['hora_gracia_despues']) ? 1 : 0;
+
+    // Construir la URL de redirección base
+    $redirect_url = "index.php" . ($id_periodo_reporte ? "?periodo_id=" . urlencode($id_periodo_reporte) : "");
+    $separator = $id_periodo_reporte ? "&" : "?";
+
+    // --- Validaciones ---
+    // Esta es la validación correcta y segura.
+    if (!is_numeric($id_contrato)) {
+        $error_message = urlencode("Acceso no autorizado o sesión inválida.");
+        header("Location: " . $redirect_url . $separator . "status=error&message=" . $error_message);
+        exit();
+    }
+
  
          if (empty($fecha_trabajada) || !is_numeric($hora_inicio_num) || !is_numeric($hora_fin_num) || empty($id_proyecto) || empty($id_zona_trabajo) || empty($id_periodo_reporte)) {
              header("Location: " . $redirect_url . $separator . "status=error&message=Faltan%20campos%20requeridos.");
