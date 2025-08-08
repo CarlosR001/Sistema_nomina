@@ -15,7 +15,8 @@ require_once 'includes/header.php';
     <div class="container-fluid py-5">
         <h1 class="display-5 fw-bold">Bienvenido a NóminaSYS</h1>
         <p class="col-md-8 fs-4">
-            Ha iniciado sesión como <strong><?php echo htmlspecialchars($_SESSION['user_rol']); ?></strong>.
+      Ha iniciado sesión como <strong><?php echo htmlspecialchars($_SESSION['username']); ?></strong>.
+
         </p>
         <hr>
         <p>Utilice la barra de navegación superior para acceder a los diferentes módulos del sistema.</p>
