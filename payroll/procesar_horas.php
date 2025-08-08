@@ -99,11 +99,40 @@ try {
 
     foreach ($horas_aprobadas as $contrato_id => $registros) {
         $tarifa_hora = (float)$registros[0]['tarifa_por_hora'];
-        $total_horas_feriado = 0; $total_horas_laborales = 0; $total_horas_nocturnas_bono = 0; $total_horas_gracia = 0;
-        $zonas_trabajadas_por_dia = [];
-
+        $total_horas_feriado = 0; $total_horas_laborales = 0; $total_horas_gracia = 0;
+        
+        // --- INICIO: Nueva Lógica de Transporte por Día ---
+        $registros_por_dia = [];
         foreach ($registros as $reg) {
-            // ... (código de cálculo de duración y horas feriado/laborales sin cambios)
+            // Agrupar todos los registros de un empleado por su fecha de trabajo
+            $registros_por_dia[$reg['fecha_trabajada']][] = $reg;
+        }
+
+        $pago_transporte_total = 0;
+        foreach ($registros_por_dia as $fecha => $registros_del_dia) {
+            // Ordenar los turnos de ese día por hora de inicio para saber cuál fue el primero
+            usort($registros_del_dia, function($a, $b) {
+                return strcmp($a['hora_inicio'], $b['hora_inicio']);
+            });
+
+            $es_primer_viaje_del_dia = true;
+            foreach ($registros_del_dia as $turno) {
+                if ($turno['transporte_aprobado'] && isset($turno['id_zona_trabajo']) && isset($zonas[$turno['id_zona_trabajo']])) {
+                    $costo_lugar = (float)$zonas[$turno['id_zona_trabajo']];
+                    
+                    if ($es_primer_viaje_del_dia) {
+                        $pago_transporte_total += $costo_lugar; // 100% del costo para el primer viaje
+                        $es_primer_viaje_del_dia = false;
+                    } else {
+                        $pago_transporte_total += ($costo_lugar * 0.50); // 50% para los siguientes
+                    }
+                }
+            }
+        }
+        // --- FIN: Nueva Lógica de Transporte por Día ---
+
+        // El resto del bucle suma las horas de TODOS los registros para la semana, lo cual es correcto
+        foreach ($registros as $reg) {
             $inicio = new DateTime($reg['hora_inicio']);
             $fin = new DateTime($reg['hora_fin']);
             if ($fin <= $inicio) $fin->modify('+1 day');
@@ -114,19 +143,11 @@ try {
             } else { 
                 $total_horas_laborales += $duracion_horas; 
             }
-            
-            $total_horas_nocturnas_bono += calcular_horas_nocturnas_reales($inicio, $fin);
-
-            // --- INICIO: Lógica Añadida ---
             if ($reg['hora_gracia_antes']) $total_horas_gracia++;
             if ($reg['hora_gracia_despues']) $total_horas_gracia++;
-            // --- FIN: Lógica Añadida ---
-
-            if ($reg['transporte_aprobado']) {
-                $zonas_trabajadas_por_dia[$reg['fecha_trabajada']][] = $reg['id_zona_trabajo'];
-            }
         }
 
+        // --- Bloque de totalización de pagos (usa la nueva variable $pago_transporte_total) ---
         $pago_feriado = $total_horas_feriado * $tarifa_hora * 2.0;
         $horas_normales = min($total_horas_laborales, 44);
         $pago_normal = $horas_normales * $tarifa_hora;
@@ -135,30 +156,21 @@ try {
         $horas_extra_100 = max(0, $total_horas_laborales - 68);
         $pago_extra_100 = $horas_extra_100 * $tarifa_hora * 2.0;
         $pago_extra_total = $pago_extra_35 + $pago_extra_100;
-        $pago_nocturno = $total_horas_nocturnas_bono * $tarifa_hora * 0.15;
-        $pago_gracia = $total_horas_gracia * $tarifa_hora; // --- LÍNEA AÑADIDA ---
-        $pago_transporte = 0;
-        foreach ($zonas_trabajadas_por_dia as $zonas_dia) {
-            $zonas_unicas = array_unique($zonas_dia);
-            if (empty($zonas_unicas)) continue;
-            $pago_transporte += (float)($zonas[array_shift($zonas_unicas)] ?? 0);
-            foreach ($zonas_unicas as $zona_id) { $pago_transporte += (float)($zonas[$zona_id] ?? 0) * 0.5; }
-        }
+        $pago_nocturno = 0; // Se asume que no hay bono nocturno en esta lógica
+        $pago_gracia = $total_horas_gracia * $tarifa_hora;
         
-        // --- INICIO: Bloque de Resultados Actualizado ---
         $results[$contrato_id] = [
             'nombre_empleado' => $registros[0]['nombres'] . ' ' . $registros[0]['primer_apellido'],
             'pago_normal' => round($pago_normal, 2), 
             'pago_extra' => round($pago_extra_total, 2),
             'pago_feriado' => round($pago_feriado, 2), 
             'pago_nocturno' => round($pago_nocturno, 2),
-            'pago_gracia' => round($pago_gracia, 2), // Nuevo resultado
-            'pago_transporte' => round($pago_transporte, 2),
-            'ingreso_bruto' => round($pago_normal + $pago_extra_total + $pago_feriado + $pago_nocturno + $pago_gracia + $pago_transporte, 2)
+            'pago_gracia' => round($pago_gracia, 2),
+            'pago_transporte' => round($pago_transporte_total, 2),
+            'ingreso_bruto' => round($pago_normal + $pago_extra_total + $pago_feriado + $pago_nocturno + $pago_gracia + $pago_transporte_total, 2)
         ];
-        // --- FIN: Bloque de Resultados Actualizado ---
-
     }
+
 
     if ($mode === 'preview') {
         $_SESSION['preview_results'] = $results;

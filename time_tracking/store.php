@@ -8,17 +8,18 @@ require_role('Inspector');
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     
-       // --- Recoger datos del nuevo formulario ---
-       $id_periodo_reporte = $_POST['id_periodo_reporte'] ?? null;
-       $id_orden = $_POST['id_orden'] ?? null; // <-- Clave: Se recibe id_orden
-       $fecha_trabajada = $_POST['fecha_trabajada'] ?? null;
-       $hora_inicio_num = $_POST['hora_inicio'] ?? null;
-       $hora_fin_num = $_POST['hora_fin'] ?? null;
-       $id_contrato = $_SESSION['contrato_inspector_id'] ?? null;
-       
-       $hora_gracia_antes = isset($_POST['hora_gracia_antes']) ? 1 : 0;
-       $hora_gracia_despues = isset($_POST['hora_gracia_despues']) ? 1 : 0;
-   
+           // Recoger datos del formulario
+    $id_periodo_reporte = $_POST['id_periodo_reporte'] ?? null;
+    $id_orden = $_POST['id_orden'] ?? null;
+    $id_sub_lugar = $_POST['id_sub_lugar'] ?? null; // <-- NUEVO
+    $fecha_trabajada = $_POST['fecha_trabajada'] ?? null;
+    $hora_inicio_num = $_POST['hora_inicio'] ?? null;
+    $hora_fin_num = $_POST['hora_fin'] ?? null;
+    $id_contrato = $_SESSION['contrato_inspector_id'] ?? null;
+    
+    $hora_gracia_antes = isset($_POST['hora_gracia_antes']) ? 1 : 0;
+    $hora_gracia_despues = isset($_POST['hora_gracia_despues']) ? 1 : 0;
+  
                  // Construir la URL de redirección base para mantener el estado
                  $redirect_url = "index.php" . ($id_periodo_reporte ? "?periodo_id=" . urlencode($id_periodo_reporte) : "");
                  $separator = $id_periodo_reporte ? "&" : "?";
@@ -30,7 +31,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
        }
    
        // Se valida id_orden en lugar de los campos antiguos
-       if (empty($id_orden) || empty($fecha_trabajada) || !is_numeric($hora_inicio_num) || !is_numeric($hora_fin_num) || empty($id_periodo_reporte)) {
+       if (empty($id_orden) || empty($id_sub_lugar) || empty($fecha_trabajada) || !is_numeric($hora_inicio_num) || !is_numeric($hora_fin_num) || empty($id_periodo_reporte)) {
            header("Location: " . $redirect_url . $separator . "status=error&message=Faltan%20campos%20requeridos.");
            exit();
        }
@@ -81,39 +82,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
              }
              $id_zona_trabajo_from_orden = $orden_data['id_lugar'];
     
-                // --- Inserción en la base de datos ---
-                try {
-                    // CORRECCIÓN FINAL: Se inserta el id_zona_trabajo obtenido de la orden
-                    $sql_insert = "INSERT INTO RegistroHoras 
-                                    (id_contrato, id_orden, id_proyecto, id_zona_trabajo, id_periodo_reporte, fecha_trabajada, hora_inicio, hora_fin, 
-                                     estado_registro, transporte_aprobado, hora_gracia_antes, hora_gracia_despues) 
-                                   VALUES 
-                                    (?, ?, NULL, ?, ?, ?, ?, ?, 'Pendiente', 1, ?, ?)";
-    
-                    $stmt_insert = $pdo->prepare($sql_insert);
-                    
-                    $stmt_insert->execute([
-                        $id_contrato, 
-                        $id_orden,
-                        $id_zona_trabajo_from_orden, // <-- VALOR CORREGIDO
-                        $id_periodo_reporte,
-                        $fecha_trabajada, 
-                        $hora_inicio, 
-                        $hora_fin,
-                        $hora_gracia_antes,
-                        $hora_gracia_despues
-                    ]);
-    
-                    $success_message = urlencode("Horas registradas correctamente.");
-                    header("Location: " . $redirect_url . $separator . "status=success&message=" . $success_message);
-                    exit();
-    
-                } catch (PDOException $e) {
-                    error_log("Error en store.php: " . $e->getMessage());
-                    $error_message = urlencode("Error al guardar el registro. Por favor, contacte a un administrador.");
-                    header("Location: " . $redirect_url . $separator . "status=error&message=" . $error_message);
-                    exit();
-                }
+                        // --- Inserción en la base de datos ---
+                        try {
+                            // Se guarda el id_sub_lugar en la columna id_zona_trabajo
+                            $sql_insert = "INSERT INTO RegistroHoras 
+                                            (id_contrato, id_orden, id_proyecto, id_zona_trabajo, id_periodo_reporte, fecha_trabajada, hora_inicio, hora_fin, 
+                                             estado_registro, transporte_aprobado, hora_gracia_antes, hora_gracia_despues) 
+                                           VALUES 
+                                            (?, ?, NULL, ?, ?, ?, ?, ?, 'Pendiente', 1, ?, ?)";
+            
+                            $stmt_insert = $pdo->prepare($sql_insert);
+                            
+                            $stmt_insert->execute([
+                                $id_contrato, 
+                                $id_orden,
+                                $id_sub_lugar, // <-- VALOR CORRECTO
+                                $id_periodo_reporte,
+                                $fecha_trabajada, 
+                                $hora_inicio, 
+                                $hora_fin,
+                                $hora_gracia_antes,
+                                $hora_gracia_despues
+                            ]);
+            
+                            $success_message = urlencode("Horas registradas correctamente.");
+                            header("Location: " . $redirect_url . $separator . "status=success&message=" . $success_message);
+                            exit();
+            
+                        } catch (PDOException $e) {
+                            error_log("Error en store.php: " . $e->getMessage());
+                            $error_message = urlencode("Error al guardar el registro. Por favor, contacte a un administrador.");
+                            header("Location: " . $redirect_url . $separator . "status=error&message=" . $error_message);
+                            exit();
+                        }
+              
     
 }
 
