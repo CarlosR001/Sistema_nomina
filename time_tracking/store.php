@@ -77,7 +77,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit();
     }
     
-  // --- Inserción en la base de datos ---
+ // --- Inserción en la base de datos ---
 try {
     // 1. Definir la consulta SQL completa
     $sql_insert = "INSERT INTO RegistroHoras 
@@ -95,16 +95,17 @@ try {
         ':id_contrato' => $id_contrato, 
         ':id_proyecto' => $id_proyecto, 
         ':id_zona' => $id_zona_trabajo, 
+        ':id_periodo' => $id_periodo_reporte,
         ':fecha' => $fecha_trabajada, 
         ':inicio' => $hora_inicio, 
         ':fin' => $hora_fin,
-        ':id_periodo' => $id_periodo_reporte,
         ':gracia_antes' => $hora_gracia_antes,
         ':gracia_despues' => $hora_gracia_despues
     ]);
 
-    // 4. Redirigir con mensaje de éxito
-    header("Location: index.php?status=success&message=" . urlencode("Horas registradas correctamente."));
+    // 4. Redirigir con mensaje de éxito (ESTA LÍNEA ESTÁ CORREGIDA)
+    $success_message = urlencode("Horas registradas correctamente.");
+    header("Location: " . $redirect_url . $separator . "status=success&message=" . $success_message);
     exit();
 
 } catch (PDOException $e) {
