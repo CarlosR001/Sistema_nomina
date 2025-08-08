@@ -78,45 +78,44 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit();
     }
     
-       // --- Inserción en la base de datos ---
-       try {
-        // Consulta SQL actualizada para incluir las horas de gracia
-       // Ejecución con los nuevos parámetros de horas de gracia
-$stmt_insert->execute([
-    ':id_contrato' => $id_contrato, 
-    ':id_proyecto' => $id_proyecto, 
-    ':id_zona' => $id_zona_trabajo, 
-    ':fecha' => $fecha_trabajada, 
-    ':inicio' => $hora_inicio, 
-    ':fin' => $hora_fin,
-    ':id_periodo' => $id_periodo_reporte,
-    ':gracia_antes' => $hora_gracia_antes,
-    ':gracia_despues' => $hora_gracia_despues
-]);
+  // --- Inserción en la base de datos ---
+try {
+    // 1. Definir la consulta SQL completa
+    $sql_insert = "INSERT INTO RegistroHoras 
+                    (id_contrato, id_proyecto, id_zona_trabajo, id_periodo_reporte, fecha_trabajada, hora_inicio, hora_fin, 
+                     estado_registro, transporte_aprobado, hora_gracia_antes, hora_gracia_despues) 
+                   VALUES 
+                    (:id_contrato, :id_proyecto, :id_zona, :id_periodo, :fecha, :inicio, :fin, 
+                     'Pendiente', 1, :gracia_antes, :gracia_despues)";
 
-        $stmt_insert = $pdo->prepare($sql_insert);
-        
-        // Ejecución con los nuevos parámetros de horas de gracia
-        $stmt_insert->execute([
-            ':id_contrato' => $id_contrato, 
-            ':id_proyecto' => $id_proyecto, 
-            ':id_zona' => $id_zona_trabajo, 
-            ':fecha' => $fecha_trabajada, 
-            ':inicio' => $hora_inicio, 
-            ':fin' => $hora_fin,
-            ':id_periodo' => $id_periodo_reporte,
-            ':gracia_antes' => $hora_gracia_antes, // Nuevo
-            ':gracia_despues' => $hora_gracia_despues // Nuevo
-        ]);
+    // 2. Preparar la consulta
+    $stmt_insert = $pdo->prepare($sql_insert);
+    
+    // 3. Ejecutar la consulta con todos los parámetros
+    $stmt_insert->execute([
+        ':id_contrato' => $id_contrato, 
+        ':id_proyecto' => $id_proyecto, 
+        ':id_zona' => $id_zona_trabajo, 
+        ':fecha' => $fecha_trabajada, 
+        ':inicio' => $hora_inicio, 
+        ':fin' => $hora_fin,
+        ':id_periodo' => $id_periodo_reporte,
+        ':gracia_antes' => $hora_gracia_antes,
+        ':gracia_despues' => $hora_gracia_despues
+    ]);
 
-        header("Location: " . $redirect_url . $separator . "status=success&message=" . urlencode("Horas registradas correctamente."));
-        exit();
+    // 4. Redirigir con mensaje de éxito
+    header("Location: index.php?status=success&message=" . urlencode("Horas registradas correctamente."));
+    exit();
 
-    } catch (PDOException $e) {
-        // En caso de error, también mantenemos el contexto del período
-        header("Location: " . $redirect_url . $separator . "status=error&message=" . urlencode("Error al guardar: " . $e->getMessage()));
-        exit();
-    }
+} catch (PDOException $e) {
+    // Manejo de errores (no necesita cambios)
+    error_log("Error en store.php: " . $e->getMessage());
+    $error_message = urlencode("Error al guardar el registro. Por favor, contacte a un administrador.");
+    header("Location: " . $redirect_url . $separator . "status=error&message=" . $error_message);
+    exit();
+}
+
 
 }
 
