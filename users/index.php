@@ -63,8 +63,15 @@ require_once '../includes/header.php';
                             </span>
                         </td>
                         <td class="text-center">
-                            <a href="edit.php?id=<?php echo $user['id']; ?>" class="btn btn-sm btn-warning">Editar</a>
-                        </td>
+                        <a href="edit.php?id=<?php echo $user['id']; ?>" class="btn btn-warning btn-sm" title="Editar"><i class="bi bi-pencil-square"></i></a>
+                        <?php // No permitir que un usuario se elimine a sí mismo
+                        if ($user['id'] != $_SESSION['user_id']): ?>
+                        <form action="delete.php" method="POST" class="d-inline" onsubmit="return confirm('¿Estás seguro de que deseas eliminar este usuario? Esta acción es irreversible.');">
+                            <input type="hidden" name="id" value="<?php echo $user['id']; ?>">
+                            <button type="submit" class="btn btn-danger btn-sm" title="Eliminar"><i class="bi bi-trash"></i></button>
+                        </form>
+                        <?php endif; ?>
+                    </td>
                     </tr>
                     <?php endforeach; ?>
                 <?php endif; ?>

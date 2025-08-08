@@ -75,9 +75,14 @@ if (isset($_GET['status'])) {
             <td><?php echo htmlspecialchars($posicion['id']); ?></td>
             <td><?php echo htmlspecialchars($posicion['nombre_posicion']); ?></td>
             <td><?php echo htmlspecialchars($posicion['nombre_departamento']); ?></td>
-            <td>
-                <a href="edit.php?id=<?php echo htmlspecialchars($posicion['id']); ?>" class="btn btn-sm btn-warning">Editar</a>
-            </td>
+            <td class="text-center">
+            <a href="edit.php?id=<?php echo $posicion['id']; ?>" class="btn btn-warning btn-sm" title="Editar"><i class="bi bi-pencil-square"></i></a>
+            <form action="delete.php" method="POST" class="d-inline" onsubmit="return confirm('¿Estás seguro de que deseas eliminar esta posición?');">
+                <input type="hidden" name="id" value="<?php echo $posicion['id']; ?>">
+                <button type="submit" class="btn btn-danger btn-sm" title="Eliminar"><i class="bi bi-trash"></i></button>
+            </form>
+             </td>
+
         </tr>
         <?php endforeach; ?>
     </tbody>

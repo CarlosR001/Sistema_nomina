@@ -33,9 +33,15 @@ require_once '../includes/header.php';
                 <td><?php echo htmlspecialchars($row['nombres']); ?></td>
                 <td><?php echo htmlspecialchars($row['primer_apellido']); ?></td>
                 <td><?php echo htmlspecialchars($row['email_personal']); ?></td>
-                <td>
-                    <a href="<?php echo BASE_URL; ?>contracts/index.php?employee_id=<?php echo htmlspecialchars($row['id']); ?>" class="btn btn-sm btn-info">Ver Contratos</a>
-                    <a href="<?php echo BASE_URL; ?>employees/edit.php?id=<?php echo htmlspecialchars($row['id']); ?>" class="btn btn-sm btn-warning">Editar</a>
+                <td class="text-center">
+                          <a href="<?php echo BASE_URL; ?>employees/edit.php?id=<?php echo htmlspecialchars($row['id']); ?>" class="btn btn-warning btn-sm" title="Editar Empleado"><i class="bi bi-pencil-square"></i></a>
+                          <a href="<?php echo BASE_URL; ?>contracts/index.php?employee_id=<?php echo htmlspecialchars($row['id']); ?>" class="btn btn-info btn-sm" title="Ver Contratos"><i class="bi bi-file-text"></i></a>
+                          <form action="delete.php" method="POST" class="d-inline" onsubmit="return confirm('ADVERTENCIA:\n\n¿Estás seguro de que deseas eliminar este empleado?\n\nEsta acción es irreversible y solo debe realizarse si el empleado fue creado por error y no tiene contratos ni usuarios asociados.');">
+                              <input type="hidden" name="id" value="<?php echo htmlspecialchars($row['id']); ?>">
+                              <button type="submit" class="btn btn-danger btn-sm" title="Eliminar Empleado">
+                                  <i class="bi bi-trash"></i>
+                              </button>
+                          </form>
                 </td>
             </tr>
         <?php endwhile; ?>

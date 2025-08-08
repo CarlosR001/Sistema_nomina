@@ -60,9 +60,14 @@ if (isset($_GET['status'])) {
             <td><?php echo htmlspecialchars($zona['id']); ?></td>
             <td><?php echo htmlspecialchars($zona['nombre_zona_o_muelle']); ?></td>
             <td>$<?php echo number_format($zona['monto_transporte_completo'], 2); ?></td>
-            <td>
-                <a href="edit.php?id=<?php echo htmlspecialchars($zona['id']); ?>" class="btn btn-sm btn-warning">Editar</a>
+            <td class="text-center">
+                <a href="edit.php?id=<?php echo $zona['id']; ?>" class="btn btn-warning btn-sm" title="Editar"><i class="bi bi-pencil-square"></i></a>
+                <form action="delete.php" method="POST" class="d-inline" onsubmit="return confirm('¿Estás seguro de que deseas eliminar esta zona?');">
+                    <input type="hidden" name="id" value="<?php echo $zona['id']; ?>">
+                    <button type="submit" class="btn btn-danger btn-sm" title="Eliminar"><i class="bi bi-trash"></i></button>
+                </form>
             </td>
+
         </tr>
         <?php endforeach; ?>
     </tbody>
