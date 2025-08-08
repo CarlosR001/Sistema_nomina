@@ -17,7 +17,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
          $id_proyecto = $_POST['id_proyecto'] ?? null;
          $id_zona_trabajo = $_POST['id_zona_trabajo'] ?? null;
          $id_contrato_sesion = $_SESSION['contrato_inspector_id'] ?? null;
-         
+         // Obtener los valores de los checkboxes. Si no están marcados, no se envían, así que usamos isset() para asignarles 1 o 0.
+        $solicita_gracia_antes = isset($_POST['hora_gracia_antes']) ? 1 : 0;
+        $solicita_gracia_despues = isset($_POST['hora_gracia_despues']) ? 1 : 0;
+
          // --- INICIO: Recoger los nuevos datos de Horas de Gracia ---
          $hora_gracia_antes = isset($_POST['hora_gracia_antes']) ? 1 : 0;
          $hora_gracia_despues = isset($_POST['hora_gracia_despues']) ? 1 : 0;
@@ -78,10 +81,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
        // --- Inserción en la base de datos ---
        try {
         // Consulta SQL actualizada para incluir las horas de gracia
-        $sql_insert = "INSERT INTO RegistroHoras 
-                           (id_contrato, id_proyecto, id_zona_trabajo, fecha_trabajada, hora_inicio, hora_fin, estado_registro, id_periodo_reporte, hora_gracia_antes, hora_gracia_despues) 
-                       VALUES (:id_contrato, :id_proyecto, :id_zona, :fecha, :inicio, :fin, 'Pendiente', :id_periodo, :gracia_antes, :gracia_despues)";
-        
+       // Ejecución con los nuevos parámetros de horas de gracia
+$stmt_insert->execute([
+    ':id_contrato' => $id_contrato, 
+    ':id_proyecto' => $id_proyecto, 
+    ':id_zona' => $id_zona_trabajo, 
+    ':fecha' => $fecha_trabajada, 
+    ':inicio' => $hora_inicio, 
+    ':fin' => $hora_fin,
+    ':id_periodo' => $id_periodo_reporte,
+    ':gracia_antes' => $hora_gracia_antes,
+    ':gracia_despues' => $hora_gracia_despues
+]);
+
         $stmt_insert = $pdo->prepare($sql_insert);
         
         // Ejecución con los nuevos parámetros de horas de gracia
