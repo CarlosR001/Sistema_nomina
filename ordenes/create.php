@@ -7,10 +7,10 @@ require_role(['Admin', 'Supervisor']);
 
 // Cargar datos para los dropdowns
 $clientes = $pdo->query("SELECT id, nombre_cliente FROM clientes WHERE estado = 'Activo' ORDER BY nombre_cliente")->fetchAll();
-$lugares = $pdo->query("SELECT id, nombre_zona_o_muelle FROM zonastransporte ORDER BY nombre_zona_o_muelle")->fetchAll();
+$lugares = $pdo->query("SELECT id, nombre_zona_o_muelle FROM lugares ORDER BY nombre_zona_o_muelle")->fetchAll(); // <-- CORREGIDO
 $productos = $pdo->query("SELECT id, nombre_producto FROM productos ORDER BY nombre_producto")->fetchAll();
 $operaciones = $pdo->query("SELECT id, nombre_operacion FROM operaciones ORDER BY nombre_operacion")->fetchAll();
-$divisiones = $pdo->query("SELECT id, nombre_division FROM divisiones ORDER BY nombre_division")->fetchAll(); // <-- LÍNEA AÑADIDA
+$divisiones = $pdo->query("SELECT id, nombre_division FROM divisiones ORDER BY nombre_division")->fetchAll();
 
 require_once '../includes/header.php';
 ?>
