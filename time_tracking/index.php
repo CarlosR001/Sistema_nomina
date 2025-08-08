@@ -31,27 +31,46 @@ if (isset($_GET['periodo_id'])) {
 }
 
 // 3. Si un período está seleccionado, cargar toda la data necesaria.
-// 3. Si un período está seleccionado, cargar toda la data necesaria.
 $ordenes_asignadas = [];
 $registros_del_periodo = [];
 if ($periodo_seleccionado) {
     
-    // Cargar las ÓRDENES asignadas al inspector con todos sus detalles
-    $stmt_ordenes = $pdo->prepare("
-        SELECT 
-            o.id, o.codigo_orden, c.nombre_cliente,
-            z.nombre_zona_o_muelle AS lugar, p.nombre_producto, op.nombre_operacion
-        FROM ordenes o
-        JOIN orden_asignaciones oa ON o.id = oa.id_orden
-        JOIN clientes c ON o.id_cliente = c.id
-        JOIN zonastransporte z ON o.id_lugar = z.id
-        JOIN productos p ON o.id_producto = p.id
-        JOIN operaciones op ON o.id_operacion = op.id
-        WHERE oa.id_contrato_inspector = ? AND o.estado_orden = 'En Proceso'
-        ORDER BY o.codigo_orden
-    ");
-    $stmt_ordenes->execute([$contrato_inspector_id]);
-    $ordenes_asignadas = $stmt_ordenes->fetchAll();
+     // Cargar las ÓRDENES asignadas al inspector con todos sus detalles
+     $stmt_ordenes = $pdo->prepare("
+     SELECT 
+         o.id, 
+         o.codigo_orden, 
+         c.nombre_cliente,
+         o.id_lugar, -- <-- Se necesita el ID del lugar principal
+         z.nombre_zona_o_muelle AS lugar,
+         p.nombre_producto,
+         op.nombre_operacion
+     FROM ordenes o
+     JOIN orden_asignaciones oa ON o.id = oa.id_orden
+     JOIN clientes c ON o.id_cliente = c.id
+     JOIN lugares z ON o.id_lugar = z.id -- Cambiado a 'lugares'
+     JOIN productos p ON o.id_producto = p.id
+     JOIN operaciones op ON o.id_operacion = op.id
+     WHERE oa.id_contrato_inspector = ? AND o.estado_orden = 'En Proceso'
+     ORDER BY o.codigo_orden
+ ");
+ $stmt_ordenes->execute([$contrato_inspector_id]);
+ $ordenes_asignadas = $stmt_ordenes->fetchAll();
+
+ // Pre-cargar todos los sub-lugares y agruparlos por su padre (lugar principal)
+ $stmt_sublugares = $pdo->query("SELECT id, nombre_zona_o_muelle, parent_id FROM lugares WHERE parent_id IS NOT NULL ORDER BY nombre_zona_o_muelle");
+ $sub_lugares_map = [];
+ foreach ($stmt_sublugares->fetchAll() as $sub) {
+     $sub_lugares_map[$sub['parent_id']][] = $sub;
+ }
+
+
+ // Pre-cargar todos los sub-lugares y agruparlos por su padre (lugar principal)
+ $stmt_sublugares = $pdo->query("SELECT id, nombre_zona_o_muelle, parent_id FROM lugares WHERE parent_id IS NOT NULL");
+ $sub_lugares_map = [];
+ foreach ($stmt_sublugares->fetchAll() as $sub) {
+     $sub_lugares_map[$sub['parent_id']][] = $sub;
+ }
 
     // Cargar los registros de horas del período, ahora vinculados a órdenes
     $stmt_registros = $pdo->prepare("
@@ -134,7 +153,15 @@ require_once '../includes/header.php';
 
     <!-- Contenedor para mostrar detalles -->
     <div class="col-md-12" id="orden-details-container" style="display: none;">
-        <div class="alert alert-secondary py-2">
+               <!-- NUEVO CAMPO PARA SUB-LUGAR -->
+        <div class="col-md-6" id="sub-lugar-wrapper" style="display: none;">
+            <label for="id_sub_lugar" class="form-label">Especifique Zona / Sub-Lugar</label>
+            <select class="form-select" id="id_sub_lugar" name="id_sub_lugar">
+                <!-- Opciones se cargarán con JS -->
+            </select>
+        </div>
+
+    <div class="alert alert-secondary py-2">
             <ul class="mb-0 small">
                 <li><strong>Lugar:</strong> <span id="orden-lugar"></span></li>
                 <li><strong>Producto:</strong> <span id="orden-producto"></span></li>
@@ -209,26 +236,49 @@ require_once '../includes/header.php';
 </div>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // Referencias a los elementos del DOM
     const ordenSelect = document.getElementById('id_orden');
     const detailsContainer = document.getElementById('orden-details-container');
-    if (!ordenSelect || !detailsContainer) return;
+    const subLugarWrapper = document.getElementById('sub-lugar-wrapper');
+    const subLugarSelect = document.getElementById('id_sub_lugar');
+    
+    // Convertir los datos de PHP a un objeto JavaScript
+    const subLugaresMap = <?php echo json_encode($sub_lugares_map); ?>;
 
+    // Spans para los detalles de la orden
     const lugarSpan = document.getElementById('orden-lugar');
     const productoSpan = document.getElementById('orden-producto');
     const operacionSpan = document.getElementById('orden-operacion');
 
     ordenSelect.addEventListener('change', function() {
+        // Resetear todo al cambiar
+        detailsContainer.style.display = 'none';
+        subLugarWrapper.style.display = 'none';
+        subLugarSelect.innerHTML = '<option value="">Seleccionar...</option>';
+        subLugarSelect.required = false;
+
         if (this.value === '') {
-            detailsContainer.style.display = 'none';
-            return;
+            return; // Si selecciona la opción por defecto, no hacer nada más
         }
+
         const selectedOption = this.options[this.selectedIndex];
+        
+        // --- 1. Lógica para el Contenedor de Detalles (tu funcionalidad existente) ---
         lugarSpan.textContent = selectedOption.dataset.lugar;
         productoSpan.textContent = selectedOption.dataset.producto;
         operacionSpan.textContent = selectedOption.dataset.operacion;
         detailsContainer.style.display = 'block';
+
+        // --- 2. Lógica para el Dropdown de Sub-Lugares (la nueva funcionalidad) ---
+        const lugarId = selectedOption.dataset.lugarId;
+        if (lugarId && subLugaresMap[lugarId] && subLugaresMap[lugarId].length > 0) {
+            subLugaresMap[lugarId].forEach(sub => {
+                const option = new Option(sub.nombre_zona_o_muelle, sub.id);
+                subLugarSelect.add(option);
+            });
+            subLugarWrapper.style.display = 'block';
+            subLugarSelect.required = true;
+        }
     });
 });
 </script>
-
-<?php require_once '../includes/footer.php'; ?>

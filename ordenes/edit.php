@@ -26,6 +26,7 @@ $clientes = $pdo->query("SELECT id, nombre_cliente FROM clientes WHERE estado = 
 $lugares = $pdo->query("SELECT id, nombre_zona_o_muelle FROM zonastransporte ORDER BY nombre_zona_o_muelle")->fetchAll();
 $productos = $pdo->query("SELECT id, nombre_producto FROM productos ORDER BY nombre_producto")->fetchAll();
 $operaciones = $pdo->query("SELECT id, nombre_operacion FROM operaciones ORDER BY nombre_operacion")->fetchAll();
+$divisiones = $pdo->query("SELECT id, nombre_division FROM divisiones ORDER BY nombre_division")->fetchAll(); // <-- LÍNEA AÑADIDA
 
 require_once '../includes/header.php';
 ?>
@@ -58,12 +59,27 @@ require_once '../includes/header.php';
                     <div class="col-md-4"><label for="id_operacion" class="form-label">Operación</label><select class="form-select" id="id_operacion" name="id_operacion" required>
                         <?php foreach ($operaciones as $operacion): ?><option value="<?php echo $operacion['id']; ?>" <?php echo ($orden['id_operacion'] == $operacion['id']) ? 'selected' : ''; ?>><?php echo htmlspecialchars($operacion['nombre_operacion']); ?></option><?php endforeach; ?>
                     </select></div>
-                    <div class="col-md-4"><label for="estado_orden" class="form-label">Estado</label><select class="form-select" id="estado_orden" name="estado_orden" required>
-                        <option value="Pendiente" <?php echo ($orden['estado_orden'] == 'Pendiente') ? 'selected' : ''; ?>>Pendiente</option>
-                        <option value="En Proceso" <?php echo ($orden['estado_orden'] == 'En Proceso') ? 'selected' : ''; ?>>En Proceso</option>
-                        <option value="Completada" <?php echo ($orden['estado_orden'] == 'Completada') ? 'selected' : ''; ?>>Completada</option>
-                        <option value="Cancelada" <?php echo ($orden['estado_orden'] == 'Cancelada') ? 'selected' : ''; ?>>Cancelada</option>
-                    </select></div>
+                    <div class="col-md-4"><label for="id_division" class="form-label">División</label>
+    <select class="form-select" id="id_division" name="id_division" required>
+        <?php foreach ($divisiones as $division): ?>
+            <option value="<?php echo $division['id']; ?>" <?php echo ($orden['id_division'] == $division['id']) ? 'selected' : ''; ?>>
+                <?php echo htmlspecialchars($division['nombre_division']); ?>
+            </option>
+        <?php endforeach; ?>
+    </select>
+</div>
+<div class="col-md-4"><label for="fecha_finalizacion" class="form-label">Fecha de Finalización (Opcional)</label>
+    <input type="date" class="form-control" id="fecha_finalizacion" name="fecha_finalizacion" value="<?php echo htmlspecialchars($orden['fecha_finalizacion']); ?>">
+</div>
+<div class="col-md-4"><label for="estado_orden" class="form-label">Estado</label>
+    <select class="form-select" id="estado_orden" name="estado_orden" required>
+        <option value="Pendiente" <?php echo ($orden['estado_orden'] == 'Pendiente') ? 'selected' : ''; ?>>Pendiente</option>
+        <option value="En Proceso" <?php echo ($orden['estado_orden'] == 'En Proceso') ? 'selected' : ''; ?>>En Proceso</option>
+        <option value="Completada" <?php echo ($orden['estado_orden'] == 'Completada') ? 'selected' : ''; ?>>Completada</option>
+        <option value="Cancelada" <?php echo ($orden['estado_orden'] == 'Cancelada') ? 'selected' : ''; ?>>Cancelada</option>
+    </select>
+</div>
+
                 </div>
                 <div class="mt-4">
                     <button type="submit" class="btn btn-primary">Actualizar Orden</button>
