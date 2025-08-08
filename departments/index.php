@@ -2,7 +2,7 @@
 // departments/index.php
 require_once '../auth.php'; // Carga el sistema de autenticación
 require_login(); // Asegura que el usuario esté logueado
-require_role('Admin'); // Solo Admin pueden acceder a esta sección
+require_permission('organizacion.gestionar'); // Solo Admin pueden acceder a esta sección
 
 // La conexión $pdo ya está disponible a través de auth.php
 

@@ -3,7 +3,7 @@
 
 require_once '../auth.php';
 require_login();
-require_role(['Admin', 'Supervisor']);
+require_permission('organizacion.gestionar');
 
 // Cargar solo los lugares principales para usarlos como posibles padres
 $stmt = $pdo->query("SELECT id, nombre_zona_o_muelle FROM lugares WHERE parent_id IS NULL ORDER BY nombre_zona_o_muelle");

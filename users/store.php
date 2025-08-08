@@ -4,7 +4,7 @@
 
 require_once '../auth.php';
 require_login();
-require_role('Admin');
+require_permission('usuarios.gestionar');
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     header('Location: index.php?status=error&message=Método no permitido.');

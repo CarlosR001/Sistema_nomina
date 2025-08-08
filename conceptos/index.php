@@ -3,7 +3,7 @@
 
 require_once '../auth.php';
 require_login();
-require_role('Admin');
+require_permission('organizacion.gestionar');
 
 $conceptos = $pdo->query("SELECT * FROM ConceptosNomina ORDER BY tipo_concepto, codigo_concepto")->fetchAll(PDO::FETCH_ASSOC);
 

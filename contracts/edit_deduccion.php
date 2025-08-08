@@ -4,7 +4,7 @@
 
 require_once '../auth.php';
 require_login();
-require_role('Admin');
+require_permission('empleados.gestionar');
 
 // Validar que se hayan proporcionado los IDs necesarios
 if (!isset($_GET['id']) || !is_numeric($_GET['id']) || !isset($_GET['employee_id']) || !is_numeric($_GET['employee_id'])) {

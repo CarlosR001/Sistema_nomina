@@ -2,7 +2,7 @@
 // pagos_especiales/preview_regalia.php - v1.0 (Motor de Cálculo de Regalía)
 require_once '../auth.php';
 require_login();
-require_role(['Admin', 'Contabilidad']);
+require_permission('nomina.procesar');
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !isset($_POST['year'])) {
     header('Location: regalia.php'); exit();

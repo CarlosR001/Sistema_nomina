@@ -4,7 +4,7 @@
 
 require_once '../auth.php';
 require_login();
-require_role('Admin');
+require_permission('nomina.procesar');
 
 function esUltimaSemanaDelMes($fecha_fin_periodo) {
     $fecha = new DateTime($fecha_fin_periodo);

@@ -3,7 +3,7 @@
 
 require_once '../auth.php';
 require_login();
-require_role(['Admin', 'Supervisor']);
+require_permission('organizacion.gestionar');
 
 $stmt = $pdo->query("SELECT * FROM operaciones ORDER BY nombre_operacion");
 $operaciones = $stmt->fetchAll();

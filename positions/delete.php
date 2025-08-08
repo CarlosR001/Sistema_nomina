@@ -3,7 +3,7 @@
 
 require_once '../auth.php';
 require_login();
-require_role(['Admin']); // Solo Admin puede borrar posiciones
+require_permission('organizacion.gestionar'); // Solo Admin puede borrar posiciones
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $id = $_POST['id'] ?? null;

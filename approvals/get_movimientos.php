@@ -3,7 +3,7 @@
 
 require_once '../auth.php';
 require_login();
-require_role(['Admin', 'Supervisor']);
+require_permission('aprobaciones.gestionar');
 
 header('Content-Type: application/json');
 

@@ -3,7 +3,7 @@
 
 require_once '../auth.php';
 require_login();
-require_role('Admin');
+require_permission('nomina.procesar');
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     header('Location: index.php');

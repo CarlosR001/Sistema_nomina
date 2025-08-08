@@ -4,7 +4,7 @@
 
 require_once '../auth.php';
 require_login();
-require_role(['Admin', 'Contabilidad', 'Supervisor']);
+require_permission('empleados.gestionar');
 
 // CORRECCIÓN: El nombre de la tabla es 'empleados', no 'Empleados'.
 $sql = 'SELECT id, cedula, nombres, primer_apellido, email_personal FROM empleados ORDER BY nombres ASC';

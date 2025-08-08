@@ -4,7 +4,7 @@
 
 require_once '../auth.php';
 require_login();
-require_role('Admin');
+require_permission('nomina.procesar');
 
 // Lógica para el formulario de añadir nuevo período
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_period'])) {

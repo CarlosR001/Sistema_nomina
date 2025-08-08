@@ -3,7 +3,7 @@
 
 require_once '../auth.php';
 require_login();
-require_role(['Admin']); // Solo Admin puede borrar departamentos
+require_permission('organizacion.gestionar'); // Solo Admin puede borrar departamentos
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $id = $_POST['id'] ?? null;

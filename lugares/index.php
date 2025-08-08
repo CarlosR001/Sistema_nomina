@@ -3,7 +3,7 @@
 
 require_once '../auth.php';
 require_login();
-require_role(['Admin', 'Supervisor']);
+require_permission('organizacion.gestionar');
 
 // 1. Obtener todos los lugares y agrupar los sub-lugares bajo sus padres
 $stmt = $pdo->query("SELECT * FROM lugares ORDER BY parent_id IS NULL DESC, nombre_zona_o_muelle");

@@ -4,7 +4,7 @@
 
 require_once '../auth.php';
 require_login();
-require_role('Admin');
+require_permission('nomina.procesar');
 
 // 1. Obtener empleados activos del tipo 'Inspectores'
 $stmt_empleados = $pdo->query("

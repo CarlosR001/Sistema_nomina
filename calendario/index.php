@@ -4,7 +4,7 @@
 
 require_once '../auth.php';
 require_login();
-require_role('Admin');
+require_permission('organizacion.gestionar');
 
 $feriados = $pdo->query("SELECT * FROM CalendarioLaboralRD ORDER BY fecha DESC")->fetchAll();
 

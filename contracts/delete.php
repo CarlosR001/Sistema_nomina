@@ -4,7 +4,7 @@
 
 require_once '../auth.php';
 require_login();
-require_role('Admin');
+require_permission('empleados.gestionar');
 
 // -- Función para redirigir con mensajes --
 function redirect_with_message($employee_id, $status, $message) {

@@ -3,7 +3,7 @@
 
 require_once '../auth.php';
 require_login();
-require_role('Admin');
+require_permission('nomina.procesar');
 
 $empleados_a_procesar = [];
 $periodo_seleccionado_id = null;

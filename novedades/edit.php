@@ -4,7 +4,7 @@
 
 require_once '../auth.php';
 require_login();
-require_role(['Admin', 'Contabilidad']);
+require_permission('nomina.procesar');
 
 if (!isset($_GET['id']) || !is_numeric($_GET['id'])) {
     header('Location: index.php?status=error&message=ID de novedad no válido.');

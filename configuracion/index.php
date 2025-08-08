@@ -3,7 +3,7 @@
 
 require_once '../auth.php';
 require_login();
-require_role('Admin');
+require_permission('organizacion.gestionar');
 
 // Obtener todas las configuraciones globales
 $configs = $pdo->query("SELECT clave, valor, descripcion FROM ConfiguracionGlobal ORDER BY clave")->fetchAll(PDO::FETCH_ASSOC);

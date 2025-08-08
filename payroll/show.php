@@ -3,7 +3,7 @@
 
 require_once '../auth.php';
 require_login();
-require_role('Admin');
+require_permission('nomina.procesar');
 
 if (empty($_GET['id']) || !is_numeric($_GET['id'])) {
     header('Location: ' . BASE_URL . 'payroll/review.php?status=error&message=ID de nómina no válido.');

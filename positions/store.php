@@ -3,7 +3,7 @@
 
 require_once '../auth.php'; // Carga el sistema de autenticación (incluye DB y sesión)
 require_login(); // Asegura que el usuario esté logueado
-require_role('Admin'); // Solo Admin pueden gestionar posiciones
+require_permission('organizacion.gestionar'); // Solo Admin pueden gestionar posiciones
 
 // La conexión $pdo ya está disponible a través de auth.php
 

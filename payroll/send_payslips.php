@@ -6,7 +6,7 @@ use PHPMailer\PHPMailer\Exception;
 
 require_once '../auth.php';
 require_login();
-require_role('Admin');
+require_permission('nomina.procesar');
 
 require_once __DIR__ . '/../vendor/autoload.php';
 

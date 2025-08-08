@@ -4,7 +4,7 @@
 
 require_once '../auth.php';
 require_login();
-require_role('Admin');
+require_permission('empleados.gestionar');
 
 // Función de redirección para mantener el código limpio
 function redirect($employee_id, $status, $message) {

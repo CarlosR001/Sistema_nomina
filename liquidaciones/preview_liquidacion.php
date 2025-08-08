@@ -3,7 +3,7 @@
 
 require_once '../auth.php';
 require_login();
-require_role(['Admin', 'Contabilidad']);
+require_permission('nomina.procesar');
 
 // 1. Recepción y validación de datos del formulario
 if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !isset($_POST['id_empleado'], $_POST['fecha_salida'], $_POST['motivo_salida'])) {

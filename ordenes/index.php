@@ -3,7 +3,7 @@
 
 require_once '../auth.php';
 require_login();
-require_role(['Admin', 'Supervisor']);
+require_permission('ordenes.gestionar');
 
 // Consulta para obtener las órdenes con los nombres de las tablas relacionadas
 $stmt = $pdo->query("

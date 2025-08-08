@@ -3,7 +3,7 @@
 
 require_once '../auth.php';
 require_login();
-require_role('Inspector');
+require_permission('horas.registrar');
 
 $contrato_inspector_id = $_SESSION['contrato_inspector_id'] ?? null;
 if (!$contrato_inspector_id) {

@@ -4,7 +4,7 @@
 
 require_once '../auth.php';
 require_login();
-require_role(['Admin', 'Supervisor']);
+require_permission('aprobaciones.gestionar');
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !isset($_POST['registros'], $_POST['action'])) {
     header('Location: index.php?status=error&message=Solicitud no válida.');

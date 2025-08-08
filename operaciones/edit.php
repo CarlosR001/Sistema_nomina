@@ -3,7 +3,7 @@
 
 require_once '../auth.php';
 require_login();
-require_role(['Admin', 'Supervisor']);
+require_permission('organizacion.gestionar');
 
 $operacion_id = $_GET['id'] ?? null;
 if (!$operacion_id) {

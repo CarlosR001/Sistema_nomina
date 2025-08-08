@@ -4,7 +4,7 @@
 
 require_once '../auth.php';
 require_login();
-require_role(['Admin', 'Contabilidad']);
+require_permission('nomina.procesar');
 
 // Recuperar resultados de la sesión, si existen.
 $preview_results = $_SESSION['preview_results'] ?? null;

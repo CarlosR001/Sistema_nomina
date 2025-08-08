@@ -3,7 +3,7 @@
 
 require_once '../auth.php';
 require_login();
-require_role(['Admin']); // Solo Admin puede borrar empleados
+require_permission('empleados.gestionar'); // Solo Admin puede borrar empleados
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $id = $_POST['id'] ?? null;

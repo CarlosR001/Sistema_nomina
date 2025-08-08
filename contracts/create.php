@@ -3,7 +3,7 @@
 
 require_once '../auth.php';
 require_login();
-require_role('Admin');
+require_permission('empleados.gestionar');
 
 if (!isset($_GET['employee_id'])) {
     header('Location: ../employees/index.php');

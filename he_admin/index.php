@@ -3,9 +3,8 @@
 
 require_once '../auth.php';
 require_login();
-require_role(['Admin', 'ReporteHorasExtras']);
+require_permission('reportes.horas_extras.ver');
 
-$user_rol = $_SESSION['user_rol'];
 $user_id_empleado = $_SESSION['user_id_empleado'] ?? null;
 
 $empleados_para_el_formulario = [];

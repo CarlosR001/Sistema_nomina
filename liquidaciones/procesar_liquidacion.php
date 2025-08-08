@@ -3,7 +3,7 @@
 
 require_once '../auth.php';
 require_login();
-require_role('Admin');
+require_permission('nomina.procesar');
 
 // 1. Validar y rescatar datos de la sesión
 if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !isset($_SESSION['liquidacion_data'])) {

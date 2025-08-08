@@ -4,7 +4,7 @@
 
 require_once '../auth.php';
 require_login();
-require_role('Admin');
+require_permission('nomina.procesar');
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !isset($_POST['nomina_id'])) {
     header('Location: ' . BASE_URL . 'payroll/review.php?status=error&message=Solicitud%20inv%C3%A1lida.');

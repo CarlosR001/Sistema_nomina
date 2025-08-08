@@ -4,7 +4,7 @@
 
 require_once '../auth.php';
 require_login();
-require_role('Inspector');
+require_permission('horas.registrar');
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     

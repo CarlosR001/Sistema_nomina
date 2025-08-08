@@ -3,7 +3,7 @@
 
 require_once '../auth.php';
 require_login();
-require_role('Admin');
+require_permission('empleados.gestionar');
 
 if (!isset($_GET['id']) || !is_numeric($_GET['id'])) {
     header('Location: ' . BASE_URL . 'employees/index.php?status=error&message=ID de contrato no válido.');

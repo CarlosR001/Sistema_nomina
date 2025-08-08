@@ -4,7 +4,7 @@
 
 require_once '../auth.php';
 require_login();
-require_role('Admin');
+require_permission('organizacion.gestionar');
 
 if (!isset($_GET['fecha'])) {
     header('Location: index.php?status=error&message=Fecha no proporcionada.');

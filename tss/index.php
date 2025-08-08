@@ -1,7 +1,7 @@
 <?php
 require_once '../auth.php';
 require_login();
-require_role(['Admin', 'Contabilidad']);
+require_permission('nomina.procesar');
 
 // Determinar el mes y año actual para pre-seleccionar en el formulario.
 $current_year = date('Y');

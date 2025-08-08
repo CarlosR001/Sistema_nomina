@@ -2,7 +2,7 @@
 // pagos_especiales/regalia.php - v1.0 (Interfaz para Cálculo de Regalía)
 require_once '../auth.php';
 require_login();
-require_role(['Admin', 'Contabilidad']);
+require_permission('nomina.procesar');
 $current_year = date('Y');
 require_once '../includes/header.php';
 ?>

@@ -3,7 +3,7 @@
 
 require_once '../auth.php';
 require_login();
-require_role(['Admin', 'Contabilidad']);
+require_permission('nomina.procesar');
 
 // 1. VERIFICAR SI HAY DATOS EN LA SESIÓN
 // Si el usuario llega aquí sin pasar por la vista previa, no habrá nada que exportar.

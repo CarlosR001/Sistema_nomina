@@ -3,7 +3,7 @@
 
 require_once '../auth.php';
 require_login();
-require_role(['Admin']);
+require_permission('organizacion.gestionar');
 
 $stmt = $pdo->query("SELECT * FROM divisiones ORDER BY nombre_division");
 $divisiones = $stmt->fetchAll();

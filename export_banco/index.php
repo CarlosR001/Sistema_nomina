@@ -3,7 +3,7 @@
 
 require_once '../auth.php';
 require_login();
-require_role(['Admin', 'Contabilidad']);
+require_permission('nomina.procesar');
 
 // Obtener todas las nóminas que ya han sido procesadas y aprobadas/finalizadas
 $stmt = $pdo->query("

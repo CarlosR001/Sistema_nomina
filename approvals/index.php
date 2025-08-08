@@ -3,7 +3,7 @@
 // 1. El badge ahora suma y muestra el número correcto de horas de gracia (1 o 2).
 require_once '../auth.php';
 require_login();
-require_role(['Admin', 'Supervisor']);
+require_permission('aprobaciones.gestionar');
 
 // --- Lógica de Filtros ---
 $view = $_GET['view'] ?? 'pendientes';

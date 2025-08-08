@@ -4,7 +4,7 @@
 
 require_once '../auth.php';
 require_login();
-require_role('Admin');
+require_permission('usuarios.gestionar');
 
 // Obtener solo los empleados que aún NO tienen una cuenta de usuario
 $stmt = $pdo->query("

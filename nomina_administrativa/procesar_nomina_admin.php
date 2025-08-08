@@ -3,7 +3,7 @@
 
 require_once '../auth.php';
 require_login();
-require_role(['Admin', 'Contabilidad']);
+require_permission('nomina.procesar');
 
 // Validar que la solicitud sea POST
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {

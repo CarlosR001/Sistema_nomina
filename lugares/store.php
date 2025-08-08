@@ -3,7 +3,7 @@
 
 require_once '../auth.php';
 require_login();
-require_role(['Admin', 'Supervisor']);
+require_permission('organizacion.gestionar');
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $parent_id = !empty($_POST['parent_id']) ? $_POST['parent_id'] : null;

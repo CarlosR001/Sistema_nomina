@@ -4,7 +4,7 @@
 
 require_once '../auth.php';
 require_login();
-require_role('Admin');
+require_permission('empleados.gestionar');
 
 // Obtener lista de bancos
 $bancos = $pdo->query("SELECT id, nombre_banco FROM bancos ORDER BY nombre_banco")->fetchAll();

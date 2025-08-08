@@ -3,7 +3,7 @@
 
 require_once '../auth.php';
 require_login();
-require_role(['Admin', 'Supervisor']);
+require_permission('organizacion.gestionar');
 
 // Obtener todos los bancos de la base de datos
 $stmt = $pdo->query("SELECT * FROM bancos ORDER BY nombre_banco");
