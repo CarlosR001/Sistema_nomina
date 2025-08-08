@@ -66,12 +66,14 @@ try {
         $_SESSION['pending_hours_check'] = $stmt_check_pendientes->fetchColumn();
     }
     
+         // Cargar datos maestros (feriados, conceptos, lugares)
     $feriados_stmt = $pdo->prepare("SELECT fecha FROM CalendarioLaboralRD WHERE fecha BETWEEN ? AND ?");
     $feriados_stmt->execute([$fecha_inicio, $fecha_fin]);
     $feriados = $feriados_stmt->fetchAll(PDO::FETCH_COLUMN);
     $conceptos = $pdo->query("SELECT codigo_concepto, id FROM ConceptosNomina")->fetchAll(PDO::FETCH_KEY_PAIR);
-    $zonas = $pdo->query("SELECT id, monto_transporte_completo FROM ZonasTransporte")->fetchAll(PDO::FETCH_KEY_PAIR);
-    
+    // CORRECCIÓN: Se lee desde la tabla 'lugares'
+    $zonas = $pdo->query("SELECT id, monto_transporte_completo FROM lugares")->fetchAll(PDO::FETCH_KEY_PAIR);
+
         // --- INICIO DE LA MODIFICACIÓN CLAVE ---
     // La consulta principal ahora se une con `ordenes` para obtener el `id_lugar` (zona).
     // Se usa un alias (AS) para que el resto del script no necesite cambios.
