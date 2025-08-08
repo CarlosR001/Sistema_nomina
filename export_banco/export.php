@@ -107,18 +107,22 @@ try {
         die($html_error);
     }
 
-    // 7. Si hay datos, generar el archivo como antes
-    $nombre_archivo = "pago_nomina_ID-{$nomina_id}_" . date('Y-m-d') . ".txt";
-    header('Content-Type: text/csv; charset=utf-8');
-    header('Content-Disposition: attachment; filename="' . $nombre_archivo . '"');
-
-    $output = fopen('php://output', 'w');
-    foreach ($datos_exportacion as $linea) {
-        fputcsv($output, $linea, ';');
-    }
-    fclose($output);
-    exit();
-
-} catch (PDOException $e) {
-    die("Error de base de datos: " . $e->getMessage());
-}
+     // 7. Si hay datos, generar el archivo con el formato exacto y sin comillas
+     $nombre_archivo = "pago_nomina_ID-{$nomina_id}_" . date('Y-m-d') . ".txt";
+     header('Content-Type: text/plain; charset=utf-8'); // Se cambia a text/plain para evitar auto-formateo
+     header('Content-Disposition: attachment; filename="' . $nombre_archivo . '"');
+ 
+     $output = fopen('php://output', 'w');
+     foreach ($datos_exportacion as $linea_array) {
+         // Se construye la línea manualmente para controlar el formato
+         $linea_string = implode(';', $linea_array);
+         // Se escribe la línea directamente, seguida de un salto de línea de Windows (CRLF)
+         fwrite($output, $linea_string . "\r\n");
+     }
+     fclose($output);
+     exit();
+ 
+ } catch (PDOException $e) {
+     die("Error de base de datos: " . $e->getMessage());
+ }
+ 
