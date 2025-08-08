@@ -9,17 +9,21 @@ require_permission('usuarios.gestionar');
 // Obtener todos los usuarios con la información del empleado asociado
 $stmt = $pdo->query("
     SELECT 
-        u.id, 
-        u.nombre_usuario, 
-        u.rol, 
-        u.estado, 
-        e.nombres, 
-        e.primer_apellido 
+        u.id,
+        u.nombre_usuario,
+        u.estado,
+        e.nombres,
+        e.primer_apellido,
+        GROUP_CONCAT(r.nombre_rol SEPARATOR ', ') AS roles
     FROM usuarios u
     JOIN empleados e ON u.id_empleado = e.id
-    ORDER BY u.nombre_usuario ASC
+    LEFT JOIN usuario_rol ur ON u.id = ur.id_usuario
+    LEFT JOIN roles r ON ur.id_rol = r.id
+    GROUP BY u.id
+    ORDER BY u.nombre_usuario
 ");
 $users = $stmt->fetchAll();
+
 
 require_once '../includes/header.php';
 ?>
@@ -56,7 +60,8 @@ require_once '../includes/header.php';
                     <tr>
                         <td><strong><?php echo htmlspecialchars($user['nombre_usuario']); ?></strong></td>
                         <td><?php echo htmlspecialchars($user['nombres'] . ' ' . $user['primer_apellido']); ?></td>
-                        <td><?php echo htmlspecialchars($user['rol']); ?></td>
+                        <td><?php echo htmlspecialchars($user['roles'] ?? 'Sin rol asignado'); ?></td>
+
                         <td>
                             <span class="badge bg-<?php echo $user['estado'] === 'Activo' ? 'success' : 'secondary'; ?>">
                                 <?php echo htmlspecialchars($user['estado']); ?>

@@ -27,15 +27,16 @@ $sql = "SELECT
             r.hora_gracia_antes, r.hora_gracia_despues,
             e.id as empleado_id, e.nombres, e.primer_apellido, 
             o.codigo_orden, o.id as orden_id, 
-            z.nombre_zona_o_muelle, z.monto_transporte_completo,
+            l.nombre_zona_o_muelle, l.monto_transporte_completo,
             u_aprob.nombre_usuario as aprobador, r.fecha_aprobacion
         FROM RegistroHoras r 
         JOIN Contratos c ON r.id_contrato = c.id 
         JOIN Empleados e ON c.id_empleado = e.id 
         LEFT JOIN ordenes o ON r.id_orden = o.id 
-        LEFT JOIN zonastransporte z ON o.id_lugar = z.id
+        LEFT JOIN lugares l ON o.id_lugar = l.id -- CORRECCIÓN: zonastransporte -> lugares
         LEFT JOIN usuarios u_aprob ON r.id_usuario_aprobador = u_aprob.id
         WHERE r.estado_registro = ?";
+
 $params = [$estado_a_buscar];
 
 if (!empty($filtro_fecha_desde)) {

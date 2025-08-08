@@ -57,10 +57,14 @@ if (session_status() === PHP_SESSION_NONE) {
                             <?php if (has_permission('nomina.procesar')): ?>
                                 <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>payroll/index.php">Procesar Nómina</a></li>
                                 <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>payroll/review.php">Revisión de Nóminas</a></li>
+                                <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>nomina_administrativa/index.php">Nómina Administrativa</a></li>
+
                                 <li><hr class="dropdown-divider"></li>
                                 <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>pagos_especiales/index.php">Pagos Especiales</a></li>
                                 <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>liquidaciones/index.php">Liquidaciones</a></li>
-                            <?php endif; ?>
+                                <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>tss/index.php">Exportación TSS</a></li>
+
+                                <?php endif; ?>
                             <?php if (has_permission('nomina.exportar.banco')): ?>
                                 <li><hr class="dropdown-divider"></li>
                                 <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>export_banco/index.php">Exportar para Banco</a></li>
@@ -68,6 +72,13 @@ if (session_status() === PHP_SESSION_NONE) {
                         </ul>
                     </li>
                     <?php endif; ?>
+                                        <!-- Menú Reportes -->
+                     <?php if (has_permission('reportes.horas_extras.ver')): ?>
+                    <li class="nav-item">
+                        <a class="nav-link" href="<?php echo BASE_URL; ?>he_admin/index.php">Reporte H.E.</a>
+                    </li>
+                    <?php endif; ?>
+
 
                     <!-- Menú Gestión de Órdenes -->
                     <?php if (has_permission('ordenes.gestionar')): ?>
@@ -91,6 +102,10 @@ if (session_status() === PHP_SESSION_NONE) {
                              <?php if (has_permission('empleados.gestionar')): ?>
                                 <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>employees/index.php">Empleados y Contratos</a></li>
                             <?php endif; ?>
+                            <?php if (has_permission('usuarios.gestionar')): ?>
+                                <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>users/index.php">Gestión de Usuarios</a></li>
+                                <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>roles/index.php">Gestión de Roles</a></li>
+                            <?php endif; ?>
                             <?php if (has_permission('organizacion.gestionar')): ?>
                                 <li><hr class="dropdown-divider"></li>
                                 <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>departments/index.php">Departamentos</a></li>
@@ -99,15 +114,15 @@ if (session_status() === PHP_SESSION_NONE) {
                                 <li><hr class="dropdown-divider"></li>
                                 <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>lugares/index.php">Lugares y Sub-Lugares</a></li>
                                 <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>bancos/index.php">Bancos</a></li>
-                            <?php endif; ?>
-                            <?php if (has_permission('usuarios.gestionar')): ?>
+                                <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>calendario/index.php">Calendario Feriado</a></li>
+                                <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>conceptos/index.php">Conceptos de Nómina</a></li>
                                 <li><hr class="dropdown-divider"></li>
-                                <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>roles/index.php">Gestión de Roles</a></li>
-                                <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>users/index.php">Gestión de Usuarios</a></li>
+                                <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>configuracion/index.php">Configuración Global</a></li>
                             <?php endif; ?>
                         </ul>
                     </li>
                     <?php endif; ?>
+
                 <?php endif; ?>
             </ul>
             <?php if (isset($_SESSION['user_id'])): ?>
