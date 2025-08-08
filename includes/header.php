@@ -67,18 +67,33 @@ $user_rol = $_SESSION['user_rol'] ?? null;
                                     <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>novedades/ajuste_isr.php">Ajuste Manual de ISR</a></li>
                                 </ul>
                             </li>
-                            <li class="nav-item dropdown">
-                                <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownCatalogos" role="button" data-bs-toggle="dropdown" aria-expanded="false">Catálogos</a>
-                                <ul class="dropdown-menu" aria-labelledby="navbarDropdownCatalogos">
-                                    <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>employees/index.php">Empleados y Contratos</a></li>
-                                    <li><hr class="dropdown-divider"></li>
-                                    <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>departments/index.php">Departamentos</a></li>
-                                    <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>positions/index.php">Posiciones</a></li>
-                                    <li><hr class="dropdown-divider"></li>
-                                    <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>projects/index.php">Proyectos</a></li>
-                                    <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>zones/index.php">Zonas de Transporte</a></li>
-                                </ul>
-                            </li>
+                                                             <!-- Menú de Gestión de Órdenes (REEMPLAZA A PROYECTOS) -->
+                                                             <li class="nav-item dropdown">
+                                      <a class="nav-link dropdown-toggle" href="#" id="ordenesDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                          Gestión de Órdenes
+                                      </a>
+                                      <ul class="dropdown-menu" aria-labelledby="ordenesDropdown">
+                                          <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>ordenes/index.php">Órdenes de Trabajo</a></li>
+                                          <li><hr class="dropdown-divider"></li>
+                                          <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>clientes/index.php">Clientes</a></li>
+                                          <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>productos/index.php">Productos</a></li>
+                                          <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>operaciones/index.php">Operaciones</a></li>
+                                      </ul>
+                                  </li>
+
+                                  <!-- Menú de Organización (LO QUE QUEDA DE CATÁLOGOS) -->
+                                  <li class="nav-item dropdown">
+                                      <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownOrganizacion" role="button" data-bs-toggle="dropdown" aria-expanded="false">Organización</a>
+                                      <ul class="dropdown-menu" aria-labelledby="navbarDropdownOrganizacion">
+                                          <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>employees/index.php">Empleados y Contratos</a></li>
+                                          <li><hr class="dropdown-divider"></li>
+                                          <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>departments/index.php">Departamentos</a></li>
+                                          <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>positions/index.php">Posiciones</a></li>
+                                          <li><hr class="dropdown-divider"></li>
+                                          <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>zones/index.php">Zonas de Transporte</a></li>
+                                      </ul>
+                                  </li>
+
                             <li class="nav-item dropdown">
                                 <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownConfig" role="button" data-bs-toggle="dropdown" aria-expanded="false">Sistema</a>
                                 <ul class="dropdown-menu" aria-labelledby="navbarDropdownConfig">
