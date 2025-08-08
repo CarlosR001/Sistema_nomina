@@ -91,6 +91,12 @@ require_once '../includes/header.php';
                                         <a href="assign.php?id=<?php echo $orden['id']; ?>" class="btn btn-info btn-sm" title="Asignar Inspectores">
                                             <i class="bi bi-person-plus"></i>
                                         </a>
+                                        <form action="delete.php" method="POST" class="d-inline" onsubmit="return confirm('¿Estás seguro de que deseas eliminar esta orden? Se borrarán también todas sus asignaciones.');">
+                                            <input type="hidden" name="id" value="<?php echo $orden['id']; ?>">
+                                            <button type="submit" class="btn btn-danger btn-sm" title="Eliminar">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </form>
                                     </td>
                                 </tr>
                             <?php endforeach; ?>

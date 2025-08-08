@@ -50,6 +50,12 @@ require_once '../includes/header.php';
                                         <a href="edit.php?id=<?php echo $producto['id']; ?>" class="btn btn-warning btn-sm" title="Editar">
                                             <i class="bi bi-pencil-square"></i>
                                         </a>
+                                        <form action="delete.php" method="POST" class="d-inline" onsubmit="return confirm('¿Estás seguro de que deseas eliminar este producto?');">
+                                            <input type="hidden" name="id" value="<?php echo $producto['id']; ?>">
+                                            <button type="submit" class="btn btn-danger btn-sm" title="Eliminar">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </form>
                                     </td>
                                 </tr>
                             <?php endforeach; ?>
