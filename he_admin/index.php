@@ -52,10 +52,7 @@ require_once '../includes/header.php';
 
 <div class="container mt-4">
     <h1 class="mb-4">Registro de Horas Extras (Personal Fijo)</h1>
-    
-    <?php if (isset($_GET['status'])): ?>
-        <div class="alert alert-<?php echo $_GET['status'] === 'success' ? 'success' : 'danger'; ?>"><?php echo htmlspecialchars(urldecode($_GET['message'])); ?></div>
-    <?php endif; ?>
+
 
     <?php if (empty($empleados_para_el_formulario)): ?>
         <div class="alert alert-danger">
@@ -67,7 +64,7 @@ require_once '../includes/header.php';
             <div class="card-body">
             <form action="store.php" method="POST">
             <div class="row g-3 align-items-end">
-                <div class="col-md-<?php echo has_permission('*') ? '6' : '12'; ?>">
+                <div class="col-md-<?php echo has_permission('*') ? '4' : '6'; ?>">
                     <label for="id_contrato" class="form-label">Empleado</label>
                     <select class="form-select" id="id_contrato" name="id_contrato" required <?php echo !has_permission('*') ? 'disabled' : ''; ?>>
                         <?php if (has_permission('*')): ?>
@@ -78,23 +75,27 @@ require_once '../includes/header.php';
                         <?php endforeach; ?>
                     </select>
                      <?php if (!has_permission('*')): ?>
-                        <!-- Campo oculto para que el usuario no-admin envíe su propio ID de contrato -->
                         <input type="hidden" name="id_contrato" value="<?php echo $empleados_para_el_formulario[0]['id_contrato']; ?>">
                     <?php endif; ?>
                 </div>
-                <div class="col-md-3">
-                    <label for="fecha" class="form-label">Fecha</label>
-                    <input type="date" class="form-control" id="fecha" name="fecha" required>
+                <div class="col-md-2">
+                    <label for="fecha_trabajada" class="form-label">Fecha</label>
+                    <input type="date" class="form-control" id="fecha_trabajada" name="fecha_trabajada" required>
                 </div>
-                <div class="col-md-3">
-                    <label for="cantidad_horas" class="form-label">Cantidad de Horas Extras</label>
-                    <input type="number" step="0.01" class="form-control" id="cantidad_horas" name="cantidad_horas" required>
+                <div class="col-md-2">
+                    <label for="hora_inicio" class="form-label">Hora Inicio Real</label>
+                    <input type="time" class="form-control" id="hora_inicio" name="hora_inicio" required>
                 </div>
-                <div class="col-md-12">
-                    <button type="submit" class="btn btn-primary">Registrar Horas</button>
+                <div class="col-md-2">
+                    <label for="hora_fin" class="form-label">Hora Fin Real</label>
+                    <input type="time" class="form-control" id="hora_fin" name="hora_fin" required>
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-primary w-100">Registrar</button>
                 </div>
             </div>
         </form>
+
 
             </div>
         </div>
