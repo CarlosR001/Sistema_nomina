@@ -52,71 +52,57 @@ require_once '../includes/header.php';
 <?php endif; ?>
 
 <div class="accordion" id="accordionNominas">
-<?php if (empty($nominas_agrupadas)): ?>
-        <div class="alert alert-info">Aún no hay nóminas procesadas para revisar.</div>
-    <?php else: ?>
-        <?php foreach ($nominas_agrupadas as $mes => $nominas): ?>
-            <?php
-                // Formatear la clave '2025-07' a un formato legible como "Julio de 2025"
-                $fecha_mes = new DateTime($mes_key . '-01');
-                $nombre_mes = strftime('%B de %Y', $fecha_mes->getTimestamp());
-            ?>
-            <div class="accordion-item">
-                <h2 class="accordion-header" id="heading-<?php echo $mes_key; ?>">
-                    <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-<?php echo $mes_key; ?>" aria-expanded="true" aria-controls="collapse-<?php echo $mes_key; ?>">
-                        Nóminas de <?php echo ucfirst($nombre_mes); ?> (<?php echo count($nominas_del_mes); ?> períodos)
-                    </button>
-                </h2>
-                <div id="collapse-<?php echo $mes_key; ?>" class="accordion-collapse collapse show" aria-labelledby="heading-<?php echo $mes_key; ?>" data-bs-parent="#accordionNominas">
-                    <div class="accordion-body p-0">
-                        <table class="table table-striped table-hover mb-0">
-                            <thead class="table-light">
-                                <tr>
-                                    <th>ID</th>
-                                    <th>Período</th>
-                                    <th>Tipo</th>
-                                    <th>Estado</th>
-                                    <th>Fecha Ejecución</th>
-                                    <th class="text-center">Acciones</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php foreach ($nominas_del_mes as $nomina): ?>
+          <?php if (empty($nominas_agrupadas)): ?>
+              <div class="alert alert-info">Aún no hay nóminas procesadas para revisar.</div>
+          <?php else: ?>
+              <?php $index = 0; ?>
+              <?php foreach ($nominas_agrupadas as $mes_anio => $nominas_del_mes): ?>
+                  <?php $collapse_id = "collapse-" . $index; ?>
+                  <div class="accordion-item">
+                      <h2 class="accordion-header" id="heading-<?php echo $index; ?>">
+                          <button class="accordion-button <?php echo $index > 0 ? 'collapsed' : ''; ?>" type="button" data-bs-toggle="collapse" data-bs-target="#<?php echo $collapse_id; ?>" aria-expanded="<?php echo $index === 0 ? 'true' : 'false'; ?>" aria-controls="<?php echo $collapse_id; ?>">
+                              Nóminas de <?php echo htmlspecialchars($mes_anio); ?> (<?php echo count($nominas_del_mes); ?> períodos)
+                          </button>
+                      </h2>
+                      <div id="<?php echo $collapse_id; ?>" class="accordion-collapse collapse <?php echo $index === 0 ? 'show' : ''; ?>" aria-labelledby="heading-<?php echo $index; ?>" data-bs-parent="#accordionNominas">
+                          <div class="accordion-body p-0">
+                              <table class="table table-striped table-hover mb-0">
+                                  <thead class="table-light">
+                                      <tr>
+                                          <th>ID</th>
+                                          <th>Tipo</th>
+                                          <th>Período</th>
+                                          <th>Estado</th>
+                                          <th class="text-end">Acciones</th>
+                                      </tr>
+                                  </thead>
+                                  <tbody>
+                                      <?php foreach ($nominas_del_mes as $nomina): ?>
+                                      <tr>
+                                          <td><?php echo $nomina['id']; ?></td>
+                                          <td><?php echo htmlspecialchars($nomina['tipo_nomina_procesada']); ?></td>
+                                          <td><?php echo date('d/m/Y', strtotime($nomina['periodo_inicio'])) . ' - ' . date('d/m/Y', strtotime($nomina['periodo_fin'])); ?></td>
+                                          <td><span class="badge bg-success"><?php echo htmlspecialchars($nomina['estado_nomina']); ?></span></td>
+                                          <td class="text-end">
+                                              <a href="<?php echo BASE_URL; ?>payroll/show.php?id=<?php echo $nomina['id']; ?>" class="btn btn-primary btn-sm">Ver Detalles</a>
+                                          </td>
+                                      </tr>
+                                      <?php endforeach; ?>
+                                  </tbody>
+                              </table>
+                          </div>
+                      </div>
+                  </div>
+                  <?php $index++; ?>
+              <?php endforeach; ?>
+          <?php endif; ?>
+      </div>
+                            <?php foreach ($nominas_del_mes as $nomina): ?>
                                     <tr>
                                         <td><?php echo htmlspecialchars($nomina['id']); ?></td>
                                         <td><?php echo htmlspecialchars($nomina['periodo_inicio']) . ' al ' . htmlspecialchars($nomina['periodo_fin']); ?></td>
                                         <td><?php echo htmlspecialchars($nomina['tipo_nomina_procesada']); ?></td>
                                         <td>
-                                            <?php
-                                                $estado = htmlspecialchars($nomina['estado_nomina'] ?? 'Desconocido');
-                                                $clase_badge = 'bg-secondary'; // Color por defecto
-                                                if ($estado === 'Calculada') {
-                                                    $clase_badge = 'bg-warning text-dark';
-                                                } elseif ($estado === 'Aprobada y Finalizada') {
-                                                    $clase_badge = 'bg-success';
-                                                }
-                                            ?>
-                                            <span class="badge <?php echo $clase_badge; ?>">
-                                                <?php echo $estado; ?>
-                                            </span>
-                                        </td>
-                                        <td><?php echo htmlspecialchars($nomina['fecha_ejecucion']); ?></td>
-                                        <td class="text-center">
-                                            <a href="show.php?id=<?php echo $nomina['id']; ?>" class="btn btn-sm btn-primary">Ver Detalles</a>
-                                            <form action="delete_payroll.php" method="POST" class="d-inline" onsubmit="return confirm('¿Está SEGURO de que desea eliminar esta nómina por completo? Esta acción es irreversible.');">
-                                                <input type="hidden" name="nomina_id" value="<?php echo $nomina['id']; ?>">
-                                                <button type="submit" class="btn btn-sm btn-danger ms-1">Eliminar</button>
-                                            </form>
-                                        </td>
-                                    </tr>
-                                <?php endforeach; ?>
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            </div>
-        <?php endforeach; ?>
-    <?php endif; ?>
-</div>
+  
 
 <?php require_once '../includes/footer.php'; ?>
