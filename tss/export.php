@@ -1,5 +1,5 @@
 <?php
-// tss/export.php - v5.0 (Lógica Final y Precisa basada en VBA de TSS)
+// tss/export.php - v6.0 (Lógica Final 1:1 con VBA de TSS)
 
 require_once '../auth.php';
 require_login();
@@ -18,21 +18,25 @@ $periodo_tss_header = sprintf('%02d%04d', $month, $year);
 $periodo_tss_filename = sprintf('%02d%04d', $month, $year);
 
 // --- FUNCIONES DE AYUDA (Traducción directa de la lógica VBA "Abultar...") ---
-function pad_right_space($value, $length) { // Lógica de AbultarParametroCI
+function pad_right_space($value, $length) {
     return str_pad(substr(trim($value), 0, $length), $length, ' ', STR_PAD_RIGHT);
 }
-function pad_left_zero($value, $length) { // Lógica de AbultarParametroN
+function pad_left_zero($value, $length) {
     $formatted = number_format((float)$value, 2, '.', '');
     return str_pad($formatted, $length, '0', STR_PAD_LEFT);
 }
-function pad_left_space($value, $length) { // Lógica de AbultarParametroC
+function pad_left_space($value, $length) {
     return str_pad(substr(trim($value), 0, $length), $length, ' ', STR_PAD_LEFT);
 }
-function get_tipo_ingreso_code($tipo_nomina) { // Lógica de AbultarParametroING
-    if ($tipo_nomina === 'Inspectores') {
-        return str_pad('5', 4, '0', STR_PAD_LEFT); // Salario prorrateado
+function get_tipo_ingreso_code($tipo_nomina) {
+    $code = ($tipo_nomina === 'Inspectores') ? '5' : '1';
+    return str_pad($code, 4, '0', STR_PAD_LEFT);
+}
+function pad_ingreso_ex($value, $code) {
+    if (empty($value) || (float)$value == 0) {
+        return ''; // Si el valor es cero, devolver cadena vacía (lógica clave del VBA)
     }
-    return str_pad('1', 4, '0', STR_PAD_LEFT); // Normal
+    return $code . pad_left_zero($value, 16);
 }
 // --- FIN DE FUNCIONES ---
 
@@ -49,44 +53,45 @@ try {
     $header_line = "EAM" . pad_left_space($rnc_empresa, 11) . $periodo_tss_header;
     $file_lines[] = $header_line;
 
-    // 2. CONSTRUIR LÍNEAS DE DETALLE (mapeando cada campo según función Detalle de VBA)
+    // 2. CONSTRUIR LÍNEAS DE DETALLE
     $detalle_count = 0;
     foreach ($empleados_data as $emp) {
         $detalle_count++;
         
+        // --- Lógica de campos según VBA ---
         $tipo_doc = 'C';
-        $num_doc = str_replace('-', '', $emp['cedula']);
-        if (!empty($emp['nss'])) {
-            $tipo_doc = 'N';
-            $num_doc = str_replace('-', '', $emp['nss']);
+        $num_doc = str_replace('-', '', trim($emp['cedula']));
+        if (strlen($num_doc) > 0 && strlen($num_doc) < 11) {
+            $num_doc = str_pad($num_doc, 11, '0', STR_PAD_LEFT); // Lógica de Valida_Cedula
         }
+
         $sexo = ($emp['sexo'] === 'Masculino') ? 'M' : 'F';
-        $fecha_nac = !empty($emp['fecha_nacimiento']) ? date('dmY', strtotime($emp['fecha_nacimiento'])) : '00000000';
+        $fecha_nac = !empty($emp['fecha_nacimiento']) ? date('dmY', strtotime($emp['fecha_nacimiento'])) : str_repeat(' ', 8); // 8 espacios
         $tipo_ingreso_code = get_tipo_ingreso_code($emp['tipo_nomina']);
         
         $line = '';
-        $line .= 'D';                                                    // 1. Tipo Registro
-        $line .= str_pad($detalle_count, 3, '0', STR_PAD_LEFT);           // 2. Secuencia
-        $line .= pad_left_space($tipo_doc, 1);                           // 3. Tipo Documento
-        $line .= pad_right_space($num_doc, 25);                          // 4. Número Documento (25 Chars)
-        $line .= pad_right_space($emp['nombres'], 50);                   // 5. Nombres (50 Chars)
-        $line .= pad_right_space($emp['primer_apellido'], 40);          // 6. Primer Apellido (40 Chars)
-        $line .= pad_right_space($emp['segundo_apellido'], 40);         // 7. Segundo Apellido (40 Chars)
-        $line .= pad_left_space($sexo, 1);                               // 8. Sexo
-        $line .= pad_left_space($fecha_nac, 8);                          // 9. Fecha Nacimiento
-        $line .= pad_left_zero($emp['salario_cotizable_tss'], 16);       // 10. Salario Cotizable
-        $line .= pad_left_zero(0, 16);                                   // 11. Aporte Voluntario
-        $line .= pad_left_zero($emp['base_isr'] ?? 0, 16);               // 12. Salario para ISR
-        $line .= pad_left_zero($emp['otras_remuneraciones'], 16);         // 13. Otras Remuneraciones
-        $line .= pad_left_space('', 11);                                 // 14. RNC Agente Retención
-        $line .= pad_left_zero(0, 16);                                   // 15. Remuneraciones Otros Agentes
-        $line .= pad_left_zero(0, 16);                                   // 16. Saldo a Favor (hardcoded '0.00' in VBA)
-        $line .= pad_left_zero(0, 16);                                   // 17. Regalía Pascual
-        $line .= pad_left_zero($emp['salario_cotizable_tss'], 16);       // 18. Salario INFOTEP
-        $line .= $tipo_ingreso_code;                                     // 19. Tipo de Ingreso (4 chars)
-        $line .= pad_left_zero(0, 18);                                   // Preaviso y Cesantía (con código 01)
-        $line .= pad_left_zero(0, 18);                                   // Pensión (con código 02)
-        $line .= pad_left_zero(0, 18);                                   // Accidentes (con código 03)
+        $line .= 'D';                                                    
+        $line .= str_pad($detalle_count, 3, '0', STR_PAD_LEFT);            
+        $line .= pad_left_space($tipo_doc, 1);                           
+        $line .= pad_right_space($num_doc, 25);                          
+        $line .= pad_right_space($emp['nombres'], 50);                   
+        $line .= pad_right_space($emp['primer_apellido'], 40);          
+        $line .= pad_right_space($emp['segundo_apellido'], 40);         
+        $line .= pad_left_space($sexo, 1);                               
+        $line .= pad_left_space($fecha_nac, 8);                          
+        $line .= pad_left_zero($emp['salario_cotizable_tss'], 16);       
+        $line .= pad_left_zero(0, 16);                                   
+        $line .= pad_left_zero($emp['base_isr'] ?? 0, 16);               
+        $line .= pad_left_zero($emp['otras_remuneraciones'], 16);         
+        $line .= pad_left_space('', 11);                                 
+        $line .= pad_left_zero(0, 16);                                   
+        $line .= pad_left_zero(0, 16);                                   
+        $line .= pad_left_zero(0, 16); // Regalía (campo 17 en VBA)
+        $line .= pad_left_zero($emp['salario_cotizable_tss'], 16);       
+        $line .= $tipo_ingreso_code;                                     
+        $line .= pad_ingreso_ex(0, '01'); // Preaviso (campo 18)
+        $line .= pad_ingreso_ex(0, '02'); // Pensión (campo 19)
+        $line .= pad_ingreso_ex(0, '03'); // Accidentes (campo 20)
 
         $file_lines[] = $line;
     }
