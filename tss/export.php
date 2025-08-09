@@ -20,45 +20,42 @@ $year = $period_info['year'];
 $month = $period_info['month'];
 $periodo_tss = sprintf('%04d%02d', $year, $month);
 
-// 3. LIMPIAR LA SESIÓN
-// Es una buena práctica eliminar los datos de la sesión una vez que los hemos usado.
-unset($_SESSION['tss_export_data'], $_SESSION['tss_export_period']);
-
-try {
-    // Sigue siendo necesario obtener el RNC, ya que no se guarda en la sesión.
-    $configs_db = $pdo->query("SELECT clave, valor FROM ConfiguracionGlobal")->fetchAll(PDO::FETCH_KEY_PAIR);
-    $rnc_empresa = $configs_db['RNC_EMPRESA'] ?? '';
-    if (empty($rnc_empresa) || $rnc_empresa === 'XXXXXXXXX') {
-        throw new Exception("El RNC de la empresa no está configurado.");
-    }
-    
-    // 4. CONSTRUIR EL CONTENIDO DEL ARCHIVO
-    // Esta lógica es idéntica a la de la versión anterior, pero ahora es mucho más rápida
-    // porque no hay consultas a la base de datos aquí.
-    $file_content = [];
-    $clave_nomina = $rnc_empresa . $periodo_tss;
-
-    foreach ($empleados_data as $emp) {
-        $tipo_ingreso_tss = ($emp['tipo_nomina'] === 'Inspectores') ? '05' : '01';
-        $tipo_doc = 'C';
-        $sexo_tss = ($emp['sexo'] === 'Masculino') ? 'M' : 'F';
-        $fecha_nac_tss = date('Ymd', strtotime($emp['fecha_nacimiento']));
+      // NO BORRAR LA SESIÓN AQUÍ para permitir refrescar la página.
+      
+      try {
+        $configs_db = $pdo->query("SELECT clave, valor FROM ConfiguracionGlobal")->fetchAll(PDO::FETCH_KEY_PAIR);
+        $rnc_empresa = $configs_db['RNC_EMPRESA'] ?? '';
+        if (empty($rnc_empresa)) {
+            throw new Exception("El RNC de la empresa no está configurado.");
+        }
         
-        $linea = [
-            $clave_nomina,
-            $tipo_doc,
-            str_replace('-', '', $emp['cedula']),
-            $emp['nombres'],
-            $emp['primer_apellido'],
-            $emp['segundo_apellido'] ?? '',
-            $sexo_tss,
-            $fecha_nac_tss,
-            number_format($emp['salario_cotizable_tss'], 2, '.', ''),
-            number_format(0, 2, '.', ''), // Aporte Voluntario
-            number_format($emp['base_isr'], 2, '.', ''),
-            $tipo_ingreso_tss,
-            number_format($emp['otras_remuneraciones'], 2, '.', ''),
-            '', // RNC/Ced. Agente ret
+        $file_content = [];
+        $clave_nomina = $rnc_empresa . $periodo_tss;
+
+        foreach ($empleados_data as $emp) {
+            $tipo_ingreso_tss = ($emp['tipo_nomina'] === 'Inspectores') ? '05' : '01';
+            $sexo_tss = ($emp['sexo'] === 'Masculino') ? 'M' : 'F';
+            
+            // --- INICIO DE LA CORRECCIÓN ---
+            // Si la fecha de nacimiento es nula o vacía, dejarla en blanco para la TSS.
+            $fecha_nac_tss = !empty($emp['fecha_nacimiento']) ? date('Ymd', strtotime($emp['fecha_nacimiento'])) : '';
+            // --- FIN DE LA CORRECCIÓN ---
+
+            $linea = [
+                $clave_nomina,
+                'C', // Tipo de Documento (Cédula)
+                str_replace('-', '', $emp['cedula']),
+                $emp['nombres'],
+                $emp['primer_apellido'],
+                $emp['segundo_apellido'] ?? '',
+                $sexo_tss,
+                $fecha_nac_tss,
+                number_format($emp['salario_cotizable_tss'], 2, '.', ''),
+                number_format(0, 2, '.', ''), // Aporte Voluntario
+                number_format($emp['base_isr'], 2, '.', ''),
+                $tipo_ingreso_tss,
+                number_format($emp['otras_remuneraciones'], 2, '.', ''),
+                '', // RNC Agente retención
             number_format(0, 2, '.', ''), // Remuneraciones otros agentes
             number_format(0, 2, '.', ''), // saldo a favor del periodo
             number_format(0, 2, '.', ''), // Regalia Pascual(Saldo 13)
