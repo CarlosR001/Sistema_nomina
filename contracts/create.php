@@ -78,6 +78,15 @@ require_once '../includes/header.php';
                         <option value="Mensual">Mensual</option>
                     </select>
                 </div>
+                <div class="col-md-6">
+                            <label for="horario_entrada" class="form-label">Horario de Entrada</label>
+                            <input type="time" class="form-control" id="horario_entrada" name="horario_entrada" value="08:00">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="horario_salida" class="form-label">Horario de Salida</label>
+                            <input type="time" class="form-control" id="horario_salida" name="horario_salida" value="17:00">
+                        </div>
+
 
                 <div class="col-md-6">
                     <label for="fecha_inicio" class="form-label">Fecha de Inicio</label>

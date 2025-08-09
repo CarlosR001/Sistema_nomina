@@ -25,6 +25,10 @@ $tarifa_por_hora = !empty($_POST['tarifa_por_hora']) ? (float)$_POST['tarifa_por
 // --- Campos Opcionales y con valores por defecto ---
 $fecha_fin = !empty($_POST['fecha_fin']) ? $_POST['fecha_fin'] : null;
 $permite_horas_extras = isset($_POST['permite_horas_extras']) ? 1 : 0;
+// --- LÍNEAS A AÑADIR ---
+$horario_entrada = $_POST['horario_entrada'] ?? '08:00:00';
+$horario_salida = $_POST['horario_salida'] ?? '17:00:00';
+// --- FIN DE LÍNEAS A AÑADIR ---
 $estado_contrato = 'Vigente'; // Por defecto, un contrato nuevo siempre está vigente
 
 $redirect_url = 'index.php?employee_id=' . $employee_id;
@@ -71,13 +75,14 @@ try {
     }
     
     // Preparar y ejecutar la inserción
-    $sql = "INSERT INTO Contratos (id_empleado, id_posicion, tipo_contrato, tipo_nomina, fecha_inicio, fecha_fin, salario_mensual_bruto, tarifa_por_hora, frecuencia_pago, estado_contrato, permite_horas_extras) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+    $sql = "INSERT INTO contratos (id_empleado, id_posicion, tipo_contrato, tipo_nomina, fecha_inicio, fecha_fin, salario_mensual_bruto, tarifa_por_hora, frecuencia_pago, estado_contrato, permite_horas_extras, horario_entrada, horario_salida) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
     $stmt = $pdo->prepare($sql);
     $stmt->execute([
         $employee_id, $id_posicion, $tipo_contrato, $tipo_nomina, $fecha_inicio, $fecha_fin,
         $salario_mensual_bruto, $tarifa_por_hora, $frecuencia_pago, $estado_contrato,
-        $permite_horas_extras
+        $permite_horas_extras, $horario_entrada, $horario_salida
     ]);
+
     
     header('Location: ' . $redirect_url . '&status=success&message=' . urlencode('Contrato añadido correctamente.'));
     exit();

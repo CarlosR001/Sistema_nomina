@@ -89,6 +89,15 @@ require_once '../includes/header.php';
                         <option value="Mensual" <?php echo $contrato['frecuencia_pago'] == 'Mensual' ? 'selected' : ''; ?>>Mensual</option>
                     </select>
                 </div>
+                <div class="col-md-6">
+                            <label for="horario_entrada" class="form-label">Horario de Entrada</label>
+                            <input type="time" class="form-control" id="horario_entrada" name="horario_entrada" value="<?php echo htmlspecialchars($contrato['horario_entrada']); ?>">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="horario_salida" class="form-label">Horario de Salida</label>
+                            <input type="time" class="form-control" id="horario_salida" name="horario_salida" value="<?php echo htmlspecialchars($contrato['horario_salida']); ?>">
+                        </div>
+
 
                 <div class="col-md-6">
                     <label for="fecha_inicio" class="form-label">Fecha de Inicio</label>

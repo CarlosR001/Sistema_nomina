@@ -31,10 +31,10 @@ try {
     $stmt_contrato->execute([$id_contrato]);
     $contrato = $stmt_contrato->fetch(PDO::FETCH_ASSOC);
 
-    if (!$contrato || !$contrato['salario_mensual_bruto']) {
-        throw new Exception("Contrato no válido, no permite horas extras o no tiene salario configurado.");
+    if (!$contrato || !$contrato['salario_mensual_bruto'] || empty($contrato['horario_entrada']) || empty($contrato['horario_salida'])) {
+        throw new Exception("El contrato no es válido, no permite horas extras o no tiene un horario de oficina configurado (ej: 08:00 - 17:00).");
     }
-    
+
     // 2. Calcular las horas extras reales.
     $horario_entrada_normal = new DateTime($contrato['horario_entrada']);
     $horario_salida_normal = new DateTime($contrato['horario_salida']);
