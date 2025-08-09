@@ -1,5 +1,5 @@
 <?php
-// tss/export.php - v7.1 (Corrección de Longitud y Caracteres Especiales)
+// tss/export.php - v7.2 (Corrección de formato numérico y longitud)
 
 require_once '../auth.php';
 require_login();
@@ -21,9 +21,7 @@ $periodo_tss_filename = sprintf('%02d%04d', $month, $year);
 
 // --- FUNCIONES DE AYUDA MEJORADAS ---
 function clean_string($value) {
-    // Transliterar caracteres a sus equivalentes ASCII
     $value = iconv('UTF-8', 'ASCII//TRANSLIT', $value);
-    // Eliminar cualquier caracter no ASCII restante
     return preg_replace('/[^a-zA-Z0-9\s-]/', '', $value);
 }
 
@@ -33,13 +31,11 @@ function pad_right_space($value, $length) {
 }
 
 function pad_left_zero($value, $length) {
-    // Convertir a centavos (ej: 150.75 -> 15075) y quitar decimales
-    $cents = round((float)$value * 100); 
-    // Asegurar que el número no tenga separadores de miles ni puntos decimales
-    $formatted = number_format($cents, 0, '', ''); 
+    // CORREGIDO: Restaurado al formato original con punto decimal, que es el esperado por TSS.
+    // Ejemplo: 15000 -> "0000000015000.00"
+    $formatted = number_format((float)$value, 2, '.', '');
     return str_pad($formatted, $length, '0', STR_PAD_LEFT);
 }
-
 
 function pad_left_space($value, $length) {
     $cleaned_value = clean_string($value);
@@ -65,7 +61,7 @@ try {
     $header_line = "EAM" . pad_left_space($rnc_empresa, 11) . $periodo_tss_header;
     $file_lines[] = $header_line;
 
-    // 2. CONSTRUIR LÍNEAS DE DETALLE (Longitud 312)
+    // 2. CONSTRUIR LÍNEAS DE DETALLE (Longitud total debe ser 312)
     $detalle_count = 0;
     foreach ($empleados_data as $emp) {
         $detalle_count++;
@@ -89,7 +85,7 @@ try {
         $line .= pad_right_space($emp['segundo_apellido'], 40);            // 40
         $line .= pad_left_space($sexo, 1);                                  // 1
         $line .= pad_left_space($fecha_nac, 8);                             // 8
-        $line .= pad_left_zero($emp['salario_cotizable_tss'], 16);          // 16
+        $line .= pad_left_zero($emp['salario_cotizable_tss'], 16);          // 16 - Salario SS
         $line .= pad_left_zero(0, 16);                                      // 16 - Aporte Voluntario
         $line .= pad_left_zero($emp['base_isr'] ?? 0, 16);                  // 16 - Salario para ISR
         $line .= pad_left_zero($emp['otras_remuneraciones'], 16);            // 16 - Otras Remuneraciones
@@ -99,12 +95,7 @@ try {
         $line .= pad_left_zero(0, 16);                                      // 16 - Salario Regalía Pascual
         $line .= pad_left_zero($emp['salario_cotizable_tss'], 16);          // 16 - Salario Infotep
         $line .= $tipo_ingreso_code;                                        // 4
-        
-        // CORRECCIÓN FINAL: Relleno para alcanzar los 312 caracteres
-        $current_length = mb_strlen($line);
-        if ($current_length < 312) {
-            $line .= str_repeat(' ', 312 - $current_length);
-        }
+        // La suma de las longitudes es exactamente 312, no se necesita relleno adicional.
 
         $file_lines[] = $line;
     }
@@ -122,7 +113,6 @@ try {
     exit();
 
 } catch (Exception $e) {
-    // Mostrar el error de forma clara si algo falla
     header('Content-Type: text/plain; charset=utf-8');
     die("Error al generar el archivo TSS: " . $e->getMessage());
 }
