@@ -1,5 +1,5 @@
 <?php
-// nomina_administrativa/index.php - v2.2 (Lógica Final y Corregida)
+// nomina_administrativa/index.php - v2.0 (con Estado de Procesamiento)
 
 require_once '../auth.php';
 require_login();
@@ -10,22 +10,21 @@ function get_month_name_es($month_number) {
     $meses = [1 => 'Enero', 2 => 'Febrero', 3 => 'Marzo', 4 => 'Abril', 5 => 'Mayo', 6 => 'Junio', 7 => 'Julio', 8 => 'Agosto', 9 => 'Septiembre', 10 => 'Octubre', 11 => 'Noviembre', 12 => 'Diciembre'];
     return $meses[(int)$month_number] ?? 'Mes Desconocido';
 }
-
 // --- Lógica de Selección de Período ---
 $selected_month = $_GET['month'] ?? date('m');
 $selected_year = $_GET['year'] ?? date('Y');
-$form_submitted = isset($_GET['month']); // "Bandera" para saber si se consultó un mes
+$form_submitted = isset($_GET['month']); // <-- La nueva variable "bandera"
 
-// Inicializar todas las variables de resultados para evitar errores
+// Inicializar variables para evitar errores
 $q1_procesada = null;
 $q2_procesada = null;
 $q1_inicio = null;
 $q1_fin = null;
 $q2_inicio = null;
 $q2_fin = null;
-$selected_date = null;
+$selected_date = null; // Se define como null por defecto
 
-// Ejecutar la lógica de búsqueda solo si el usuario ha presionado "Consultar Estado"
+// Ejecutar la lógica solo si el usuario ha presionado "Consultar Estado"
 if ($form_submitted) {
     $selected_date = $selected_year . '-' . $selected_month . '-01';
     $days_in_month = date('t', strtotime($selected_date));
@@ -36,18 +35,53 @@ if ($form_submitted) {
     $q2_inicio = $selected_year . '-' . $selected_month . '-16';
     $q2_fin = $selected_year . '-' . $selected_month . '-' . $days_in_month;
 
-    // Verificar estado de la primera quincena (usando el nombre de tabla correcto)
+    // Verificar estado de la primera quincena
     $stmt_q1 = $pdo->prepare("SELECT id FROM nominasprocesadas WHERE tipo_nomina_procesada = 'Administrativa' AND periodo_inicio = ? AND periodo_fin = ?");
     $stmt_q1->execute([$q1_inicio, $q1_fin]);
     $q1_procesada = $stmt_q1->fetch(PDO::FETCH_ASSOC);
 
-    // Verificar estado de la segunda quincena (usando el nombre de tabla correcto)
+    // Verificar estado de la segunda quincena
     $stmt_q2 = $pdo->prepare("SELECT id FROM nominasprocesadas WHERE tipo_nomina_procesada = 'Administrativa' AND periodo_inicio = ? AND periodo_fin = ?");
     $stmt_q2->execute([$q2_inicio, $q2_fin]);
     $q2_procesada = $stmt_q2->fetch(PDO::FETCH_ASSOC);
 }
 
-// Lógica para el formulario (siempre disponible)
+// 1. Obtener todas las nóminas administrativas que ya fueron procesadas
+$stmt_processed = $pdo->query("
+    SELECT id, periodo_inicio, periodo_fin
+    FROM NominasProcesadas
+    WHERE tipo_nomina_procesada = 'Administrativa'
+");
+$processed_payrolls_raw = $stmt_processed->fetchAll(PDO::FETCH_ASSOC);
+
+// 2. Crear un array para buscar eficientemente si una quincena fue procesada.
+// La clave del array será 'AÑO-MES-QUINCENA', por ejemplo: "2024-08-1"
+$processed_lookup = [];
+foreach ($processed_payrolls_raw as $p) {
+    // Determina si es la 1ra o 2da quincena basándose en el día de finalización
+    $quincena = (int)date('d', strtotime($p['periodo_fin'])) <= 15 ? 1 : 2;
+    $key = date('Y-m', strtotime($p['periodo_fin'])) . '-' . $quincena;
+    $processed_lookup[$key] = $p['id']; // Guardamos el ID de la nómina procesada
+}
+
+// 3. Determinar el mes y año que el usuario quiere ver.
+// Si no se especifica en la URL, se usa el mes y año actual.
+$selected_year = isset($_GET['year']) ? (int)$_GET['year'] : (int)date('Y');
+$selected_month = isset($_GET['month']) ? (int)$_GET['month'] : (int)date('m');
+
+// 4. Calcular los datos para las dos quincenas del mes seleccionado.
+// Primera Quincena
+$q1_inicio = date('Y-m-d', mktime(0, 0, 0, $selected_month, 1, $selected_year));
+$q1_fin = date('Y-m-d', mktime(0, 0, 0, $selected_month, 15, $selected_year));
+$q1_key = "$selected_year-" . str_pad($selected_month, 2, '0', STR_PAD_LEFT) . "-1";
+$q1_id = $processed_lookup[$q1_key] ?? null; // Buscamos si ya fue procesada. Si no, es null.
+
+// Segunda Quincena
+$q2_inicio = date('Y-m-d', mktime(0, 0, 0, $selected_month, 16, $selected_year));
+$q2_fin = date('Y-m-t', mktime(0, 0, 0, $selected_month, 1, $selected_year)); // 't' da el último día del mes
+$q2_key = "$selected_year-" . str_pad($selected_month, 2, '0', STR_PAD_LEFT) . "-2";
+$q2_id = $processed_lookup[$q2_key] ?? null; // Buscamos si ya fue procesada.
+
 $months = [];
 for ($i = 1; $i <= 12; $i++) {
     $months[$i] = get_month_name_es($i);
@@ -57,7 +91,6 @@ $years = range($current_year, $current_year - 5);
 
 require_once '../includes/header.php';
 ?>
-
 
 <h1 class="mb-4">Procesar Nómina Administrativa</h1>
 
