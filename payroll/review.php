@@ -6,7 +6,12 @@ require_once '../auth.php';
 require_login();
 require_permission('nomina.procesar');
 
-// 1. Obtener todas las nóminas procesadas, ordenadas por fecha
+// Función para obtener el nombre del mes en español
+function get_month_name_es($month_number) {
+    $meses = [1 => 'Enero', 2 => 'Febrero', 3 => 'Marzo', 4 => 'Abril', 5 => 'Mayo', 6 => 'Junio', 7 => 'Julio', 8 => 'Agosto', 9 => 'Septiembre', 10 => 'Octubre', 11 => 'Noviembre', 12 => 'Diciembre'];
+    return $meses[(int)$month_number] ?? 'Mes Desconocido';
+}
+
 // 1. Obtener todas las nóminas procesadas, ordenadas por fecha
 $stmt_nominas = $pdo->query("
     SELECT 
@@ -23,14 +28,13 @@ $nominas = $stmt_nominas->fetchAll(PDO::FETCH_ASSOC);
 
 
 // 2. Agrupar las nóminas por mes y año en un array de PHP
-$nominas_por_mes = [];
+$nominas_agrupadas = [];
 foreach ($nominas as $nomina) {
-    // Crear una clave única para cada mes/año, ej: "2025-07"
-    $key = date('Y-m', strtotime($nomina['periodo_fin']));
-    if (!isset($nominas_por_mes[$key])) {
-        $nominas_por_mes[$key] = [];
-    }
-    $nominas_por_mes[$key][] = $nomina;
+    $fecha = new DateTime($nomina['periodo_fin']);
+    $nombre_mes = get_month_name_es($fecha->format('n'));
+    $anio = $fecha->format('Y');
+    $key = ucfirst($nombre_mes) . ' ' . $anio;
+    $nominas_agrupadas[$key][] = $nomina;
 }
 
 require_once '../includes/header.php';
