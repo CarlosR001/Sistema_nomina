@@ -11,9 +11,16 @@ $id_contrato = $_GET['contrato_id'];
 $stmt_get_employee_id = $pdo->prepare("SELECT id_empleado FROM Contratos WHERE id = ?");
 $stmt_get_employee_id->execute([$id_contrato]);
 $empleado_id_del_contrato = $stmt_get_employee_id->fetchColumn();
-$user_rol = $_SESSION['user_rol'] ?? '';
-$user_empleado_id = $_SESSION['user_info']['id_empleado'] ?? null;
-if ($user_rol !== 'Admin' && ($user_rol === 'Inspector' && $user_empleado_id != $empleado_id_del_contrato)) { header('HTTP/1.0 403 Forbidden'); die('Acceso denegado.'); }
+
+// Seguridad: solo el propio empleado o un usuario con permiso de 'nomina.procesar' puede ver el volante.
+$user_empleado_id = $_SESSION['user_id_empleado'] ?? null;
+
+// Si el usuario NO tiene permiso para procesar nóminas Y el volante que intenta ver NO es el suyo, se le deniega el acceso.
+if (!has_permission('nomina.procesar') && $user_empleado_id != $empleado_id_del_contrato) {
+    header('HTTP/1.0 403 Forbidden');
+    die('Acceso denegado. No tienes permiso para ver este volante de pago.');
+}
+
 $stmt_empleado = $pdo->prepare("SELECT e.nombres, e.primer_apellido, e.cedula, p.nombre_posicion FROM Contratos c JOIN Empleados e ON c.id_empleado = e.id JOIN Posiciones p ON c.id_posicion = p.id WHERE c.id = ?");
 $stmt_empleado->execute([$id_contrato]);
 $empleado = $stmt_empleado->fetch();

@@ -6,53 +6,53 @@ require_once '../auth.php';
 require_login();
 require_permission('usuarios.gestionar');
 
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    header('Location: index.php?status=error&message=Método no permitido.');
-    exit();
-}
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Recoger datos del formulario (lógica correcta)
+    $id_empleado = $_POST['id_empleado'];
+    $nombre_usuario = trim($_POST['nombre_usuario']);
+    $contrasena = $_POST['contrasena'];
+    $confirmar_contrasena = $_POST['confirmar_contrasena'];
+    $roles_asignados = $_POST['roles'] ?? []; // Se espera un array de IDs de roles
 
-// Recoger datos
-$id_empleado = $_POST['id_empleado'];
-$nombre_usuario = trim($_POST['nombre_usuario']);
-$rol = $_POST['rol'];
-$contrasena = $_POST['contrasena'];
-$confirmar_contrasena = $_POST['confirmar_contrasena'];
-
-// Validaciones
-if (empty($id_empleado) || empty($nombre_usuario) || empty($rol) || empty($contrasena)) {
-    header('Location: create.php?status=error&message=' . urlencode('Todos los campos son obligatorios.'));
-    exit();
-}
-
-if ($contrasena !== $confirmar_contrasena) {
-    header('Location: create.php?status=error&message=' . urlencode('Las contraseñas no coinciden.'));
-    exit();
-}
-
-try {
-    // Verificar que el nombre de usuario no esté ya en uso
-    $stmt_check = $pdo->prepare("SELECT id FROM usuarios WHERE nombre_usuario = ?");
-    $stmt_check->execute([$nombre_usuario]);
-    if ($stmt_check->fetch()) {
-        header('Location: create.php?status=error&message=' . urlencode('El nombre de usuario ya está en uso.'));
+    // Validaciones
+    if (empty($id_empleado) || empty($nombre_usuario) || empty($contrasena)) {
+        header('Location: create.php?status=error&message=' . urlencode('Todos los campos son obligatorios.'));
         exit();
     }
-    
-    // Hashear la contraseña
-    $hashed_password = password_hash($contrasena, PASSWORD_BCRYPT);
-    
-    // Insertar en la base de datos
-    $stmt_insert = $pdo->prepare(
-        "INSERT INTO usuarios (id_empleado, nombre_usuario, contrasena, rol, estado) 
-         VALUES (?, ?, ?, ?, 'Activo')"
-    );
-    $stmt_insert->execute([$id_empleado, $nombre_usuario, $hashed_password, $rol]);
+    if ($contrasena !== $confirmar_contrasena) {
+        header('Location: create.php?status=error&message=' . urlencode('Las contraseñas no coinciden.'));
+        exit();
+    }
 
-    header('Location: index.php?status=success&message=' . urlencode('Usuario creado exitosamente.'));
-    exit();
+    $hash_contrasena = password_hash($contrasena, PASSWORD_DEFAULT);
 
-} catch (PDOException $e) {
-    header('Location: create.php?status=error&message=' . urlencode('Error de base de datos: ' . $e->getMessage()));
-    exit();
+    try {
+        $pdo->beginTransaction();
+
+        // 1. Insertar el usuario en la tabla 'usuarios'
+        $stmt = $pdo->prepare("INSERT INTO usuarios (id_empleado, nombre_usuario, contrasena, estado) VALUES (?, ?, ?, 'Activo')");
+        $stmt->execute([$id_empleado, $nombre_usuario, $hash_contrasena]);
+        $id_usuario_creado = $pdo->lastInsertId();
+
+        // 2. Insertar las asignaciones en la tabla 'usuario_rol'
+        if (!empty($roles_asignados)) {
+            $stmt_rol = $pdo->prepare("INSERT INTO usuario_rol (id_usuario, id_rol) VALUES (?, ?)");
+            foreach ($roles_asignados as $id_rol) {
+                $stmt_rol->execute([$id_usuario_creado, $id_rol]);
+            }
+        }
+        
+        $pdo->commit();
+        header('Location: index.php?status=success&message=' . urlencode('Usuario creado correctamente.'));
+        exit;
+
+    } catch (PDOException $e) {
+        if ($pdo->inTransaction()) $pdo->rollBack();
+        $message = 'Error al crear el usuario.';
+        if ($e->getCode() == 23000) {
+            $message = 'El nombre de usuario ya está en uso.';
+        }
+        header('Location: create.php?status=error&message=' . urlencode($message));
+        exit;
+    }
 }
-?>
