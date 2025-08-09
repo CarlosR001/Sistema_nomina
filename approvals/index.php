@@ -84,12 +84,6 @@ require_once '../includes/header.php';
 </div>
 
 
-<?php if (isset($_GET['message'])): ?>
-    <div class="alert alert-<?php echo ($_GET['status'] === 'success') ? 'success' : 'danger'; ?> alert-dismissible fade show" role="alert">
-        <?php echo htmlspecialchars(urldecode($_GET['message'])); ?>
-        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-    </div>
-<?php endif; ?>
 
 <ul class="nav nav-tabs mb-3">
     <li class="nav-item"><a class="nav-link <?php echo ($view === 'pendientes') ? 'active' : ''; ?>" href="?view=pendientes">Pendientes de Aprobación</a></li>
