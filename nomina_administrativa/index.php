@@ -5,6 +5,12 @@ require_once '../auth.php';
 require_login();
 require_permission('nomina.procesar');
 
+// Función para obtener el nombre del mes en español
+function get_month_name_es($month_number) {
+    $meses = [1 => 'Enero', 2 => 'Febrero', 3 => 'Marzo', 4 => 'Abril', 5 => 'Mayo', 6 => 'Junio', 7 => 'Julio', 8 => 'Agosto', 9 => 'Septiembre', 10 => 'Octubre', 11 => 'Noviembre', 12 => 'Diciembre'];
+    return $meses[(int)$month_number] ?? 'Mes Desconocido';
+}
+
 // 1. Obtener todas las nóminas administrativas que ya fueron procesadas
 $stmt_processed = $pdo->query("
     SELECT id, periodo_inicio, periodo_fin
@@ -80,9 +86,16 @@ require_once '../includes/header.php';
 
 <!-- Tabla de Estado de las Quincenas -->
 <div class="card">
-    <div class="card-header">
-        <h5><i class="bi bi-list-check"></i> Estado para <strong><?php echo ucfirst(strftime('%B', mktime(0, 0, 0, $selected_month, 1))); ?> de <?php echo $selected_year; ?></strong></h5>
-    </div>
+<div class="card-header">
+             <i class="fas fa-calendar-alt me-1"></i>
+             <?php
+                $fecha_titulo = new DateTime($selected_date);
+                $nombre_mes = get_month_name_es($fecha_titulo->format('n'));
+                $anio = $fecha_titulo->format('Y');
+                echo "Estado para " . ucfirst($nombre_mes) . ' de ' . $anio;
+             ?>
+         </div>
+
     <div class="table-responsive">
         <table class="table table-bordered table-striped mb-0">
             <thead class="table-light">
