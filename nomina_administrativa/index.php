@@ -101,16 +101,17 @@ require_once '../includes/header.php';
     </div>
     <div class="card-body">
         <form method="GET" action="" class="row g-3 align-items-end">
-            <div class="col-md-4">
-                <label for="month" class="form-label">Mes</label>
-                <select id="month" name="month" class="form-select">
-                    <?php for ($i = 1; $i <= 12; $i++): ?>
-                        <option value="<?php echo $i; ?>" <?php echo $i == $selected_month ? 'selected' : ''; ?>>
-                            <?php echo ucfirst(strftime('%B', mktime(0, 0, 0, $i, 1))); ?>
-                        </option>
-                    <?php endfor; ?>
-                </select>
-            </div>
+        <div class="col-md-4">
+                     <label for="month" class="form-label">Mes</label>
+                     <select class="form-select" id="month" name="month" required>
+                         <?php foreach ($months as $num => $nombre): ?>
+                             <option value="<?php echo $num; ?>" <?php echo ($selected_month == $num) ? 'selected' : ''; ?>>
+                                 <?php echo $nombre; ?>
+                             </option>
+                         <?php endforeach; ?>
+                     </select>
+                 </div>
+
             <div class="col-md-4">
                 <label for="year" class="form-label">Año</label>
                 <select id="year" name="year" class="form-select">
