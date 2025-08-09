@@ -72,20 +72,22 @@ if ($periodo_seleccionado) {
      $sub_lugares_map[$sub['parent_id']][] = $sub;
  }
 
-    // Cargar los registros de horas del período, ahora vinculados a órdenes
-    $stmt_registros = $pdo->prepare("
-        SELECT 
-            r.fecha_trabajada, r.hora_inicio, r.hora_fin, r.estado_registro,
-            r.hora_gracia_antes, r.hora_gracia_despues, r.transporte_aprobado,
-            ord.codigo_orden, z.nombre_zona_o_muelle
-        FROM RegistroHoras r
-        LEFT JOIN ordenes ord ON r.id_orden = ord.id
-        LEFT JOIN zonastransporte z ON ord.id_lugar = z.id
-        WHERE r.id_contrato = ? AND r.id_periodo_reporte = ?
-        ORDER BY r.fecha_trabajada DESC, r.hora_inicio DESC
-    ");
-    $stmt_registros->execute([$contrato_inspector_id, $periodo_seleccionado['id']]);
-    $registros_del_periodo = $stmt_registros->fetchAll();
+       // Cargar los registros de horas del período, ahora vinculados a órdenes y lugares
+       $stmt_registros = $pdo->prepare("
+       SELECT 
+           r.fecha_trabajada, r.hora_inicio, r.hora_fin, r.estado_registro,
+           r.hora_gracia_antes, r.hora_gracia_despues, r.transporte_aprobado,
+           ord.codigo_orden, 
+           l.nombre_zona_o_muelle
+       FROM RegistroHoras r
+       LEFT JOIN ordenes ord ON r.id_orden = ord.id
+       LEFT JOIN lugares l ON r.id_zona_trabajo = l.id -- CORRECCIÓN: Se une a 'lugares' usando id_zona_trabajo
+       WHERE r.id_contrato = ? AND r.id_periodo_reporte = ?
+       ORDER BY r.fecha_trabajada DESC, r.hora_inicio DESC
+   ");
+   $stmt_registros->execute([$contrato_inspector_id, $periodo_seleccionado['id']]);
+   $registros_del_periodo = $stmt_registros->fetchAll();
+
 }
 
 
