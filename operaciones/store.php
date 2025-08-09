@@ -3,7 +3,7 @@
 
 require_once '../auth.php';
 require_login();
-require_permission('organizacion.gestionar');
+require_permission('ordenes.gestionar');
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $nombre = $_POST['nombre_operacion'] ?? '';

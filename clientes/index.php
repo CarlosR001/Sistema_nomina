@@ -3,7 +3,7 @@
 
 require_once '../auth.php';
 require_login();
-require_permission('organizacion.gestionar');
+require_permission('ordenes.gestionar');
 
 // Obtener todos los clientes de la base de datos
 $stmt = $pdo->query("SELECT * FROM clientes ORDER BY nombre_cliente");

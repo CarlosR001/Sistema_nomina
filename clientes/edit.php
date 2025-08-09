@@ -3,7 +3,7 @@
 
 require_once '../auth.php';
 require_login();
-require_permission('organizacion.gestionar');
+require_permission('ordenes.gestionar');
 
 $cliente_id = $_GET['id'] ?? null;
 if (!$cliente_id) {
