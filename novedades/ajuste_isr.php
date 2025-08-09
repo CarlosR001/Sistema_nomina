@@ -22,19 +22,6 @@ $periodos = $pdo->query("SELECT id, fecha_inicio_periodo, fecha_fin_periodo FROM
 require_once '../includes/header.php';
 ?>
 
-<h1 class="mb-4">Ajuste Manual de ISR (Transferencia entre Períodos)</h1>
-
-<?php
-// Manejo de mensajes de estado (éxito o error)
-if (isset($_GET['status'])) {
-    if ($_GET['status'] === 'success') {
-        echo '<div class="alert alert-success">Ajuste de ISR guardado y aplicado exitosamente. Recuerda recalcular las nóminas de los períodos afectados.</div>';
-    } elseif (isset($_GET['message'])) {
-        echo '<div class="alert alert-danger">Error: ' . htmlspecialchars($_GET['message']) . '</div>';
-    }
-}
-?>
-
 <div class="card">
     <div class="card-header">
         <h5>Crear Nueva Transferencia de ISR</h5>
