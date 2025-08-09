@@ -83,81 +83,82 @@ require_once '../includes/header.php';
         </form>
     </div>
 </div>
+<?php if ($selected_date): ?>
+      <!-- Tabla de Estado de las Quincenas (Solo se muestra si hay una fecha seleccionada) -->
+      <div class="card mt-4">
+          <div class="card-header">
+              <i class="fas fa-calendar-alt me-1"></i>
+              <?php
+                 $fecha_titulo = new DateTime($selected_date);
+                 $nombre_mes = get_month_name_es($fecha_titulo->format('n'));
+                 $anio = $fecha_titulo->format('Y');
+                 echo "Estado para " . ucfirst($nombre_mes) . ' de ' . $anio;
+              ?>
+          </div>
+          <div class="table-responsive">
+              <table class="table table-bordered table-striped mb-0">
+                  <thead class="table-light">
+                      <tr>
+                          <th>Quincena</th>
+                          <th>Período</th>
+                          <th class="text-center">Estado</th>
+                          <th class="text-center" style="width: 200px;">Acciones</th>
+                      </tr>
+                  </thead>
+                  <tbody>
+                      <!-- Fila para la Primera Quincena -->
+                      <tr>
+                          <td><strong>1ra Quincena</strong></td>
+                          <td><?php echo $q1_inicio . ' al ' . $q1_fin; ?></td>
+                          <td class="text-center">
+                              <?php if ($q1_procesada): ?>
+                                  <span class="badge bg-success">Procesada</span>
+                              <?php else: ?>
+                                  <span class="badge bg-warning text-dark">Pendiente</span>
+                              <?php endif; ?>
+                          </td>
+                          <td class="text-center">
+                              <?php if ($q1_procesada): ?>
+                                  <a href="<?php echo BASE_URL; ?>payroll/show.php?id=<?php echo $q1_procesada['id']; ?>" class="btn btn-sm btn-info">Ver Nómina</a>
+                                  <a href="procesar_nomina_admin.php?recalculate_id=<?php echo $q1_procesada['id']; ?>" class="btn btn-sm btn-secondary" onclick="return confirm('¿Seguro que quieres recalcular esta quincena?');">Recalcular</a>
+                              <?php else: ?>
+                                  <form action="procesar_nomina_admin.php" method="POST" class="d-inline">
+                                      <input type="hidden" name="fecha_inicio" value="<?php echo $q1_inicio; ?>">
+                                      <input type="hidden" name="fecha_fin" value="<?php echo $q1_fin; ?>">
+                                      <button type="submit" class="btn btn-sm btn-primary">Procesar 1ra Quincena</button>
+                                  </form>
+                              <?php endif; ?>
+                          </td>
+                      </tr>
+                      <!-- Fila para la Segunda Quincena -->
+                      <tr>
+                          <td><strong>2da Quincena</strong></td>
+                          <td><?php echo $q2_inicio . ' al ' . $q2_fin; ?></td>
+                          <td class="text-center">
+                              <?php if ($q2_procesada): ?>
+                                  <span class="badge bg-success">Procesada</span>
+                              <?php else: ?>
+                                  <span class="badge bg-warning text-dark">Pendiente</span>
+                              <?php endif; ?>
+                          </td>
+                          <td class="text-center">
+                              <?php if ($q2_procesada): ?>
+                                  <a href="<?php echo BASE_URL; ?>payroll/show.php?id=<?php echo $q2_procesada['id']; ?>" class="btn btn-sm btn-info">Ver Nómina</a>
+                                  <a href="procesar_nomina_admin.php?recalculate_id=<?php echo $q2_procesada['id']; ?>" class="btn btn-sm btn-secondary" onclick="return confirm('¿Seguro que quieres recalcular esta quincena?');">Recalcular</a>
+                              <?php else: ?>
+                                  <form action="procesar_nomina_admin.php" method="POST" class="d-inline">
+                                      <input type="hidden" name="fecha_inicio" value="<?php echo $q2_inicio; ?>">
+                                      <input type="hidden" name="fecha_fin" value="<?php echo $q2_fin; ?>">
+                                      <button type="submit" class="btn btn-sm btn-primary">Procesar 2da Quincena</button>
+                                  </form>
+                              <?php endif; ?>
+                          </td>
+                      </tr>
+                  </tbody>
+              </table>
+          </div>
+      </div>
+      <?php endif; ?>
 
-<!-- Tabla de Estado de las Quincenas -->
-<div class="card">
-<div class="card-header">
-             <i class="fas fa-calendar-alt me-1"></i>
-             <?php
-                $fecha_titulo = new DateTime($selected_date);
-                $nombre_mes = get_month_name_es($fecha_titulo->format('n'));
-                $anio = $fecha_titulo->format('Y');
-                echo "Estado para " . ucfirst($nombre_mes) . ' de ' . $anio;
-             ?>
-         </div>
-
-    <div class="table-responsive">
-        <table class="table table-bordered table-striped mb-0">
-            <thead class="table-light">
-                <tr>
-                    <th>Quincena</th>
-                    <th>Período</th>
-                    <th class="text-center">Estado</th>
-                    <th class="text-center" style="width: 200px;">Acciones</th>
-                </tr>
-            </thead>
-            <tbody>
-                <!-- Fila para la Primera Quincena -->
-                <tr>
-                    <td><strong>1ra Quincena</strong></td>
-                    <td><?php echo $q1_inicio . ' al ' . $q1_fin; ?></td>
-                    <td class="text-center align-middle">
-                        <?php if ($q1_id): ?>
-                            <span class="badge bg-success">Procesada</span>
-                        <?php else: ?>
-                            <span class="badge bg-secondary">Pendiente</span>
-                        <?php endif; ?>
-                    </td>
-                    <td class="text-center">
-                        <?php if ($q1_id): ?>
-                            <a href="<?php echo BASE_URL; ?>payroll/show.php?id=<?php echo $q1_id; ?>" class="btn btn-sm btn-info">Ver / Recalcular</a>
-                        <?php else: ?>
-                            <form action="procesar_nomina_admin.php" method="POST" onsubmit="return confirm('¿Está seguro de que desea procesar la 1ra quincena?');">
-                                <input type="hidden" name="fecha_inicio" value="<?php echo $q1_inicio; ?>">
-                                <input type="hidden" name="fecha_fin" value="<?php echo $q1_fin; ?>">
-                                <input type="hidden" name="quincena" value="1">
-                                <button type="submit" class="btn btn-sm btn-primary">Procesar Nómina</button>
-                            </form>
-                        <?php endif; ?>
-                    </td>
-                </tr>
-                <!-- Fila para la Segunda Quincena -->
-                <tr>
-                    <td><strong>2da Quincena</strong></td>
-                    <td><?php echo $q2_inicio . ' al ' . $q2_fin; ?></td>
-                    <td class="text-center align-middle">
-                        <?php if ($q2_id): ?>
-                            <span class="badge bg-success">Procesada</span>
-                        <?php else: ?>
-                            <span class="badge bg-secondary">Pendiente</span>
-                        <?php endif; ?>
-                    </td>
-                    <td class="text-center">
-                        <?php if ($q2_id): ?>
-                            <a href="<?php echo BASE_URL; ?>payroll/show.php?id=<?php echo $q2_id; ?>" class="btn btn-sm btn-info">Ver / Recalcular</a>
-                        <?php else: ?>
-                            <form action="procesar_nomina_admin.php" method="POST" onsubmit="return confirm('¿Está seguro de que desea procesar la 2da quincena?');">
-                                <input type="hidden" name="fecha_inicio" value="<?php echo $q2_inicio; ?>">
-                                <input type="hidden" name="fecha_fin" value="<?php echo $q2_fin; ?>">
-                                <input type="hidden" name="quincena" value="2">
-                                <button type="submit" class="btn btn-sm btn-primary">Procesar Nómina</button>
-                            </form>
-                        <?php endif; ?>
-                    </td>
-                </tr>
-            </tbody>
-        </table>
-    </div>
-</div>
 
 <?php require_once '../includes/footer.php'; ?>
