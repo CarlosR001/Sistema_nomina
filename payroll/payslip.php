@@ -123,11 +123,14 @@ require_once '../includes/header.php';
 
     </div>
     <div class="card-footer text-center">
-         <?php if ($user_rol === 'Admin'): ?>
-            <a href="show.php?id=<?php echo htmlspecialchars($id_nomina); ?>" class="btn btn-secondary">Volver al Resumen de Nómina</a>
-         <?php else: ?>
-            <a href="<?php echo BASE_URL; ?>index.php" class="btn btn-secondary">Volver al Inicio</a>
+     <!-- Botones de Acción (Solo para usuarios con permiso de nómina) -->
+          <?php if (has_permission('nomina.procesar')): ?>
+                         <div class="col-12 mt-4 text-center">
+                             <a href="#" class="btn btn-primary"><i class="bi bi-envelope"></i> Enviar por Email</a>
+                             <a href="#" class="btn btn-secondary"><i class="bi bi-printer"></i> Imprimir</a>
+                         </div>
          <?php endif; ?>
+
          <button onclick="window.print()" class="btn btn-info">Imprimir</button>
     </div>
 </div>
