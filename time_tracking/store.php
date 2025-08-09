@@ -24,22 +24,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                  $redirect_url = "index.php" . ($id_periodo_reporte ? "?periodo_id=" . urlencode($id_periodo_reporte) : "");
                  $separator = $id_periodo_reporte ? "&" : "?";
      
-       // --- Validaciones ---
-       if (!is_numeric($id_contrato)) {
-           header("Location: " . $redirect_url . $separator . "status=error&message=Acceso%20no%20autorizado.");
-           exit();
-       }
-   
-       // Se valida id_orden en lugar de los campos antiguos
-       if (empty($id_orden) || empty($id_sub_lugar) || empty($fecha_trabajada) || !is_numeric($hora_inicio_num) || !is_numeric($hora_fin_num) || empty($id_periodo_reporte)) {
-           header("Location: " . $redirect_url . $separator . "status=error&message=Faltan%20campos%20requeridos.");
-           exit();
-       }
-   
-       if ($hora_fin_num <= $hora_inicio_num) {
-           header("Location: " . $redirect_url . $separator . "status=error&message=La%20hora%20fin%20debe%20ser%20posterior%20a%20la%20hora%20de%20inicio.");
-           exit();
-       }
+                  // --- Validaciones ---
+                  if (!is_numeric($id_contrato)) {
+                    header("Location: " . $redirect_url . $separator . "status=error&message=Acceso%20no%20autorizado.");
+                    exit();
+                }
+            
+                // Validación principal (sin sub_lugar, que es opcional en el formulario)
+                if (empty($id_orden) || empty($fecha_trabajada) || !is_numeric($hora_inicio_num) || !is_numeric($hora_fin_num) || empty($id_periodo_reporte)) {
+                    header("Location: " . $redirect_url . $separator . "status=error&message=Faltan campos requeridos.");
+                    exit();
+                }
+                
+                // Si no se seleccionó un sub_lugar, lo buscamos desde la orden.
+                if (empty($id_sub_lugar)) {
+                    $stmt_lugar = $pdo->prepare("SELECT id_lugar FROM ordenes WHERE id = ?");
+                    $stmt_lugar->execute([$id_orden]);
+                    $id_zona_trabajo = $stmt_lugar->fetchColumn();
+                } else {
+                    $id_zona_trabajo = $id_sub_lugar;
+                }
+    
+                if (!$id_zona_trabajo) {
+                    header("Location: " . $redirect_url . $separator . "status=error&message=Error: No se pudo determinar el lugar de trabajo para la orden seleccionada.");
+                    exit();
+                }
+            
+                if ($hora_fin_num <= $hora_inicio_num) {
+                    header("Location: " . $redirect_url . $separator . "status=error&message=La%20hora%20fin%20debe%20ser%20posterior%20a%20la%20hora%20de%20inicio.");
+                    exit();
+                }
+    
    
  
     
@@ -96,7 +111,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             $stmt_insert->execute([
                                 $id_contrato, 
                                 $id_orden,
-                                $id_sub_lugar, // <-- VALOR CORRECTO
+                                $id_zona_trabajo, // <-- VALOR CORREGIDO
                                 $id_periodo_reporte,
                                 $fecha_trabajada, 
                                 $hora_inicio, 

@@ -96,10 +96,6 @@ require_once '../includes/header.php';
 
 <h1 class="mb-4">Portal de Registro de Horas</h1>
 
-<?php if (isset($_GET['status'])): ?>
-    <div class="alert alert-<?php echo $_GET['status'] === 'success' ? 'success' : 'danger'; ?>"><?php echo htmlspecialchars(urldecode($_GET['message'] ?? 'Ocurrió un error.')); ?></div>
-<?php endif; ?>
-
 <div class="card mb-4">
     <div class="card-header bg-primary text-white">Registrar Nuevo Parte de Horas</div>
     <div class="card-body">
