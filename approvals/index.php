@@ -243,8 +243,41 @@ document.addEventListener('DOMContentLoaded', function () {
     const editModal = document.getElementById('editModal');
     const movimientosList = document.getElementById('movimientos-list');
     const addMovimientoForm = document.getElementById('addMovimientoForm');
+    const selectAllCheckbox = document.getElementById('selectAll');
 
-    // Función para cargar los movimientos de un registro de horas
+    // --- LÓGICA DEL MODAL DE EDICIÓN (CORREGIDA) ---
+    if (editModal) {
+        editModal.addEventListener('show.bs.modal', function (event) {
+            var button = event.relatedTarget; // Botón que activó el modal
+            
+            // --- INICIO: Bloque para rellenar el formulario principal (ESTA ES LA CORRECCIÓN) ---
+            var recordId = button.getAttribute('data-id');
+            var fecha = button.getAttribute('data-fecha');
+            var inicio = button.getAttribute('data-inicio');
+            var fin = button.getAttribute('data-fin');
+            var ordenId = button.getAttribute('data-orden-id');
+            var transporteAprobado = button.getAttribute('data-transporte-aprobado');
+            var graciaAntes = button.getAttribute('data-gracia-antes');
+            var graciaDespues = button.getAttribute('data-gracia-despues');
+
+            document.getElementById('edit-registro-id').value = recordId;
+            document.getElementById('edit-fecha').value = fecha;
+            document.getElementById('edit-inicio').value = inicio;
+            document.getElementById('edit-fin').value = fin;
+            document.getElementById('edit-orden').value = ordenId;
+            document.getElementById('editModalTitle').textContent = 'Editar Registro ID: ' + recordId;
+            document.getElementById('edit-transporte').checked = (transporteAprobado === '1');
+            document.getElementById('edit-gracia-antes').checked = (graciaAntes === '1');
+            document.getElementById('edit-gracia-despues').checked = (graciaDespues === '1');
+            // --- FIN: Bloque para rellenar el formulario principal ---
+
+            // Lógica para cargar los movimientos (sin cambios)
+            document.getElementById('movimiento-registro-id').value = recordId;
+            cargarMovimientos(recordId);
+        });
+    }
+
+    // --- FUNCIONES PARA GESTIONAR MOVIMIENTOS (SIN CAMBIOS) ---
     async function cargarMovimientos(registroId) {
         movimientosList.innerHTML = '<tr><td colspan="2" class="text-center">Cargando...</td></tr>';
         try {
@@ -273,59 +306,41 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    // Función para eliminar un movimiento
     window.eliminarMovimiento = async function(movimientoId, registroId) {
         if (!confirm('¿Estás seguro de que deseas eliminar este movimiento?')) return;
-        
         const formData = new FormData();
         formData.append('id_movimiento', movimientoId);
-
         try {
             await fetch('delete_movimiento.php', { method: 'POST', body: formData });
-            cargarMovimientos(registroId); // Recargar la lista
-        } catch (error) {
-            alert('Error al eliminar el movimiento.');
-        }
+            cargarMovimientos(registroId);
+        } catch (error) { alert('Error al eliminar el movimiento.'); }
     }
 
-    // Evento para cuando se muestra el modal
-    if (editModal) {
-        editModal.addEventListener('show.bs.modal', function (event) {
-            var button = event.relatedTarget;
-            // (Lógica para rellenar el formulario principal - sin cambios)
-            var recordId = button.getAttribute('data-id');
-            // ... (el resto del código para rellenar los campos)
-
-            // Cargar los movimientos para este registro
-            document.getElementById('movimiento-registro-id').value = recordId;
-            cargarMovimientos(recordId);
-        });
-    }
-
-    // Evento para añadir un nuevo movimiento
     if (addMovimientoForm) {
         addMovimientoForm.addEventListener('submit', async function(e) {
             e.preventDefault();
             const formData = new FormData(this);
             const select = this.querySelector('select');
-            
             try {
                 const response = await fetch('add_movimiento.php', { method: 'POST', body: formData });
                 const result = await response.json();
-
                 if(result.success) {
-                    cargarMovimientos(formData.get('id_registro_horas')); // Recargar lista
-                    select.selectedIndex = 0; // Resetear el dropdown
-                } else {
-                    alert('Error: ' + result.message);
-                }
-            } catch (error) {
-                alert('Error de conexión al añadir el movimiento.');
-            }
+                    cargarMovimientos(formData.get('id_registro_horas'));
+                    select.selectedIndex = 0;
+                } else { alert('Error: ' + result.message); }
+            } catch (error) { alert('Error de conexión al añadir el movimiento.'); }
+        });
+    }
+    
+    // --- LÓGICA PARA "SELECCIONAR TODO" (SIN CAMBIOS) ---
+    if(selectAllCheckbox) {
+        selectAllCheckbox.addEventListener('change', function(e) {
+            document.querySelectorAll('input[name^="registros["]').forEach(c => c.checked = e.target.checked);
         });
     }
 });
 </script>
+
 
 
 
