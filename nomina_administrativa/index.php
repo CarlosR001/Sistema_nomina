@@ -10,6 +10,41 @@ function get_month_name_es($month_number) {
     $meses = [1 => 'Enero', 2 => 'Febrero', 3 => 'Marzo', 4 => 'Abril', 5 => 'Mayo', 6 => 'Junio', 7 => 'Julio', 8 => 'Agosto', 9 => 'Septiembre', 10 => 'Octubre', 11 => 'Noviembre', 12 => 'Diciembre'];
     return $meses[(int)$month_number] ?? 'Mes Desconocido';
 }
+// --- Lógica de Selección de Período ---
+$selected_month = $_GET['month'] ?? date('m');
+$selected_year = $_GET['year'] ?? date('Y');
+$form_submitted = isset($_GET['month']); // <-- La nueva variable "bandera"
+
+// Inicializar variables para evitar errores
+$q1_procesada = null;
+$q2_procesada = null;
+$q1_inicio = null;
+$q1_fin = null;
+$q2_inicio = null;
+$q2_fin = null;
+$selected_date = null; // Se define como null por defecto
+
+// Ejecutar la lógica solo si el usuario ha presionado "Consultar Estado"
+if ($form_submitted) {
+    $selected_date = $selected_year . '-' . $selected_month . '-01';
+    $days_in_month = date('t', strtotime($selected_date));
+
+    // Calcular períodos de quincena
+    $q1_inicio = $selected_year . '-' . $selected_month . '-01';
+    $q1_fin = $selected_year . '-' . $selected_month . '-15';
+    $q2_inicio = $selected_year . '-' . $selected_month . '-16';
+    $q2_fin = $selected_year . '-' . $selected_month . '-' . $days_in_month;
+
+    // Verificar estado de la primera quincena
+    $stmt_q1 = $pdo->prepare("SELECT id FROM nominasprocesadas WHERE tipo_nomina_procesada = 'Administrativa' AND periodo_inicio = ? AND periodo_fin = ?");
+    $stmt_q1->execute([$q1_inicio, $q1_fin]);
+    $q1_procesada = $stmt_q1->fetch(PDO::FETCH_ASSOC);
+
+    // Verificar estado de la segunda quincena
+    $stmt_q2 = $pdo->prepare("SELECT id FROM nominasprocesadas WHERE tipo_nomina_procesada = 'Administrativa' AND periodo_inicio = ? AND periodo_fin = ?");
+    $stmt_q2->execute([$q2_inicio, $q2_fin]);
+    $q2_procesada = $stmt_q2->fetch(PDO::FETCH_ASSOC);
+}
 
 // 1. Obtener todas las nóminas administrativas que ya fueron procesadas
 $stmt_processed = $pdo->query("
@@ -85,7 +120,7 @@ require_once '../includes/header.php';
 </div>
 
 <!-- Tabla de Estado de las Quincenas -->
-<?php if ($selected_date): ?>
+<?php if ($form_submitted): ?>
 <div class="card">
 <div class="card-header">
              <i class="fas fa-calendar-alt me-1"></i>
