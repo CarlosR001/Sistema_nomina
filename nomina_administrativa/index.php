@@ -82,6 +82,13 @@ $q2_fin = date('Y-m-t', mktime(0, 0, 0, $selected_month, 1, $selected_year)); //
 $q2_key = "$selected_year-" . str_pad($selected_month, 2, '0', STR_PAD_LEFT) . "-2";
 $q2_id = $processed_lookup[$q2_key] ?? null; // Buscamos si ya fue procesada.
 
+$months = [];
+for ($i = 1; $i <= 12; $i++) {
+    $months[$i] = get_month_name_es($i);
+}
+$current_year = date('Y');
+$years = range($current_year, $current_year - 5);
+
 require_once '../includes/header.php';
 ?>
 
