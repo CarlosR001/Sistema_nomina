@@ -21,11 +21,11 @@ $stmt_nominas = $pdo->query("
         tipo_nomina_procesada, 
         estado_nomina, 
         fecha_ejecucion 
-    FROM nominasprocesadas 
+    FROM nominasprocesadas
+    WHERE tipo_nomina_procesada = 'Inspectores' -- SE AÑADE ESTA CONDICIÓN CLAVE
     ORDER BY periodo_fin DESC
 ");
 $nominas = $stmt_nominas->fetchAll(PDO::FETCH_ASSOC);
-
 
 // 2. Agrupar las nóminas por mes y año en un array de PHP
 $nominas_agrupadas = [];
