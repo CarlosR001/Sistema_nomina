@@ -21,7 +21,7 @@ $stmt_nominas = $pdo->query("
         tipo_nomina_procesada, 
         estado_nomina, 
         fecha_ejecucion 
-    FROM nominasprocesadas -- CORRECCIÓN: Nombre de la tabla en minúsculas
+    FROM nominasprocesadas 
     ORDER BY periodo_fin DESC
 ");
 $nominas = $stmt_nominas->fetchAll(PDO::FETCH_ASSOC);

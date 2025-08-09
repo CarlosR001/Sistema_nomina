@@ -12,7 +12,7 @@ if (empty($_GET['id']) || !is_numeric($_GET['id'])) {
 $id_nomina = $_GET['id'];
 
 // Obtener la información de la cabecera de la nómina
-$stmt_nomina = $pdo->prepare("SELECT * FROM NominasProcesadas WHERE id = ?");
+$stmt_nomina = $pdo->prepare("SELECT * FROM nominasProcesadas WHERE id = ?");
 $stmt_nomina->execute([$id_nomina]);
 $nomina = $stmt_nomina->fetch();
 
