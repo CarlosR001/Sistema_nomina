@@ -83,18 +83,20 @@ require_once '../includes/header.php';
                     <input type="date" class="form-control" id="fecha_trabajada" name="fecha_trabajada" required>
                 </div>
                 <div class="col-md-2">
-                    <label for="hora_inicio" class="form-label">Hora Inicio Real</label>
-                    <input type="time" class="form-control" id="hora_inicio" name="hora_inicio" required>
+                    <label for="hora_inicio" class="form-label">Hora Inicio (0-24)</label>
+                    <input type="number" class="form-control" id="hora_inicio" name="hora_inicio" min="0" max="24" required>
                 </div>
                 <div class="col-md-2">
-                    <label for="hora_fin" class="form-label">Hora Fin Real</label>
-                    <input type="time" class="form-control" id="hora_fin" name="hora_fin" required>
+                    <label for="hora_fin" class="form-label">Hora Fin (0-24)</label>
+                    <input type="number" class="form-control" id="hora_fin" name="hora_fin" min="0" max="24" required>
                 </div>
+
                 <div class="col-md-2">
                     <button type="submit" class="btn btn-primary w-100">Registrar</button>
                 </div>
             </div>
         </form>
+
 
 
             </div>

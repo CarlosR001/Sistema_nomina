@@ -13,12 +13,18 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 try {
     $id_contrato = filter_input(INPUT_POST, 'id_contrato', FILTER_VALIDATE_INT);
     $fecha_trabajada = $_POST['fecha_trabajada'];
-    $hora_inicio_str = $_POST['hora_inicio'];
-    $hora_fin_str = $_POST['hora_fin'];
+    $hora_inicio_num = $_POST['hora_inicio'];
+    $hora_fin_num = $_POST['hora_fin'];
 
-    if (!$id_contrato || !$fecha_trabajada || !$hora_inicio_str || !$hora_fin_str) {
+    if (!$id_contrato || !$fecha_trabajada || $hora_inicio_num === null || $hora_fin_num === null) {
         throw new Exception("Todos los campos son obligatorios.");
     }
+
+    // --- CONVERSIÓN DE HORA NUMÉRICA A FORMATO TIME (como los inspectores) ---
+    $hora_inicio_str = $hora_inicio_num . ":00:00";
+    $hora_fin_str = ($hora_fin_num == 24) ? "23:59:59" : $hora_fin_num . ":00:00";
+    // --- FIN DE LA CONVERSIÓN ---
+
 
     // 1. Obtener datos del contrato: salario y horario normal.
     $stmt_contrato = $pdo->prepare("SELECT salario_mensual_bruto, horario_entrada, horario_salida FROM Contratos WHERE id = ? AND permite_horas_extras = 1");
