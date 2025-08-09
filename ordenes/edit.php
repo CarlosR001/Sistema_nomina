@@ -27,8 +27,17 @@ $lugares = $pdo->query("SELECT id, nombre_zona_o_muelle FROM lugares ORDER BY no
 $productos = $pdo->query("SELECT id, nombre_producto FROM productos ORDER BY nombre_producto")->fetchAll();
 $operaciones = $pdo->query("SELECT id, nombre_operacion FROM operaciones ORDER BY nombre_operacion")->fetchAll();
 $divisiones = $pdo->query("SELECT id, nombre_division FROM divisiones ORDER BY nombre_division")->fetchAll();
-// AÑADIDO: Cargar lista de supervisores
-$supervisores = $pdo->query("SELECT e.id, e.nombres, e.primer_apellido FROM empleados e JOIN usuarios u ON e.id = u.id_empleado WHERE u.rol = 'Supervisor' ORDER BY e.nombres")->fetchAll();
+
+// CORRECCIÓN: Cargar supervisores usando el nuevo sistema de roles
+$supervisores = $pdo->query("
+    SELECT e.id, e.nombres, e.primer_apellido 
+    FROM empleados e 
+    JOIN usuarios u ON e.id = u.id_empleado
+    JOIN usuario_rol ur ON u.id = ur.id_usuario
+    JOIN roles r ON ur.id_rol = r.id
+    WHERE r.nombre_rol = 'Supervisor' 
+    ORDER BY e.nombres
+")->fetchAll();
 
 require_once '../includes/header.php';
 ?>
