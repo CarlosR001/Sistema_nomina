@@ -14,7 +14,7 @@ $empleados_data = $_SESSION['tss_export_data'];
 $period_info = $_SESSION['tss_export_period'];
 $year = $period_info['year'];
 $month = $period_info['month'];
-$periodo_tss_header = sprintf('%04d%02d', $year, $month);
+$periodo_tss_header = sprintf('%02d%04d', $month, $year);
 $periodo_tss_filename = sprintf('%02d%04d', $month, $year);
 
 // --- FUNCIONES DE AYUDA (Traducción directa de la lógica VBA "Abultar...") ---
