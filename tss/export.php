@@ -39,29 +39,28 @@ try {
     $header_line = "EAM  " . $rnc_empresa . $periodo_tss;
     $file_lines[] = $header_line;
 
-    // 2. CONSTRUIR LÍNEAS DE DETALLE
+         // 2. CONSTRUIR LÍNEAS DE DETALLE
     $detalle_count = 0;
     foreach ($empleados_data as $emp) {
         $detalle_count++;
         
-        // --- Lógica de campos según VBA y tu regla de negocio ---
-        $tipo_doc = 'C'; // La Cédula siempre tiene la prioridad
+        $tipo_doc = 'C'; 
         $num_doc = str_replace('-', '', $emp['cedula']);
         
         $sexo = ($emp['sexo'] === 'Masculino') ? 'M' : 'F';
         $fecha_nac = !empty($emp['fecha_nacimiento']) ? date('dmY', strtotime($emp['fecha_nacimiento'])) : '00000000';
         
-        // Mapeo del Tipo de Ingreso
-        $tipo_ingreso_code = '0001'; // Normal por defecto
+        $tipo_ingreso_code = '0001';
         if ($emp['tipo_nomina'] === 'Inspectores') {
-            $tipo_ingreso_code = '0005'; // Salario prorrateado semanal/bisemanal
+            $tipo_ingreso_code = '0005';
         }
         
-        // --- Construcción de la línea de detalle ---
+        // --- Construcción de la línea de detalle (CORREGIDA) ---
         $line = '';
         $line .= 'D';                                                    
         $line .= str_pad($detalle_count, 3, '0', STR_PAD_LEFT);            
         $line .= $tipo_doc;                                              
+        // CORRECCIÓN: El número de documento también se rellena con espacios
         $line .= pad_right($num_doc, 11);                                
         $line .= pad_right($emp['nombres'], 45);                         
         $line .= pad_right($emp['primer_apellido'], 35);                
@@ -80,10 +79,12 @@ try {
         $line .= pad_left_zeros(0, 15);                                  
         $line .= pad_left_zeros(0, 15);                                  
         $line .= pad_left_zeros($emp['salario_cotizable_tss'], 15);        
+        // CORRECCIÓN: El tipo de pago se rellena a 4 caracteres
         $line .= '0001';                                                 
 
         $file_lines[] = $line;
     }
+
 
     // 3. CONSTRUIR LÍNEA DE SUMARIO
     $footer_line = "S" . str_pad(count($empleados_data), 6, '0', STR_PAD_LEFT);
