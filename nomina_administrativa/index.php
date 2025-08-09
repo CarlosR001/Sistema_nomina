@@ -85,6 +85,7 @@ require_once '../includes/header.php';
 </div>
 
 <!-- Tabla de Estado de las Quincenas -->
+<?php if ($selected_date): ?>
 <div class="card">
 <div class="card-header">
              <i class="fas fa-calendar-alt me-1"></i>
@@ -159,5 +160,5 @@ require_once '../includes/header.php';
         </table>
     </div>
 </div>
-
+<?php endif; ?>
 <?php require_once '../includes/footer.php'; ?>
