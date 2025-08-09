@@ -14,25 +14,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     try {
-        // Verificar si la zona está siendo usada en alguna orden
+        // Verificar si el lugar (o sub-lugar) está siendo usado en alguna orden
         $stmt_check = $pdo->prepare("SELECT COUNT(*) FROM ordenes WHERE id_lugar = ?");
         $stmt_check->execute([$id]);
         if ($stmt_check->fetchColumn() > 0) {
-            throw new Exception("No se puede eliminar la zona porque está asignada a una o más órdenes.");
+            throw new Exception("No se puede eliminar el lugar principal porque está asignado a una o más órdenes.");
+        }
+        
+        // Adicionalmente, verificar si es un sub-lugar y está en uso en registro_movimientos_transporte
+        $stmt_check_mov = $pdo->prepare("SELECT COUNT(*) FROM registro_movimientos_transporte WHERE id_sub_lugar = ?");
+        $stmt_check_mov->execute([$id]);
+        if ($stmt_check_mov->fetchColumn() > 0) {
+            throw new Exception("No se puede eliminar el sub-lugar porque tiene movimientos de transporte registrados.");
         }
 
-        // Si no está en uso, proceder a eliminar
-        $stmt = $pdo->prepare("DELETE FROM zonastransporte WHERE id = ?");
+        // Si no está en uso, proceder a eliminar de la tabla 'lugares'
+        $stmt = $pdo->prepare("DELETE FROM lugares WHERE id = ?");
         $stmt->execute([$id]);
 
-        header('Location: index.php?status=success&message=' . urlencode('Zona eliminada correctamente.'));
+        header('Location: index.php?status=success&message=' . urlencode('Lugar/Sub-Lugar eliminado correctamente.'));
         exit;
 
     } catch (Exception $e) {
-        $message = urlencode('Error al eliminar la zona: ' . $e->getMessage());
+        $message = urlencode('Error al eliminar: ' . $e->getMessage());
         header('Location: index.php?status=error&message=' . $message);
         exit;
     }
+
 } else {
     header('Location: index.php');
     exit;
