@@ -79,26 +79,27 @@ require_once '../includes/header.php';
             </tr>
         </thead>
         <tbody>
-            <?php foreach ($empleados_data as $emp): ?>
-                <?php
-                    $tipo_ingreso_tss = ($emp['tipo_nomina'] === 'Inspectores') ? '05' : '01';
-                    $sexo_tss = ($emp['sexo'] === 'Masculino') ? 'M' : 'F';
-                ?>
-                <tr>
-                    <td><?php echo htmlspecialchars($emp['cedula']); ?></td>
-                    <td><?php echo htmlspecialchars($emp['nss']); ?></td>
-                    <td><?php echo htmlspecialchars($emp['nombres'] . ' ' . $emp['primer_apellido']); ?></td>
-                    <td class="text-center"><?php echo $sexo_tss; ?></td>
-                    <td><?php echo date('d/m/Y', strtotime($emp['fecha_nacimiento'])); ?></td>
-                    <td class="text-end fw-bold"><?php echo number_format($emp['salario_cotizable_tss'], 2); ?></td>
-                    <td class="text-end"><?php echo number_format($emp['base_isr'], 2); ?></td>
-                    <td class="text-end"><?php echo number_format($emp['otras_remuneraciones'], 2); ?></td>
-                    <td class="text-center"><span class="badge bg-secondary"><?php echo $tipo_ingreso_tss; ?></span></td>
-                    <td class="text-end"><?php echo number_format(0, 2); ?></td>
-                    <td class="text-end"><?php echo number_format($emp['salario_cotizable_tss'], 2); ?></td>
-                </tr>
-            <?php endforeach; ?>
-        </tbody>
+                  <?php foreach ($empleados_data as $emp): ?>
+                      <?php
+                          $tipo_ingreso_tss = ($emp['tipo_nomina'] === 'Inspectores') ? '05' : '01';
+                          $sexo_tss = ($emp['sexo'] === 'Masculino') ? 'M' : 'F';
+                      ?>
+                      <tr>
+                          <td><?php echo htmlspecialchars($emp['cedula']); ?></td>
+                          <td><?php echo htmlspecialchars($emp['nss'] ?? 'N/A'); ?></td>
+                          <td><?php echo htmlspecialchars($emp['nombres'] . ' ' . $emp['primer_apellido']); ?></td>
+                          <td class="text-center"><?php echo $sexo_tss; ?></td>
+                          <td><?php echo !empty($emp['fecha_nacimiento']) ? date('d/m/Y', strtotime($emp['fecha_nacimiento'])) : 'N/A'; ?></td>
+                          <td class="text-end fw-bold"><?php echo number_format($emp['salario_cotizable_tss'], 2); ?></td>
+                          <td class="text-end"><?php echo number_format($emp['base_isr'], 2); ?></td>
+                          <td class="text-end"><?php echo number_format($emp['otras_remuneraciones'], 2); ?></td>
+                          <td class="text-center"><span class="badge bg-secondary"><?php echo $tipo_ingreso_tss; ?></span></td>
+                          <td class="text-end"><?php echo number_format(0, 2); ?></td>
+                          <td class="text-end"><?php echo number_format($emp['salario_cotizable_tss'], 2); ?></td>
+                      </tr>
+                  <?php endforeach; ?>
+             </tbody>
+
     </table>
 </div>
 
