@@ -1,5 +1,5 @@
 <?php
-// tss/export.php - v3.0 (Nuevo Formato de Ancho Fijo)
+// tss/export.php - v4.1 (Lógica Final y Precisa basada en VBA de TSS)
 
 require_once '../auth.php';
 require_login();
@@ -16,12 +16,12 @@ $year = $period_info['year'];
 $month = $period_info['month'];
 $periodo_tss = sprintf('%04d%02d', $year, $month);
 
-// --- FUNCIONES DE AYUDA PARA ANCHO FIJO ---
-function pad_str($value, $length) {
+// --- FUNCIONES DE AYUDA (Traducción directa de la lógica VBA "Abultar...") ---
+function pad_right($value, $length) { // Lógica de AbultarParametroCI
     return str_pad(substr(trim($value), 0, $length), $length, ' ', STR_PAD_RIGHT);
 }
-function pad_num($value, $length) {
-    $formatted = number_format((float)$value, 2, '', '');
+function pad_left_zeros($value, $length) { // Lógica de AbultarParametroN
+    $formatted = number_format((float)$value, 2, '.', '');
     return str_pad($formatted, $length, '0', STR_PAD_LEFT);
 }
 // --- FIN DE FUNCIONES ---
@@ -44,33 +44,43 @@ try {
     foreach ($empleados_data as $emp) {
         $detalle_count++;
         
-        $tipo_ingreso_tss = ($emp['tipo_nomina'] === 'Inspectores') ? '05' : '01';
-        $sexo_tss = ($emp['sexo'] === 'Masculino') ? 'M' : 'F';
-        $fecha_nac_tss = !empty($emp['fecha_nacimiento']) ? date('Ymd', strtotime($emp['fecha_nacimiento'])) : str_repeat(' ', 8);
+        // --- Lógica de campos según VBA y tu regla de negocio ---
+        $tipo_doc = 'C'; // La Cédula siempre tiene la prioridad
+        $num_doc = str_replace('-', '', $emp['cedula']);
         
+        $sexo = ($emp['sexo'] === 'Masculino') ? 'M' : 'F';
+        $fecha_nac = !empty($emp['fecha_nacimiento']) ? date('dmY', strtotime($emp['fecha_nacimiento'])) : '00000000';
+        
+        // Mapeo del Tipo de Ingreso
+        $tipo_ingreso_code = '0001'; // Normal por defecto
+        if ($emp['tipo_nomina'] === 'Inspectores') {
+            $tipo_ingreso_code = '0005'; // Salario prorrateado semanal/bisemanal
+        }
+        
+        // --- Construcción de la línea de detalle ---
         $line = '';
-        $line .= 'D';                                              // Tipo de Registro (1)
-        $line .= str_pad($detalle_count, 3, '0', STR_PAD_LEFT);      // Secuencia (3)
-        $line .= 'C';                                              // Tipo de Documento (1)
-        $line .= str_pad(str_replace('-', '', $emp['cedula']), 11, ' '); // Cédula (11)
-        $line .= pad_str($emp['nombres'], 45);                     // Nombres (45)
-        $line .= pad_str($emp['primer_apellido'], 35);            // Apellido 1 (35)
-        $line .= pad_str($emp['segundo_apellido'], 35);           // Apellido 2 (35)
-        $line .= $sexo_tss;                                        // Sexo (1)
-        $line .= $fecha_nac_tss;                                   // Fecha Nacimiento (8)
-        $line .= pad_num($emp['salario_cotizable_tss'], 15);        // Salario Cotizable TSS (15)
-        $line .= pad_num(0, 15);                                   // Aporte Voluntario (15)
-        $line .= pad_num($emp['base_isr'], 15);                     // Salario para ISR (15)
-        $line .= pad_str($tipo_ingreso_tss, 11);                   // Tipo de Ingreso (11) - Se alarga para coincidir
-        $line .= pad_num($emp['otras_remuneraciones'], 15);         // Otras Remuneraciones (15)
-        $line .= str_repeat(' ', 11);                              // RNC Agente de Retención (11)
-        $line .= pad_num(0, 15);                                   // Remuneraciones Otros Agentes (15)
-        $line .= pad_num(0, 15);                                   // Saldo a Favor (15)
-        $line .= pad_num(0, 15);                                   // Regalía Pascual (15)
-        $line .= pad_num(0, 15);                                   // Preaviso y Cesantía (15)
-        $line .= pad_num(0, 15);                                   // Pensión Alimenticia (15)
-        $line .= pad_num($emp['salario_cotizable_tss'], 15);        // Salario INFOTEP (15)
-        $line .= '0001';                                           // Tipo de Pago (4)
+        $line .= 'D';                                                    
+        $line .= str_pad($detalle_count, 3, '0', STR_PAD_LEFT);            
+        $line .= $tipo_doc;                                              
+        $line .= pad_right($num_doc, 11);                                
+        $line .= pad_right($emp['nombres'], 45);                         
+        $line .= pad_right($emp['primer_apellido'], 35);                
+        $line .= pad_right($emp['segundo_apellido'], 35);               
+        $line .= $sexo;                                                  
+        $line .= $fecha_nac;                                             
+        $line .= pad_left_zeros($emp['salario_cotizable_tss'], 15);      
+        $line .= pad_left_zeros(0, 15);                                  
+        $line .= pad_left_zeros($emp['base_isr'] ?? 0, 15);               
+        $line .= pad_right($tipo_ingreso_code, 11);                      
+        $line .= pad_left_zeros($emp['otras_remuneraciones'], 15);         
+        $line .= pad_right('', 11);                                      
+        $line .= pad_left_zeros(0, 15);                                  
+        $line .= pad_left_zeros(0, 15);                                  
+        $line .= pad_left_zeros(0, 15);                                  
+        $line .= pad_left_zeros(0, 15);                                  
+        $line .= pad_left_zeros(0, 15);                                  
+        $line .= pad_left_zeros($emp['salario_cotizable_tss'], 15);        
+        $line .= '0001';                                                 
 
         $file_lines[] = $line;
     }
