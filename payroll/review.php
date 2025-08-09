@@ -52,10 +52,10 @@ require_once '../includes/header.php';
 <?php endif; ?>
 
 <div class="accordion" id="accordionNominas">
-    <?php if (empty($nominas_por_mes)): ?>
+<?php if (empty($nominas_agrupadas)): ?>
         <div class="alert alert-info">Aún no hay nóminas procesadas para revisar.</div>
     <?php else: ?>
-        <?php foreach ($nominas_por_mes as $mes_key => $nominas_del_mes): ?>
+        <?php foreach ($nominas_agrupadas as $mes => $nominas): ?>
             <?php
                 // Formatear la clave '2025-07' a un formato legible como "Julio de 2025"
                 $fecha_mes = new DateTime($mes_key . '-01');
