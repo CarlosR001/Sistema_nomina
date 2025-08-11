@@ -52,7 +52,7 @@ $mode = $_POST['mode'];
 try {
     if ($mode === 'final') $pdo->beginTransaction();
 
-    $stmt_periodo = $pdo->prepare("SELECT * FROM PeriodosDeReporte WHERE id = ?");
+    $stmt_periodo = $pdo->prepare("SELECT * FROM periodosdereporte WHERE id = ?");
     $stmt_periodo->execute([$periodo_id]);
     $periodo = $stmt_periodo->fetch();
     if (!$periodo) throw new Exception("Período no válido.");
@@ -61,16 +61,16 @@ try {
 
     if ($mode === 'preview') {
         // CORRECCIÓN: La consulta ahora solo busca registros en estado 'Pendiente'.
-        $stmt_check_pendientes = $pdo->prepare("SELECT COUNT(id) FROM RegistroHoras WHERE estado_registro = 'Pendiente' AND fecha_trabajada BETWEEN ? AND ?");
+        $stmt_check_pendientes = $pdo->prepare("SELECT COUNT(id) FROM registrohoras WHERE estado_registro = 'Pendiente' AND fecha_trabajada BETWEEN ? AND ?");
         $stmt_check_pendientes->execute([$fecha_inicio, $fecha_fin]);
         $_SESSION['pending_hours_check'] = $stmt_check_pendientes->fetchColumn();
     }
     
          // Cargar datos maestros (feriados, conceptos, lugares)
-    $feriados_stmt = $pdo->prepare("SELECT fecha FROM CalendarioLaboralRD WHERE fecha BETWEEN ? AND ?");
+    $feriados_stmt = $pdo->prepare("SELECT fecha FROM calendariolaboralrd WHERE fecha BETWEEN ? AND ?");
     $feriados_stmt->execute([$fecha_inicio, $fecha_fin]);
     $feriados = $feriados_stmt->fetchAll(PDO::FETCH_COLUMN);
-    $conceptos = $pdo->query("SELECT codigo_concepto, id FROM ConceptosNomina")->fetchAll(PDO::FETCH_KEY_PAIR);
+    $conceptos = $pdo->query("SELECT codigo_concepto, id FROM conceptosnomina")->fetchAll(PDO::FETCH_KEY_PAIR);
     // CORRECCIÓN: Se lee desde la tabla 'lugares'
     $zonas = $pdo->query("SELECT id, monto_transporte_completo FROM lugares")->fetchAll(PDO::FETCH_KEY_PAIR);
 
@@ -84,9 +84,9 @@ try {
                     o.id_lugar AS id_zona_trabajo, -- <-- Se obtiene de la orden y se renombra
                     rh.transporte_aprobado,
                     rh.hora_gracia_antes, rh.hora_gracia_despues 
-                  FROM Contratos c 
-                  JOIN Empleados e ON c.id_empleado = e.id 
-                  JOIN RegistroHoras rh ON c.id = rh.id_contrato
+                  FROM contratos c 
+                  JOIN empleados e ON c.id_empleado = e.id 
+                  JOIN registrohoras rh ON c.id = rh.id_contrato
                   LEFT JOIN ordenes o ON rh.id_orden = o.id -- <-- Nueva unión
                   WHERE c.tipo_nomina = 'Inspectores' 
                     AND rh.estado_registro = 'Aprobado' 
@@ -192,17 +192,17 @@ try {
         $codigos_automaticos = ['ING-NORMAL', 'ING-EXTRA', 'ING-FERIADO', 'ING-NOCTURNO', 'ING-TRANSP'];
         $codigos_auto_placeholders = implode(',', array_fill(0, count($codigos_automaticos), '?'));
         
-        $sql_rescate = "SELECT np.id_contrato, np.id_concepto, np.periodo_aplicacion, np.monto_valor FROM NovedadesPeriodo np JOIN ConceptosNomina cn ON np.id_concepto = cn.id WHERE np.id_contrato IN ($contratos_placeholders) AND np.periodo_aplicacion BETWEEN ? AND ? AND cn.codigo_concepto NOT IN ($codigos_auto_placeholders)";
+        $sql_rescate = "SELECT np.id_contrato, np.id_concepto, np.periodo_aplicacion, np.monto_valor FROM novedadesperiodo np JOIN conceptosnomina cn ON np.id_concepto = cn.id WHERE np.id_contrato IN ($contratos_placeholders) AND np.periodo_aplicacion BETWEEN ? AND ? AND cn.codigo_concepto NOT IN ($codigos_auto_placeholders)";
         $stmt_rescate = $pdo->prepare($sql_rescate);
         $params_rescate = array_merge($contratos_a_procesar, [$fecha_inicio, $fecha_fin], $codigos_automaticos);
         $stmt_rescate->execute($params_rescate);
         $novedades_manuales_rescatadas = $stmt_rescate->fetchAll(PDO::FETCH_ASSOC);
 
-        $sql_delete_total = "DELETE FROM NovedadesPeriodo WHERE id_contrato IN ($contratos_placeholders) AND periodo_aplicacion BETWEEN ? AND ?";
+        $sql_delete_total = "DELETE FROM novedadesperiodo WHERE id_contrato IN ($contratos_placeholders) AND periodo_aplicacion BETWEEN ? AND ?";
         $stmt_delete_total = $pdo->prepare($sql_delete_total);
         $stmt_delete_total->execute(array_merge($contratos_a_procesar, [$fecha_inicio, $fecha_fin]));
 
-        $stmt_insert = $pdo->prepare("INSERT INTO NovedadesPeriodo (id_contrato, id_concepto, periodo_aplicacion, monto_valor, estado_novedad) VALUES (?, ?, ?, ?, ?)");
+        $stmt_insert = $pdo->prepare("INSERT INTO novedadesperiodo (id_contrato, id_concepto, periodo_aplicacion, monto_valor, estado_novedad) VALUES (?, ?, ?, ?, ?)");
         
         foreach ($results as $contrato_id => $res) {
             if ($res['pago_normal'] > 0) $stmt_insert->execute([$contrato_id, $conceptos['ING-NORMAL'], $fecha_inicio, $res['pago_normal'], 'Pendiente']);

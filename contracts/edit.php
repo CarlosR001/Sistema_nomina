@@ -12,7 +12,7 @@ if (!isset($_GET['id']) || !is_numeric($_GET['id'])) {
 $id_contrato = $_GET['id'];
 
 // Obtener los datos del contrato a editar
-$stmt_contrato = $pdo->prepare("SELECT * FROM Contratos WHERE id = ?");
+$stmt_contrato = $pdo->prepare("SELECT * FROM contratos WHERE id = ?");
 $stmt_contrato->execute([$id_contrato]);
 $contrato = $stmt_contrato->fetch();
 
@@ -24,7 +24,7 @@ if (!$contrato) {
 // Obtener listas para los dropdowns
 $posiciones = $pdo->query("SELECT id, nombre_posicion,
     CASE WHEN LOWER(nombre_posicion) LIKE '%inspector%' THEN 1 ELSE 0 END as es_inspector
-    FROM Posiciones ORDER BY nombre_posicion")->fetchAll();
+    FROM posiciones ORDER BY nombre_posicion")->fetchAll();
 
 require_once '../includes/header.php';
 ?>

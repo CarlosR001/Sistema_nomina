@@ -9,13 +9,13 @@ require_permission('organizacion.gestionar'); // Solo Admin pueden gestionar pos
 
 // Obtener todas las posiciones
 $stmt_pos = $pdo->query("SELECT p.id, p.nombre_posicion, d.nombre_departamento 
-                         FROM Posiciones p 
-                         JOIN Departamentos d ON p.id_departamento = d.id 
+                         FROM posiciones p 
+                         JOIN departamentos d ON p.id_departamento = d.id 
                          ORDER BY p.nombre_posicion");
 $posiciones = $stmt_pos->fetchAll();
 
 // Obtener todos los departamentos para el dropdown
-$stmt_dep = $pdo->query("SELECT id, nombre_departamento FROM Departamentos WHERE estado = 'Activo' ORDER BY nombre_departamento");
+$stmt_dep = $pdo->query("SELECT id, nombre_departamento FROM departamentos WHERE estado = 'Activo' ORDER BY nombre_departamento");
 $departamentos = $stmt_dep->fetchAll();
 
 require_once '../includes/header.php';

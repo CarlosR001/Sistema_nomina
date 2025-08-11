@@ -11,7 +11,7 @@ if (!$id) {
     exit();
 }
 
-$stmt = $pdo->prepare("SELECT * FROM ConceptosNomina WHERE id = ?");
+$stmt = $pdo->prepare("SELECT * FROM conceptosnomina WHERE id = ?");
 $stmt->execute([$id]);
 $concepto = $stmt->fetch();
 

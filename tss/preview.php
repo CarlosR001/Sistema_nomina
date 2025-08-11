@@ -16,7 +16,7 @@ $year = (int)$_POST['year'];
 $month = (int)$_POST['month'];
 
 try {
-    $configs_db = $pdo->query("SELECT clave, valor FROM ConfiguracionGlobal")->fetchAll(PDO::FETCH_KEY_PAIR);
+    $configs_db = $pdo->query("SELECT clave, valor FROM configuracionglobal")->fetchAll(PDO::FETCH_KEY_PAIR);
     $rnc_empresa = $configs_db['RNC_EMPRESA'] ?? '';
 
     if (empty($rnc_empresa) || $rnc_empresa === 'XXXXXXXXX') {
@@ -29,11 +29,11 @@ try {
             SUM(CASE WHEN cn.afecta_tss = 1 AND nd.tipo_concepto = 'Ingreso' THEN nd.monto_resultado ELSE 0 END) as salario_cotizable_tss,
             SUM(CASE WHEN cn.afecta_isr = 1 AND nd.tipo_concepto = 'Ingreso' THEN nd.monto_resultado ELSE 0 END) as base_isr,
             SUM(CASE WHEN cn.afecta_tss = 0 AND nd.tipo_concepto = 'Ingreso' THEN nd.monto_resultado ELSE 0 END) as otras_remuneraciones
-        FROM NominasProcesadas np
-        JOIN NominaDetalle nd ON np.id = nd.id_nomina_procesada
-        JOIN Contratos c ON nd.id_contrato = c.id
-        JOIN Empleados e ON c.id_empleado = e.id
-        JOIN ConceptosNomina cn ON nd.codigo_concepto = cn.codigo_concepto
+        FROM nominasprocesadas np
+        JOIN nominadetalle nd ON np.id = nd.id_nomina_procesada
+        JOIN contratos c ON nd.id_contrato = c.id
+        JOIN empleados e ON c.id_empleado = e.id
+        JOIN conceptosnomina cn ON nd.codigo_concepto = cn.codigo_concepto
         WHERE YEAR(np.periodo_fin) = ? AND MONTH(np.periodo_fin) = ?
         GROUP BY e.id, c.tipo_nomina
         ORDER BY e.nombres, e.primer_apellido

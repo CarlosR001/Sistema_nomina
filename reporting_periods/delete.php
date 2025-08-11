@@ -18,7 +18,7 @@ try {
 
     // 1. VERIFICACIÓN DE SEGURIDAD:
     // Comprobar si existen registros de horas asociados a este período.
-    $stmt_check = $pdo->prepare("SELECT COUNT(id) FROM RegistroHoras WHERE id_periodo_reporte = ?");
+    $stmt_check = $pdo->prepare("SELECT COUNT(id) FROM registrohoras WHERE id_periodo_reporte = ?");
     $stmt_check->execute([$periodo_id]);
     $record_count = $stmt_check->fetchColumn();
 
@@ -28,7 +28,7 @@ try {
     }
 
     // 2. Si la verificación pasa, proceder con la eliminación.
-    $stmt_delete = $pdo->prepare("DELETE FROM PeriodosDeReporte WHERE id = ?");
+    $stmt_delete = $pdo->prepare("DELETE FROM periodosdereporte WHERE id = ?");
     $stmt_delete->execute([$periodo_id]);
 
     $pdo->commit();

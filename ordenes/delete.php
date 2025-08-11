@@ -17,7 +17,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $pdo->beginTransaction();
 
         // Verificar si la orden tiene horas registradas
-        $stmt_check = $pdo->prepare("SELECT COUNT(*) FROM RegistroHoras WHERE id_orden = ?");
+        $stmt_check = $pdo->prepare("SELECT COUNT(*) FROM registrohoras WHERE id_orden = ?");
         $stmt_check->execute([$id]);
         if ($stmt_check->fetchColumn() > 0) {
             throw new Exception("No se puede eliminar la orden porque ya tiene horas de trabajo registradas.");

@@ -12,7 +12,7 @@ if (!$contrato_inspector_id) {
 }
 
 // 1. Buscar TODOS los períodos de reporte abiertos para Inspectores
-$stmt_periodos = $pdo->query("SELECT * FROM PeriodosDeReporte WHERE tipo_nomina = 'Inspectores' AND estado_periodo = 'Abierto' ORDER BY fecha_inicio_periodo DESC");
+$stmt_periodos = $pdo->query("SELECT * FROM periodosdereporte WHERE tipo_nomina = 'Inspectores' AND estado_periodo = 'Abierto' ORDER BY fecha_inicio_periodo DESC");
 $periodos_abiertos = $stmt_periodos->fetchAll();
 $num_periodos_abiertos = count($periodos_abiertos);
 
@@ -79,7 +79,7 @@ if ($periodo_seleccionado) {
            r.hora_gracia_antes, r.hora_gracia_despues, r.transporte_aprobado,
            ord.codigo_orden, 
            l.nombre_zona_o_muelle
-       FROM RegistroHoras r
+       FROM registrohoras r
        LEFT JOIN ordenes ord ON r.id_orden = ord.id
        LEFT JOIN lugares l ON r.id_zona_trabajo = l.id -- CORRECCIÓN: Se une a 'lugares' usando id_zona_trabajo
        WHERE r.id_contrato = ? AND r.id_periodo_reporte = ?

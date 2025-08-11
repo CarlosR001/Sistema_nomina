@@ -6,7 +6,7 @@ require_login();
 require_permission('organizacion.gestionar');
 
 // Obtener todas las configuraciones globales
-$configs = $pdo->query("SELECT clave, valor, descripcion FROM ConfiguracionGlobal ORDER BY clave")->fetchAll(PDO::FETCH_ASSOC);
+$configs = $pdo->query("SELECT clave, valor, descripcion FROM configuracionglobal ORDER BY clave")->fetchAll(PDO::FETCH_ASSOC);
 
 require_once '../includes/header.php';
 ?>

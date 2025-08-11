@@ -59,7 +59,7 @@ if ($tipo_nomina === 'Inspectores') {
 try {
     // Verificar que no haya otro contrato vigente para el mismo empleado
     if ($estado_contrato === 'Vigente') {
-        $stmt_check = $pdo->prepare("SELECT id FROM Contratos WHERE id_empleado = ? AND estado_contrato = 'Vigente' AND id != ?");
+        $stmt_check = $pdo->prepare("SELECT id FROM contratos WHERE id_empleado = ? AND estado_contrato = 'Vigente' AND id != ?");
         $stmt_check->execute([$employee_id, $id]);
         if ($stmt_check->fetch()) {
             redirect_with_error($employee_id, 'Ya existe otro contrato vigente para este empleado. Por favor, finalice el anterior primero.');

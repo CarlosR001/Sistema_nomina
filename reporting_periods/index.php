@@ -14,7 +14,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_period'])) {
 
     if (!empty($fecha_inicio) && !empty($fecha_fin) && !empty($tipo_nomina)) {
         try {
-            $stmt = $pdo->prepare("INSERT INTO PeriodosDeReporte (fecha_inicio_periodo, fecha_fin_periodo, tipo_nomina, estado_periodo) VALUES (?, ?, ?, 'Abierto')");
+            $stmt = $pdo->prepare("INSERT INTO periodosdereporte (fecha_inicio_periodo, fecha_fin_periodo, tipo_nomina, estado_periodo) VALUES (?, ?, ?, 'Abierto')");
             $stmt->execute([$fecha_inicio, $fecha_fin, $tipo_nomina]);
             $add_status = 'success';
             $add_message = 'Período de reporte añadido correctamente.';
@@ -29,7 +29,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_period'])) {
 }
 
 // Obtener todos los períodos para la tabla
-$periodos = $pdo->query("SELECT * FROM PeriodosDeReporte ORDER BY fecha_inicio_periodo DESC")->fetchAll(PDO::FETCH_ASSOC);
+$periodos = $pdo->query("SELECT * FROM periodosdereporte ORDER BY fecha_inicio_periodo DESC")->fetchAll(PDO::FETCH_ASSOC);
 
 require_once '../includes/header.php';
 ?>

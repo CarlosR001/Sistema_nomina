@@ -16,8 +16,8 @@ $filtro_empleado_id = $_GET['empleado_id'] ?? '';
 $filtro_orden_id = $_GET['orden_id'] ?? '';
 
 // Cargar datos para los dropdowns de los filtros y el modal
-$empleados_con_registros = $pdo->query("SELECT DISTINCT e.id, e.nombres, e.primer_apellido FROM empleados e JOIN contratos c ON e.id = c.id_empleado JOIN RegistroHoras r ON c.id = r.id_contrato ORDER BY e.nombres")->fetchAll();
-$ordenes_con_registros = $pdo->query("SELECT DISTINCT o.id, o.codigo_orden FROM ordenes o JOIN RegistroHoras r ON o.id = r.id_orden ORDER BY o.codigo_orden")->fetchAll();
+$empleados_con_registros = $pdo->query("SELECT DISTINCT e.id, e.nombres, e.primer_apellido FROM empleados e JOIN contratos c ON e.id = c.id_empleado JOIN registrohoras r ON c.id = r.id_contrato ORDER BY e.nombres")->fetchAll();
+$ordenes_con_registros = $pdo->query("SELECT DISTINCT o.id, o.codigo_orden FROM ordenes o JOIN registrohoras r ON o.id = r.id_orden ORDER BY o.codigo_orden")->fetchAll();
 $ordenes_para_modal = $pdo->query("SELECT id, codigo_orden FROM ordenes WHERE estado_orden = 'En Proceso' ORDER BY codigo_orden")->fetchAll();
 $sub_lugares = $pdo->query("SELECT id, nombre_zona_o_muelle FROM lugares WHERE parent_id IS NOT NULL ORDER BY nombre_zona_o_muelle")->fetchAll();
 
@@ -29,9 +29,9 @@ $sql = "SELECT
             o.codigo_orden, o.id as orden_id, 
             l.nombre_zona_o_muelle, l.monto_transporte_completo,
             u_aprob.nombre_usuario as aprobador, r.fecha_aprobacion
-        FROM RegistroHoras r 
-        JOIN Contratos c ON r.id_contrato = c.id 
-        JOIN Empleados e ON c.id_empleado = e.id 
+        FROM registrohoras r 
+        JOIN contratos c ON r.id_contrato = c.id 
+        JOIN empleados e ON c.id_empleado = e.id 
         LEFT JOIN ordenes o ON r.id_orden = o.id 
         LEFT JOIN lugares l ON o.id_lugar = l.id -- CORRECCIÓN: zonastransporte -> lugares
         LEFT JOIN usuarios u_aprob ON r.id_usuario_aprobador = u_aprob.id

@@ -17,7 +17,7 @@ $stmt_empleados = $pdo->query("
 $empleados = $stmt_empleados->fetchAll();
 
 // 2. Obtener períodos de reporte para los selectores
-$periodos = $pdo->query("SELECT id, fecha_inicio_periodo, fecha_fin_periodo FROM PeriodosDeReporte ORDER BY fecha_inicio_periodo DESC")->fetchAll();
+$periodos = $pdo->query("SELECT id, fecha_inicio_periodo, fecha_fin_periodo FROM periodosdereporte ORDER BY fecha_inicio_periodo DESC")->fetchAll();
 
 require_once '../includes/header.php';
 ?>

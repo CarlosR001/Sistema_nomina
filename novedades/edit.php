@@ -13,7 +13,7 @@ if (!isset($_GET['id']) || !is_numeric($_GET['id'])) {
 $id_novedad = $_GET['id'];
 
 // Obtener la novedad a editar
-$stmt_novedad = $pdo->prepare("SELECT * FROM NovedadesPeriodo WHERE id = ?");
+$stmt_novedad = $pdo->prepare("SELECT * FROM novedadesperiodo WHERE id = ?");
 $stmt_novedad->execute([$id_novedad]);
 $novedad = $stmt_novedad->fetch();
 
@@ -23,8 +23,8 @@ if (!$novedad || $novedad['estado_novedad'] !== 'Pendiente') {
 }
 
 // Obtener listas para los dropdowns
-$empleados = $pdo->query("SELECT c.id as id_contrato, e.nombres, e.primer_apellido FROM Contratos c JOIN Empleados e ON c.id_empleado = e.id WHERE c.estado_contrato = 'Vigente' ORDER BY e.nombres")->fetchAll();
-$conceptos = $pdo->query("SELECT id, descripcion_publica FROM ConceptosNomina WHERE origen_calculo = 'Novedad' ORDER BY descripcion_publica")->fetchAll();
+$empleados = $pdo->query("SELECT c.id as id_contrato, e.nombres, e.primer_apellido FROM contratos c JOIN empleados e ON c.id_empleado = e.id WHERE c.estado_contrato = 'Vigente' ORDER BY e.nombres")->fetchAll();
+$conceptos = $pdo->query("SELECT id, descripcion_publica FROM conceptosnomina WHERE origen_calculo = 'Novedad' ORDER BY descripcion_publica")->fetchAll();
 
 require_once '../includes/header.php';
 ?>

@@ -45,11 +45,11 @@ try {
         throw new Exception("No se encontró un contrato vigente de tipo 'Inspectores' para el empleado seleccionado.");
     }
 
-    $stmt_periodo_origen = $pdo->prepare("SELECT fecha_inicio_periodo FROM PeriodosDeReporte WHERE id = ?");
+    $stmt_periodo_origen = $pdo->prepare("SELECT fecha_inicio_periodo FROM periodosdereporte WHERE id = ?");
     $stmt_periodo_origen->execute([$id_periodo_origen]);
     $fecha_origen = $stmt_periodo_origen->fetchColumn();
 
-    $stmt_periodo_destino = $pdo->prepare("SELECT fecha_inicio_periodo FROM PeriodosDeReporte WHERE id = ?");
+    $stmt_periodo_destino = $pdo->prepare("SELECT fecha_inicio_periodo FROM periodosdereporte WHERE id = ?");
     $stmt_periodo_destino->execute([$id_periodo_destino]);
     $fecha_destino = $stmt_periodo_destino->fetchColumn();
 

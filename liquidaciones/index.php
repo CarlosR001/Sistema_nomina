@@ -8,8 +8,8 @@ require_permission('nomina.procesar');
 // Obtener solo empleados con contratos vigentes
 $empleados = $pdo->query("
     SELECT e.id, e.nombres, e.primer_apellido, e.cedula 
-    FROM Empleados e 
-    JOIN Contratos c ON e.id = c.id_empleado 
+    FROM empleados e 
+    JOIN contratos c ON e.id = c.id_empleado 
     WHERE c.estado_contrato = 'Vigente' 
     ORDER BY e.nombres, e.primer_apellido
 ")->fetchAll(PDO::FETCH_ASSOC);

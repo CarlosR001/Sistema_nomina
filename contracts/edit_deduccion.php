@@ -18,8 +18,8 @@ $employee_id = $_GET['employee_id'];
 // Obtener los datos de la deducción a editar
 $stmt_deduccion = $pdo->prepare("
     SELECT dr.id, dr.monto_deduccion, dr.quincena_aplicacion, cn.descripcion_publica
-    FROM DeduccionesRecurrentes dr
-    JOIN ConceptosNomina cn ON dr.id_concepto_deduccion = cn.id
+    FROM deduccionesrecurrentes dr
+    JOIN conceptosnomina cn ON dr.id_concepto_deduccion = cn.id
     WHERE dr.id = ?
 ");
 $stmt_deduccion->execute([$id_deduccion]);

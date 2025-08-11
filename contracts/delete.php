@@ -35,11 +35,11 @@ try {
     // En una aplicación real, se debería implementar una cascada de eliminación
     // o una lógica de archivado.
 
-    $stmt_delete_deductions = $pdo->prepare("DELETE FROM DeduccionesRecurrentes WHERE id_contrato = ?");
+    $stmt_delete_deductions = $pdo->prepare("DELETE FROM deduccionesrecurrentes WHERE id_contrato = ?");
     $stmt_delete_deductions->execute([$contract_id]);
     
     // Ahora, eliminar el contrato principal
-    $stmt = $pdo->prepare("DELETE FROM Contratos WHERE id = ?");
+    $stmt = $pdo->prepare("DELETE FROM contratos WHERE id = ?");
     $stmt->execute([$contract_id]);
 
     if ($stmt->rowCount() > 0) {

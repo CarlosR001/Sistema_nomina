@@ -5,8 +5,8 @@ require_once '../auth.php';
 require_login();
 require_permission('nomina.procesar');
 
-$empleados = $pdo->query("SELECT e.id, e.nombres, e.primer_apellido, e.cedula FROM Empleados e JOIN Contratos c ON e.id = c.id_empleado WHERE c.estado_contrato = 'Vigente' ORDER BY e.nombres")->fetchAll(PDO::FETCH_ASSOC);
-$conceptos_options = $pdo->query("SELECT id, descripcion_publica FROM ConceptosNomina WHERE tipo_concepto = 'Ingreso' AND codigo_concepto LIKE 'ING-%' ORDER BY descripcion_publica")->fetchAll(PDO::FETCH_ASSOC);
+$empleados = $pdo->query("SELECT e.id, e.nombres, e.primer_apellido, e.cedula FROM empleados e JOIN contratos c ON e.id = c.id_empleado WHERE c.estado_contrato = 'Vigente' ORDER BY e.nombres")->fetchAll(PDO::FETCH_ASSOC);
+$conceptos_options = $pdo->query("SELECT id, descripcion_publica FROM conceptosnomina WHERE tipo_concepto = 'Ingreso' AND codigo_concepto LIKE 'ING-%' ORDER BY descripcion_publica")->fetchAll(PDO::FETCH_ASSOC);
 
 require_once '../includes/header.php';
 ?>

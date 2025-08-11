@@ -14,11 +14,11 @@ try {
         SELECT 
             e.id as empleado_id, c.id as contrato_id, e.nombres, e.primer_apellido,
             SUM(CASE WHEN cn.afecta_tss = 1 AND nd.tipo_concepto = 'Ingreso' THEN nd.monto_resultado ELSE 0 END) as total_salario_cotizable_anual
-        FROM Empleados e
-        JOIN Contratos c ON e.id = c.id_empleado
-        LEFT JOIN NominaDetalle nd ON c.id = nd.id_contrato
-        LEFT JOIN NominasProcesadas np ON nd.id_nomina_procesada = np.id AND YEAR(np.periodo_fin) = ?
-        LEFT JOIN ConceptosNomina cn ON nd.codigo_concepto = cn.codigo_concepto
+        FROM empleados e
+        JOIN contratos c ON e.id = c.id_empleado
+        LEFT JOIN nominadetalle nd ON c.id = nd.id_contrato
+        LEFT JOIN nominasprocesadas np ON nd.id_nomina_procesada = np.id AND YEAR(np.periodo_fin) = ?
+        LEFT JOIN conceptosnomina cn ON nd.codigo_concepto = cn.codigo_concepto
         WHERE c.estado_contrato = 'Vigente'
         GROUP BY e.id, c.id
         ORDER BY e.nombres, e.primer_apellido

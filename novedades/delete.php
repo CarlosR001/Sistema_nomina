@@ -20,7 +20,7 @@ if (empty($id)) {
 
 try {
     // Asegurarse de que la novedad que se intenta eliminar todavía está 'Pendiente'
-    $stmt_check = $pdo->prepare("SELECT estado_novedad FROM NovedadesPeriodo WHERE id = ?");
+    $stmt_check = $pdo->prepare("SELECT estado_novedad FROM novedadesperiodo WHERE id = ?");
     $stmt_check->execute([$id]);
     $estado_actual = $stmt_check->fetchColumn();
 
@@ -33,7 +33,7 @@ try {
     }
 
     // Eliminar el registro
-    $stmt_delete = $pdo->prepare("DELETE FROM NovedadesPeriodo WHERE id = ?");
+    $stmt_delete = $pdo->prepare("DELETE FROM novedadesperiodo WHERE id = ?");
     $stmt_delete->execute([$id]);
 
     header('Location: index.php?status=success&message=Novedad eliminada correctamente.');

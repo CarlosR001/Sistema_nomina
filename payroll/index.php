@@ -12,7 +12,7 @@ $error_message = null;
 $tipo_nomina_seleccionada = $_POST['tipo_nomina'] ?? 'Inspectores';
 
 try {
-    $stmt_periodos = $pdo->prepare("SELECT * FROM PeriodosDeReporte WHERE estado_periodo = 'Abierto' AND tipo_nomina = ?");
+    $stmt_periodos = $pdo->prepare("SELECT * FROM periodosdereporte WHERE estado_periodo = 'Abierto' AND tipo_nomina = ?");
     $stmt_periodos->execute([$tipo_nomina_seleccionada]);
     $periodos_abiertos = $stmt_periodos->fetchAll();
 } catch (Exception $e) {
@@ -24,7 +24,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['periodo_id'])) {
     $periodo_seleccionado_id = $_POST['periodo_id'];
     
     try {
-        $stmt_periodo_sel = $pdo->prepare("SELECT * FROM PeriodosDeReporte WHERE id = ?");
+        $stmt_periodo_sel = $pdo->prepare("SELECT * FROM periodosdereporte WHERE id = ?");
         $stmt_periodo_sel->execute([$periodo_seleccionado_id]);
         $periodo_sel = $stmt_periodo_sel->fetch();
 
@@ -36,11 +36,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['periodo_id'])) {
         $fecha_fin = $periodo_sel['fecha_fin_periodo'];
 
         $sql_empleados = "SELECT e.id as empleado_id, e.nombres, e.primer_apellido
-                          FROM Empleados e
+                          FROM empleados e
                           WHERE e.id IN (
                               SELECT DISTINCT c.id_empleado
-                              FROM Contratos c
-                              JOIN NovedadesPeriodo np ON c.id = np.id_contrato
+                              FROM contratos c
+                              JOIN novedadesperiodo np ON c.id = np.id_contrato
                               WHERE np.periodo_aplicacion BETWEEN ? AND ?
                           )
                           ORDER BY e.nombres, e.primer_apellido";
@@ -53,7 +53,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['periodo_id'])) {
         }
         
         // CORRECCIÓN: Se añadió `cn.tipo_concepto` a la consulta
-        $novedades_stmt = $pdo->prepare("SELECT np.*, cn.descripcion_publica, cn.tipo_concepto FROM NovedadesPeriodo np JOIN ConceptosNomina cn ON np.id_concepto = cn.id JOIN Contratos c ON np.id_contrato = c.id WHERE c.id_empleado = ? AND np.periodo_aplicacion BETWEEN ? AND ?");
+        $novedades_stmt = $pdo->prepare("SELECT np.*, cn.descripcion_publica, cn.tipo_concepto FROM novedadesperiodo np JOIN conceptosnomina cn ON np.id_concepto = cn.id JOIN contratos c ON np.id_contrato = c.id WHERE c.id_empleado = ? AND np.periodo_aplicacion BETWEEN ? AND ?");
 
         foreach ($empleados_a_procesar as &$empleado) {
             $empleado_id = $empleado['empleado_id'];

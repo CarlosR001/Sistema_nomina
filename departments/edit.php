@@ -12,7 +12,7 @@ if (!isset($_GET['id']) || !is_numeric($_GET['id'])) {
 }
 $id = $_GET['id'];
 
-$stmt = $pdo->prepare("SELECT * FROM Departamentos WHERE id = ?");
+$stmt = $pdo->prepare("SELECT * FROM departamentos WHERE id = ?");
 $stmt->execute([$id]);
 $departamento = $stmt->fetch();
 

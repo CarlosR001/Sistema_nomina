@@ -24,20 +24,20 @@ try {
         $year = $_SESSION['regalia_year'];
         
         // 2. Asegurar que el concepto de nómina para la regalía exista.
-        $stmt_concepto = $pdo->prepare("SELECT id FROM ConceptosNomina WHERE codigo_concepto = 'ING-REGALIA'");
+        $stmt_concepto = $pdo->prepare("SELECT id FROM conceptosnomina WHERE codigo_concepto = 'ING-REGALIA'");
         $stmt_concepto->execute();
         if (!$stmt_concepto->fetchColumn()) {
-            $pdo->exec("INSERT INTO ConceptosNomina (codigo_concepto, descripcion_publica, tipo_concepto, origen_calculo, afecta_tss, afecta_isr) VALUES ('ING-REGALIA', 'Pago de Regalía Pascual', 'Ingreso', 'Formula', 0, 1)");
+            $pdo->exec("INSERT INTO conceptosnomina (codigo_concepto, descripcion_publica, tipo_concepto, origen_calculo, afecta_tss, afecta_isr) VALUES ('ING-REGALIA', 'Pago de Regalía Pascual', 'Ingreso', 'Formula', 0, 1)");
         }
 
         // 3. Crear la cabecera de la nómina de tipo 'Especial'.
-        $sql_nomina = "INSERT INTO NominasProcesadas (tipo_nomina_procesada, tipo_calculo_nomina, periodo_inicio, periodo_fin, id_usuario_ejecutor, estado_nomina) VALUES ('Directiva', 'Especial', ?, ?, ?, 'Calculada')";
+        $sql_nomina = "INSERT INTO nominasprocesadas (tipo_nomina_procesada, tipo_calculo_nomina, periodo_inicio, periodo_fin, id_usuario_ejecutor, estado_nomina) VALUES ('Directiva', 'Especial', ?, ?, ?, 'Calculada')";
         $stmt_nomina = $pdo->prepare($sql_nomina);
         $stmt_nomina->execute(["$year-12-01", "$year-12-31", $_SESSION['user_id']]);
         $id_nomina_procesada = $pdo->lastInsertId();
 
         // 4. Insertar una línea de detalle por cada empleado en la nómina.
-        $sql_detalle = "INSERT INTO NominaDetalle (id_nomina_procesada, id_contrato, codigo_concepto, descripcion_concepto, tipo_concepto, monto_resultado) VALUES (?, ?, 'ING-REGALIA', 'Pago de Regalía Pascual', 'Ingreso', ?)";
+        $sql_detalle = "INSERT INTO nominadetalle (id_nomina_procesada, id_contrato, codigo_concepto, descripcion_concepto, tipo_concepto, monto_resultado) VALUES (?, ?, 'ING-REGALIA', 'Pago de Regalía Pascual', 'Ingreso', ?)";
         $stmt_detalle = $pdo->prepare($sql_detalle);
 
         foreach ($regalia_data as $data) {
@@ -64,7 +64,7 @@ try {
     }
 
     // 2. Obtener contrato activo
-    $stmt_contrato = $pdo->prepare("SELECT id, tipo_nomina FROM Contratos WHERE id_empleado = ? AND estado_contrato = 'Vigente'");
+    $stmt_contrato = $pdo->prepare("SELECT id, tipo_nomina FROM contratos WHERE id_empleado = ? AND estado_contrato = 'Vigente'");
     $stmt_contrato->execute([$id_empleado]);
     $contrato = $stmt_contrato->fetch();
     if (!$contrato) throw new Exception("No se encontró un contrato vigente para el empleado.");
@@ -73,7 +73,7 @@ try {
     // 3. Preparar datos para el cálculo (mes, año, escalas)
     $mes_pago = date('m', strtotime($fecha_pago));
     $anio_pago = date('Y', strtotime($fecha_pago));
-    $configs_db = $pdo->query("SELECT clave, valor FROM ConfiguracionGlobal")->fetchAll(PDO::FETCH_KEY_PAIR);
+    $configs_db = $pdo->query("SELECT clave, valor FROM configuracionglobal")->fetchAll(PDO::FETCH_KEY_PAIR);
     $escala_isr = $pdo->query("SELECT * FROM escalasisr WHERE anio_fiscal = {$anio_pago} ORDER BY desde_monto_anual ASC")->fetchAll(PDO::FETCH_ASSOC);
 
     // 4. Procesar y sumar los conceptos de la entrada
@@ -85,7 +85,7 @@ try {
         $monto_pago = filter_var($conceptos_post['monto'][$index], FILTER_VALIDATE_FLOAT);
         if (!$id_concepto || $monto_pago === false) continue;
 
-        $stmt_concepto = $pdo->prepare("SELECT * FROM ConceptosNomina WHERE id = ?");
+        $stmt_concepto = $pdo->prepare("SELECT * FROM conceptosnomina WHERE id = ?");
         $stmt_concepto->execute([$id_concepto]);
         $concepto_info = $stmt_concepto->fetch();
         if (!$concepto_info) continue;
@@ -101,7 +101,7 @@ try {
     if (empty($lineas_de_pago)) throw new Exception("No se proporcionaron líneas de pago válidas.");
 
     // 5. Calcular Base para ISR: Acumular ingresos del mes + los actuales
-    $stmt_bases_previas = $pdo->prepare("SELECT SUM(nd.monto_resultado) FROM NominaDetalle nd JOIN NominasProcesadas np ON nd.id_nomina_procesada = np.id WHERE nd.id_contrato = ? AND MONTH(np.periodo_fin) = ? AND YEAR(np.periodo_fin) = ? AND nd.codigo_concepto = 'BASE-ISR-SEMANAL'");
+    $stmt_bases_previas = $pdo->prepare("SELECT SUM(nd.monto_resultado) FROM nominadetalle nd JOIN nominasprocesadas np ON nd.id_nomina_procesada = np.id WHERE nd.id_contrato = ? AND MONTH(np.periodo_fin) = ? AND YEAR(np.periodo_fin) = ? AND nd.codigo_concepto = 'BASE-ISR-SEMANAL'");
     $stmt_bases_previas->execute([$id_contrato, $mes_pago, $anio_pago]);
     $base_isr_acumulada_semanal = (float)$stmt_bases_previas->fetchColumn();
     $base_isr_mensual_proyectada = $base_isr_acumulada_semanal + $ingreso_total_isr;
@@ -136,18 +136,18 @@ try {
     $isr_mensual_total_proyectado = round(max(0, $isr_anual / 12), 2);
     
     // 7. Ajustar ISR por lo que ya se haya retenido en otros pagos especiales
-    $stmt_isr_previo = $pdo->prepare("SELECT SUM(nd.monto_resultado) FROM NominaDetalle nd JOIN NominasProcesadas np ON nd.id_nomina_procesada = np.id WHERE nd.id_contrato = ? AND MONTH(np.periodo_fin) = ? AND YEAR(np.periodo_fin) = ? AND nd.codigo_concepto = 'DED-ISR' AND np.tipo_calculo_nomina = 'Especial'");
+    $stmt_isr_previo = $pdo->prepare("SELECT SUM(nd.monto_resultado) FROM nominadetalle nd JOIN nominasprocesadas np ON nd.id_nomina_procesada = np.id WHERE nd.id_contrato = ? AND MONTH(np.periodo_fin) = ? AND YEAR(np.periodo_fin) = ? AND nd.codigo_concepto = 'DED-ISR' AND np.tipo_calculo_nomina = 'Especial'");
     $stmt_isr_previo->execute([$id_contrato, $mes_pago, $anio_pago]);
     $isr_ya_retenido_especial = (float)$stmt_isr_previo->fetchColumn();
     $deduccion_isr = max(0, $isr_mensual_total_proyectado - $isr_ya_retenido_especial);
 
     // 8. Guardar la Nómina Especial y sus detalles
-    $sql_nomina = "INSERT INTO NominasProcesadas (tipo_nomina_procesada, tipo_calculo_nomina, periodo_inicio, periodo_fin, id_usuario_ejecutor, estado_nomina) VALUES (?, 'Especial', ?, ?, ?, 'Procesado y Finalizado')";
+    $sql_nomina = "INSERT INTO nominasprocesadas (tipo_nomina_procesada, tipo_calculo_nomina, periodo_inicio, periodo_fin, id_usuario_ejecutor, estado_nomina) VALUES (?, 'Especial', ?, ?, ?, 'Procesado y Finalizado')";
     $stmt_nomina = $pdo->prepare($sql_nomina);
     $stmt_nomina->execute([$contrato['tipo_nomina'], $fecha_pago, $fecha_pago, $_SESSION['user_id']]);
     $id_nomina_procesada = $pdo->lastInsertId();
 
-    $stmt_detalle = $pdo->prepare("INSERT INTO NominaDetalle (id_nomina_procesada, id_contrato, codigo_concepto, descripcion_concepto, tipo_concepto, monto_resultado) VALUES (?, ?, ?, ?, ?, ?)");
+    $stmt_detalle = $pdo->prepare("INSERT INTO nominadetalle (id_nomina_procesada, id_contrato, codigo_concepto, descripcion_concepto, tipo_concepto, monto_resultado) VALUES (?, ?, ?, ?, ?, ?)");
     
     foreach ($lineas_de_pago as $linea) {
         $stmt_detalle->execute([$id_nomina_procesada, $id_contrato, $linea['info']['codigo_concepto'], $linea['info']['descripcion_publica'], 'Ingreso', $linea['monto']]);

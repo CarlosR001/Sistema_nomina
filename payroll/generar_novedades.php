@@ -13,7 +13,7 @@ $pending_hours_check = $_SESSION['pending_hours_check'] ?? null;
 
 unset($_SESSION['preview_results'], $_SESSION['preview_period_id'], $_SESSION['pending_hours_check']);
 
-$periodos_abiertos = $pdo->query("SELECT id, fecha_inicio_periodo, fecha_fin_periodo FROM PeriodosDeReporte WHERE tipo_nomina = 'Inspectores' AND estado_periodo = 'Abierto' ORDER BY fecha_inicio_periodo DESC")->fetchAll();
+$periodos_abiertos = $pdo->query("SELECT id, fecha_inicio_periodo, fecha_fin_periodo FROM periodosdereporte WHERE tipo_nomina = 'Inspectores' AND estado_periodo = 'Abierto' ORDER BY fecha_inicio_periodo DESC")->fetchAll();
 
 require_once '../includes/header.php';
 ?>

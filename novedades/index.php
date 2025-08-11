@@ -26,16 +26,16 @@ if (!empty($filtro_periodo)) {
 $where_sql = count($where_clauses) > 0 ? "WHERE " . implode(' AND ', $where_clauses) : '';
 
 // --- Obtener datos para la página ---
-$empleados = $pdo->query("SELECT c.id as id_contrato, e.nombres, e.primer_apellido FROM Contratos c JOIN Empleados e ON c.id_empleado = e.id WHERE c.estado_contrato = 'Vigente' ORDER BY e.nombres")->fetchAll();
-$conceptos = $pdo->query("SELECT id, descripcion_publica FROM ConceptosNomina WHERE origen_calculo = 'Novedad' ORDER BY descripcion_publica")->fetchAll();
-$periodos_disponibles = $pdo->query("SELECT DISTINCT periodo_aplicacion FROM NovedadesPeriodo ORDER BY periodo_aplicacion DESC")->fetchAll(PDO::FETCH_COLUMN);
+$empleados = $pdo->query("SELECT c.id as id_contrato, e.nombres, e.primer_apellido FROM contratos c JOIN empleados e ON c.id_empleado = e.id WHERE c.estado_contrato = 'Vigente' ORDER BY e.nombres")->fetchAll();
+$conceptos = $pdo->query("SELECT id, descripcion_publica FROM conceptosnomina WHERE origen_calculo = 'Novedad' ORDER BY descripcion_publica")->fetchAll();
+$periodos_disponibles = $pdo->query("SELECT DISTINCT periodo_aplicacion FROM novedadesperiodo ORDER BY periodo_aplicacion DESC")->fetchAll(PDO::FETCH_COLUMN);
 
 $stmt_novedades = $pdo->prepare("SELECT n.id, n.monto_valor, n.periodo_aplicacion, n.estado_novedad, 
                                  e.nombres, e.primer_apellido, c.descripcion_publica
-                          FROM NovedadesPeriodo n
-                          JOIN Contratos co ON n.id_contrato = co.id
-                          JOIN Empleados e ON co.id_empleado = e.id
-                          JOIN ConceptosNomina c ON n.id_concepto = c.id
+                          FROM novedadesperiodo n
+                          JOIN contratos co ON n.id_contrato = co.id
+                          JOIN empleados e ON co.id_empleado = e.id
+                          JOIN conceptosnomina c ON n.id_concepto = c.id
                           $where_sql
                           ORDER BY n.id DESC");
 $stmt_novedades->execute($params);

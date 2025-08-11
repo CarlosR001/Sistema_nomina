@@ -26,7 +26,7 @@ if (empty($id) || empty($id_contrato) || empty($id_concepto) || empty($monto_val
 
 try {
     // Asegurarse de que la novedad que se intenta editar todavía está 'Pendiente'
-    $stmt_check = $pdo->prepare("SELECT estado_novedad FROM NovedadesPeriodo WHERE id = ?");
+    $stmt_check = $pdo->prepare("SELECT estado_novedad FROM novedadesperiodo WHERE id = ?");
     $stmt_check->execute([$id]);
     $estado_actual = $stmt_check->fetchColumn();
 
@@ -36,7 +36,7 @@ try {
 
     // Actualizar el registro
     $stmt_update = $pdo->prepare(
-        "UPDATE NovedadesPeriodo SET 
+        "UPDATE novedadesperiodo SET 
             id_contrato = :id_contrato,
             id_concepto = :id_concepto,
             monto_valor = :monto_valor,

@@ -21,10 +21,10 @@ $error_count = 0;
 $no_email_count = 0;
 
 try {
-    $configs_db = $pdo->query("SELECT clave, valor FROM ConfiguracionGlobal")->fetchAll(PDO::FETCH_KEY_PAIR);
+    $configs_db = $pdo->query("SELECT clave, valor FROM configuracionglobal")->fetchAll(PDO::FETCH_KEY_PAIR);
     $company_name = $configs_db['COMPANY_NAME'] ?? 'Nombre de Empresa no Configurado';
     
-    $stmt_nomina = $pdo->prepare("SELECT * FROM NominasProcesadas WHERE id = ?");
+    $stmt_nomina = $pdo->prepare("SELECT * FROM nominasprocesadas WHERE id = ?");
     $stmt_nomina->execute([$id_nomina]);
     $nomina = $stmt_nomina->fetch();
 
@@ -34,18 +34,18 @@ try {
             e.id, e.nombres, e.primer_apellido, e.cedula, e.email_personal, 
             c.id as contrato_id,
             p.nombre_posicion
-        FROM Empleados e 
-        JOIN Contratos c ON e.id = c.id_empleado 
-        JOIN Posiciones p ON c.id_posicion = p.id
-        JOIN NominaDetalle nd ON c.id = nd.id_contrato
+        FROM empleados e 
+        JOIN contratos c ON e.id = c.id_empleado 
+        JOIN posiciones p ON c.id_posicion = p.id
+        JOIN nominadetalle nd ON c.id = nd.id_contrato
         WHERE nd.id_nomina_procesada = ?
     ");
     $stmt_empleados->execute([$id_nomina]);
     $empleados = $stmt_empleados->fetchAll(PDO::FETCH_ASSOC);
 
     $stmt_payslip = $pdo->prepare("
-        SELECT nd.* FROM NominaDetalle nd
-        JOIN ConceptosNomina cn ON nd.codigo_concepto = cn.codigo_concepto
+        SELECT nd.* FROM nominadetalle nd
+        JOIN conceptosnomina cn ON nd.codigo_concepto = cn.codigo_concepto
         WHERE nd.id_nomina_procesada = ? AND nd.id_contrato = ? AND cn.incluir_en_volante = 1
         ORDER BY nd.tipo_concepto DESC, nd.monto_resultado DESC
     ");

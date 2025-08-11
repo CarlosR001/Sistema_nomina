@@ -41,7 +41,7 @@ if (empty($employee_id) || empty($id_posicion) || empty($tipo_contrato) || empty
 try {
     // --- LÓGICA DE INSPECTOR ---
     // 1. Determinar si la posición es de inspector consultando la BD
-    $stmt_pos = $pdo->prepare("SELECT CASE WHEN LOWER(nombre_posicion) LIKE '%inspector%' THEN 1 ELSE 0 END as es_inspector FROM Posiciones WHERE id = ?");
+    $stmt_pos = $pdo->prepare("SELECT CASE WHEN LOWER(nombre_posicion) LIKE '%inspector%' THEN 1 ELSE 0 END as es_inspector FROM posiciones WHERE id = ?");
     $stmt_pos->execute([$id_posicion]);
     $es_inspector = $stmt_pos->fetchColumn();
 
@@ -67,7 +67,7 @@ try {
     }
 
     // Verificar que no haya otro contrato vigente para el mismo empleado
-    $stmt_check = $pdo->prepare("SELECT id FROM Contratos WHERE id_empleado = ? AND estado_contrato = 'Vigente'");
+    $stmt_check = $pdo->prepare("SELECT id FROM contratos WHERE id_empleado = ? AND estado_contrato = 'Vigente'");
     $stmt_check->execute([$employee_id]);
     if ($stmt_check->fetch()) {
         header('Location: ' . $redirect_url . '&status=error&message=' . urlencode('Ya existe otro contrato vigente para este empleado. Por favor, finalice o cancele el anterior primero.'));

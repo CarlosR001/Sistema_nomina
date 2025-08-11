@@ -27,7 +27,7 @@ if (empty($id_deduccion) || empty($employee_id)) {
 
 try {
     // Preparar la consulta SQL de eliminación
-    $sql = "DELETE FROM DeduccionesRecurrentes WHERE id = ?";
+    $sql = "DELETE FROM deduccionesrecurrentes WHERE id = ?";
     $stmt = $pdo->prepare($sql);
     
     // Ejecutar la consulta

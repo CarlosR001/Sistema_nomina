@@ -22,7 +22,7 @@ if (!$id_deduccion || !$employee_id) {
 
 try {
     // Primero, obtener el estado actual
-    $stmt_check = $pdo->prepare("SELECT estado FROM DeduccionesRecurrentes WHERE id = ?");
+    $stmt_check = $pdo->prepare("SELECT estado FROM deduccionesrecurrentes WHERE id = ?");
     $stmt_check->execute([$id_deduccion]);
     $current_status = $stmt_check->fetchColumn();
 
@@ -33,7 +33,7 @@ try {
     // Cambiar al estado opuesto
     $new_status = ($current_status === 'Activa') ? 'Inactiva' : 'Activa';
 
-    $stmt_update = $pdo->prepare("UPDATE DeduccionesRecurrentes SET estado = ? WHERE id = ?");
+    $stmt_update = $pdo->prepare("UPDATE deduccionesrecurrentes SET estado = ? WHERE id = ?");
     $stmt_update->execute([$new_status, $id_deduccion]);
     
     header('Location: ' . $redirect_url . '&status=success&message=' . urlencode('Estado de la deducción actualizado.'));

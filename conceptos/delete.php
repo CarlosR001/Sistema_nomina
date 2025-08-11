@@ -14,7 +14,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     try {
-        $stmt = $pdo->prepare("DELETE FROM ConceptosNomina WHERE id = ?");
+        $stmt = $pdo->prepare("DELETE FROM conceptosnomina WHERE id = ?");
         $stmt->execute([$id]);
         
         header('Location: index.php?status=success&message=Concepto eliminado correctamente.');

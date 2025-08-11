@@ -18,8 +18,8 @@ $fecha_salida = new DateTime($fecha_salida_str);
 try {
     // 2. Obtener datos del contrato y empleado
     $sql_contrato = "SELECT c.id, c.fecha_inicio, c.salario_mensual_bruto, c.tarifa_por_hora, e.nombres, e.primer_apellido
-                     FROM Contratos c 
-                     JOIN Empleados e ON c.id_empleado = e.id 
+                     FROM contratos c 
+                     JOIN empleados e ON c.id_empleado = e.id 
                      WHERE c.id_empleado = ? AND c.estado_contrato = 'Vigente'";
     $stmt_contrato = $pdo->prepare($sql_contrato);
     $stmt_contrato->execute([$id_empleado]);
@@ -37,8 +37,8 @@ try {
     // 4. Calcular el Salario Promedio Diario de los últimos 12 meses (base para todos los cálculos)
     $hace_un_anio = (clone $fecha_salida)->modify('-1 year')->format('Y-m-d');
     $sql_salarios = "SELECT SUM(nd.monto_resultado) as total
-                     FROM NominaDetalle nd
-                     JOIN NominasProcesadas np ON nd.id_nomina_procesada = np.id
+                     FROM nominadetalle nd
+                     JOIN nominasprocesadas np ON nd.id_nomina_procesada = np.id
                      WHERE nd.id_contrato = ? AND np.periodo_fin BETWEEN ? AND ? AND nd.tipo_concepto = 'Ingreso' AND nd.codigo_concepto != 'ING-TRANSP'";
     $stmt_salarios = $pdo->prepare($sql_salarios);
     $stmt_salarios->execute([$contrato['id'], $hace_un_anio, $fecha_salida_str]);

@@ -8,7 +8,7 @@ require_login();
 if (!isset($_GET['nomina_id']) || !is_numeric($_GET['nomina_id']) || !isset($_GET['contrato_id']) || !is_numeric($_GET['contrato_id'])) { header('Location: ' . BASE_URL . 'index.php?status=error&message=Faltan%20par%C3%A1metros.'); exit(); }
 $id_nomina = $_GET['nomina_id'];
 $id_contrato = $_GET['contrato_id'];
-$stmt_get_employee_id = $pdo->prepare("SELECT id_empleado FROM Contratos WHERE id = ?");
+$stmt_get_employee_id = $pdo->prepare("SELECT id_empleado FROM contratos WHERE id = ?");
 $stmt_get_employee_id->execute([$id_contrato]);
 $empleado_id_del_contrato = $stmt_get_employee_id->fetchColumn();
 
@@ -21,16 +21,16 @@ if (!has_permission('nomina.procesar') && $user_empleado_id != $empleado_id_del_
     die('Acceso denegado. No tienes permiso para ver este volante de pago.');
 }
 
-$stmt_empleado = $pdo->prepare("SELECT e.nombres, e.primer_apellido, e.cedula, p.nombre_posicion FROM Contratos c JOIN Empleados e ON c.id_empleado = e.id JOIN Posiciones p ON c.id_posicion = p.id WHERE c.id = ?");
+$stmt_empleado = $pdo->prepare("SELECT e.nombres, e.primer_apellido, e.cedula, p.nombre_posicion FROM contratos c JOIN empleados e ON c.id_empleado = e.id JOIN posiciones p ON c.id_posicion = p.id WHERE c.id = ?");
 $stmt_empleado->execute([$id_contrato]);
 $empleado = $stmt_empleado->fetch();
-$stmt_nomina = $pdo->prepare("SELECT * FROM NominasProcesadas WHERE id = ?");
+$stmt_nomina = $pdo->prepare("SELECT * FROM nominasprocesadas WHERE id = ?");
 $stmt_nomina->execute([$id_nomina]);
 $nomina = $stmt_nomina->fetch();
 if (!$empleado || !$nomina) { header('Location: ' . BASE_URL . 'index.php?status=error&message=Datos%20no%20encontrados.'); exit(); }
 
 // Nueva lógica para obtener todos los detalles
-$stmt_detalles = $pdo->prepare("SELECT * FROM NominaDetalle WHERE id_nomina_procesada = ? AND id_contrato = ? ORDER BY tipo_concepto, codigo_concepto");
+$stmt_detalles = $pdo->prepare("SELECT * FROM nominadetalle WHERE id_nomina_procesada = ? AND id_contrato = ? ORDER BY tipo_concepto, codigo_concepto");
 $stmt_detalles->execute([$id_nomina, $id_contrato]);
 $detalles = $stmt_detalles->fetchAll();
 

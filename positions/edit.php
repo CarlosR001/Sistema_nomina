@@ -12,7 +12,7 @@ if (!isset($_GET['id']) || !is_numeric($_GET['id'])) {
 }
 $id = $_GET['id'];
 
-$stmt = $pdo->prepare("SELECT * FROM Posiciones WHERE id = ?");
+$stmt = $pdo->prepare("SELECT * FROM posiciones WHERE id = ?");
 $stmt->execute([$id]);
 $posicion = $stmt->fetch();
 
@@ -22,7 +22,7 @@ if (!$posicion) {
 }
 
 // Obtener departamentos para el dropdown
-$departamentos = $pdo->query("SELECT id, nombre_departamento FROM Departamentos WHERE estado = 'Activo' ORDER BY nombre_departamento")->fetchAll();
+$departamentos = $pdo->query("SELECT id, nombre_departamento FROM departamentos WHERE estado = 'Activo' ORDER BY nombre_departamento")->fetchAll();
 
 require_once '../includes/header.php';
 ?>

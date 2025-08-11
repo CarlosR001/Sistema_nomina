@@ -9,7 +9,7 @@ require_permission('organizacion.gestionar'); // Solo Admin pueden acceder a est
 require_once '../includes/header.php';
 
 // Obtener todos los departamentos para la tabla
-$stmt = $pdo->query("SELECT id, nombre_departamento, estado FROM Departamentos ORDER BY nombre_departamento");
+$stmt = $pdo->query("SELECT id, nombre_departamento, estado FROM departamentos ORDER BY nombre_departamento");
 $departamentos = $stmt->fetchAll();
 ?>
 

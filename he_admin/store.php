@@ -27,7 +27,7 @@ try {
 
 
     // 1. Obtener datos del contrato: salario y horario normal.
-    $stmt_contrato = $pdo->prepare("SELECT salario_mensual_bruto, horario_entrada, horario_salida FROM Contratos WHERE id = ? AND permite_horas_extras = 1");
+    $stmt_contrato = $pdo->prepare("SELECT salario_mensual_bruto, horario_entrada, horario_salida FROM contratos WHERE id = ? AND permite_horas_extras = 1");
     $stmt_contrato->execute([$id_contrato]);
     $contrato = $stmt_contrato->fetch(PDO::FETCH_ASSOC);
 
@@ -58,7 +58,7 @@ try {
     }
 
     // 3. Calcular el monto a pagar según la fórmula de negocio.
-    $id_concepto_he = $pdo->query("SELECT id FROM ConceptosNomina WHERE codigo_concepto = 'ING-HE-ADMIN'")->fetchColumn();
+    $id_concepto_he = $pdo->query("SELECT id FROM conceptosnomina WHERE codigo_concepto = 'ING-HE-ADMIN'")->fetchColumn();
     if (!$id_concepto_he) throw new Exception("El concepto 'ING-HE-ADMIN' no está configurado.");
     
     $salario_por_hora = ($contrato['salario_mensual_bruto'] / 23.83) / 8;
@@ -66,7 +66,7 @@ try {
     $monto_a_pagar = round($valor_hora_extra * $horas_extras, 2);
 
     // 4. Guardar como una novedad estándar.
-    $sql_insert = "INSERT INTO NovedadesPeriodo (id_contrato, id_concepto, periodo_aplicacion, monto_valor, estado_novedad) VALUES (?, ?, ?, ?, 'Pendiente')";
+    $sql_insert = "INSERT INTO novedadesperiodo (id_contrato, id_concepto, periodo_aplicacion, monto_valor, estado_novedad) VALUES (?, ?, ?, ?, 'Pendiente')";
     $stmt_insert = $pdo->prepare($sql_insert);
     $stmt_insert->execute([$id_contrato, $id_concepto_he, $fecha_trabajada, $monto_a_pagar]);
 

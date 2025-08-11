@@ -49,7 +49,7 @@ function get_tipo_ingreso_code($tipo_nomina) {
 // --- FIN DE FUNCIONES ---
 
 try {
-    $configs_db = $pdo->query("SELECT clave, valor FROM ConfiguracionGlobal")->fetchAll(PDO::FETCH_KEY_PAIR);
+    $configs_db = $pdo->query("SELECT clave, valor FROM configuracionglobal")->fetchAll(PDO::FETCH_KEY_PAIR);
     $rnc_empresa = $configs_db['RNC_EMPRESA'] ?? '';
     if (empty($rnc_empresa)) {
         throw new Exception("El RNC de la empresa no está configurado.");

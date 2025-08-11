@@ -12,7 +12,7 @@ if (empty($_GET['id']) || !is_numeric($_GET['id'])) {
 $id_nomina = $_GET['id'];
 
 // Obtener la información de la cabecera de la nómina
-$stmt_nomina = $pdo->prepare("SELECT * FROM nominasProcesadas WHERE id = ?");
+$stmt_nomina = $pdo->prepare("SELECT * FROM nominasprocesadas WHERE id = ?");
 $stmt_nomina->execute([$id_nomina]);
 $nomina = $stmt_nomina->fetch();
 
@@ -24,11 +24,11 @@ if (!$nomina) {
 // Obtener los detalles agrupados por empleado
 $stmt_detalles = $pdo->prepare("
     SELECT c.id as id_contrato, e.cedula, e.nombres, e.primer_apellido, 
-    (SELECT SUM(monto_resultado) FROM NominaDetalle WHERE id_nomina_procesada = ? AND id_contrato = c.id AND tipo_concepto = 'Ingreso') as total_ingresos,
-    (SELECT SUM(monto_resultado) FROM NominaDetalle WHERE id_nomina_procesada = ? AND id_contrato = c.id AND tipo_concepto = 'Deducción') as total_deducciones
-    FROM NominaDetalle nd
-    JOIN Contratos c ON nd.id_contrato = c.id
-    JOIN Empleados e ON c.id_empleado = e.id
+    (SELECT SUM(monto_resultado) FROM nominadetalle WHERE id_nomina_procesada = ? AND id_contrato = c.id AND tipo_concepto = 'Ingreso') as total_ingresos,
+    (SELECT SUM(monto_resultado) FROM nominadetalle WHERE id_nomina_procesada = ? AND id_contrato = c.id AND tipo_concepto = 'Deducción') as total_deducciones
+    FROM nominadetalle nd
+    JOIN contratos c ON nd.id_contrato = c.id
+    JOIN empleados e ON c.id_empleado = e.id
     WHERE nd.id_nomina_procesada = ?
     GROUP BY c.id, e.cedula, e.nombres, e.primer_apellido
     ORDER BY e.nombres, e.primer_apellido");

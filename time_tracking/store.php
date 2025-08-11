@@ -72,7 +72,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     // --- Validación de período ---
-    $stmt_periodo = $pdo->prepare("SELECT id FROM PeriodosDeReporte WHERE id = :id_periodo AND tipo_nomina = 'Inspectores' AND estado_periodo = 'Abierto' AND :fecha_trabajada BETWEEN fecha_inicio_periodo AND fecha_fin_periodo");
+    $stmt_periodo = $pdo->prepare("SELECT id FROM periodosdereporte WHERE id = :id_periodo AND tipo_nomina = 'Inspectores' AND estado_periodo = 'Abierto' AND :fecha_trabajada BETWEEN fecha_inicio_periodo AND fecha_fin_periodo");
     $stmt_periodo->execute([':id_periodo' => $id_periodo_reporte, ':fecha_trabajada' => $fecha_trabajada]);
     if (!$stmt_periodo->fetch()) {
         header("Location: " . $redirect_url . $separator . "status=error&message=La%20fecha%20o%20per%C3%ADodo%20seleccionado%20no%20es%20v%C3%A1lido.");
@@ -80,7 +80,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     // --- Validación de solapamiento de horario ---
-    $sql_check = "SELECT id FROM RegistroHoras WHERE id_contrato = :id_contrato AND fecha_trabajada = :fecha_trabajada AND (:hora_inicio < hora_fin AND :hora_fin > hora_inicio)";
+    $sql_check = "SELECT id FROM registrohoras WHERE id_contrato = :id_contrato AND fecha_trabajada = :fecha_trabajada AND (:hora_inicio < hora_fin AND :hora_fin > hora_inicio)";
     $stmt_check = $pdo->prepare($sql_check);
     $stmt_check->execute([':id_contrato' => $id_contrato, ':fecha_trabajada' => $fecha_trabajada, ':hora_inicio' => $hora_inicio, ':hora_fin' => $hora_fin]);
     if ($stmt_check->fetch()) {
@@ -100,7 +100,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         // --- Inserción en la base de datos ---
                         try {
                             // Se guarda el id_sub_lugar en la columna id_zona_trabajo
-                            $sql_insert = "INSERT INTO RegistroHoras 
+                            $sql_insert = "INSERT INTO registrohoras 
                                             (id_contrato, id_orden, id_proyecto, id_zona_trabajo, id_periodo_reporte, fecha_trabajada, hora_inicio, hora_fin, 
                                              estado_registro, transporte_aprobado, hora_gracia_antes, hora_gracia_despues) 
                                            VALUES 

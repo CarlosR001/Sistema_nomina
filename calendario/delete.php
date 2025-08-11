@@ -19,7 +19,7 @@ if (empty($fecha)) {
 }
 
 try {
-    $stmt = $pdo->prepare("DELETE FROM CalendarioLaboralRD WHERE fecha = ?");
+    $stmt = $pdo->prepare("DELETE FROM calendariolaboralrd WHERE fecha = ?");
     $stmt->execute([$fecha]);
 
     header('Location: index.php?status=success&message=Día feriado eliminado correctamente.');

@@ -14,7 +14,7 @@ $employee_id = $_GET['employee_id'];
 // Obtener listas para los dropdowns. Añadimos una lógica para identificar posiciones de inspector.
 $posiciones = $pdo->query("SELECT id, nombre_posicion, 
     CASE WHEN LOWER(nombre_posicion) LIKE '%inspector%' THEN 1 ELSE 0 END as es_inspector 
-    FROM Posiciones ORDER BY nombre_posicion")->fetchAll();
+    FROM posiciones ORDER BY nombre_posicion")->fetchAll();
 
 require_once '../includes/header.php';
 ?>

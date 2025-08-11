@@ -28,14 +28,14 @@ if (empty($employee_id) || empty($id_contrato) || empty($id_concepto_deduccion) 
 
 try {
     // Verificar si ya existe una deducción del mismo tipo para el mismo contrato
-    $stmt_check = $pdo->prepare("SELECT id FROM DeduccionesRecurrentes WHERE id_contrato = ? AND id_concepto_deduccion = ?");
+    $stmt_check = $pdo->prepare("SELECT id FROM deduccionesrecurrentes WHERE id_contrato = ? AND id_concepto_deduccion = ?");
     $stmt_check->execute([$id_contrato, $id_concepto_deduccion]);
     if ($stmt_check->fetch()) {
         redirect($employee_id, 'error', 'Ya existe una deducción de este tipo para el contrato seleccionado.');
     }
 
     // Preparar la consulta SQL incluyendo el nuevo campo
-    $sql = "INSERT INTO DeduccionesRecurrentes (id_contrato, id_concepto_deduccion, monto_deduccion, estado, quincena_aplicacion) VALUES (?, ?, ?, 'Activa', ?)";
+    $sql = "INSERT INTO deduccionesrecurrentes (id_contrato, id_concepto_deduccion, monto_deduccion, estado, quincena_aplicacion) VALUES (?, ?, ?, 'Activa', ?)";
     $stmt = $pdo->prepare($sql);
     
     // Ejecutar la consulta con el nuevo valor

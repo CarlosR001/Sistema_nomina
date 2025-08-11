@@ -12,7 +12,7 @@ if (!isset($_GET['fecha'])) {
 }
 $fecha = $_GET['fecha'];
 
-$stmt = $pdo->prepare("SELECT * FROM CalendarioLaboralRD WHERE fecha = ?");
+$stmt = $pdo->prepare("SELECT * FROM calendariolaboralrd WHERE fecha = ?");
 $stmt->execute([$fecha]);
 $feriado = $stmt->fetch();
 

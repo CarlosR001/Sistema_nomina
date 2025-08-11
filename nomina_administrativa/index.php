@@ -49,7 +49,7 @@ if ($form_submitted) {
 // 1. Obtener todas las nóminas administrativas que ya fueron procesadas
 $stmt_processed = $pdo->query("
     SELECT id, periodo_inicio, periodo_fin
-    FROM NominasProcesadas
+    FROM nominasprocesadas
     WHERE tipo_nomina_procesada = 'Administrativa'
 ");
 $processed_payrolls_raw = $stmt_processed->fetchAll(PDO::FETCH_ASSOC);

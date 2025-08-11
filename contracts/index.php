@@ -12,7 +12,7 @@ if (!isset($_GET['employee_id']) || !is_numeric($_GET['employee_id'])) {
 $employee_id = $_GET['employee_id'];
 
 // Obtener datos del empleado
-$stmt_employee = $pdo->prepare("SELECT nombres, primer_apellido FROM Empleados WHERE id = ?");
+$stmt_employee = $pdo->prepare("SELECT nombres, primer_apellido FROM empleados WHERE id = ?");
 $stmt_employee->execute([$employee_id]);
 $employee = $stmt_employee->fetch();
 if (!$employee) {
@@ -21,7 +21,7 @@ if (!$employee) {
 }
 
 // Obtener contratos
-$stmt_contracts = $pdo->prepare('SELECT c.id, c.estado_contrato, p.nombre_posicion FROM Contratos c JOIN Posiciones p ON c.id_posicion = p.id WHERE c.id_empleado = ? ORDER BY c.fecha_inicio DESC');
+$stmt_contracts = $pdo->prepare('SELECT c.id, c.estado_contrato, p.nombre_posicion FROM contratos c JOIN posiciones p ON c.id_posicion = p.id WHERE c.id_empleado = ? ORDER BY c.fecha_inicio DESC');
 $stmt_contracts->execute([$employee_id]);
 $contracts = $stmt_contracts->fetchAll();
 
@@ -30,10 +30,10 @@ $contracts = $stmt_contracts->fetchAll();
 // Obtener Ingresos Recurrentes
 $stmt_incomes = $pdo->prepare("
     SELECT ir.id, ir.monto_ingreso, ir.estado, ir.quincena_aplicacion, cn.descripcion_publica, c.id as id_contrato, p.nombre_posicion
-    FROM IngresosRecurrentes ir
-    JOIN ConceptosNomina cn ON ir.id_concepto_ingreso = cn.id
-    JOIN Contratos c ON ir.id_contrato = c.id
-    JOIN Posiciones p ON c.id_posicion = p.id
+    FROM ingresosrecurrentes ir
+    JOIN conceptosnomina cn ON ir.id_concepto_ingreso = cn.id
+    JOIN contratos c ON ir.id_contrato = c.id
+    JOIN posiciones p ON c.id_posicion = p.id
     WHERE c.id_empleado = ?
     ORDER BY ir.estado
 ");
@@ -43,10 +43,10 @@ $incomes = $stmt_incomes->fetchAll();
 // Obtener Deducciones Recurrentes
 $stmt_deductions = $pdo->prepare("
     SELECT dr.id, dr.monto_deduccion, dr.estado, dr.quincena_aplicacion, cn.descripcion_publica, c.id as id_contrato, p.nombre_posicion
-    FROM DeduccionesRecurrentes dr
-    JOIN ConceptosNomina cn ON dr.id_concepto_deduccion = cn.id
-    JOIN Contratos c ON dr.id_contrato = c.id
-    JOIN Posiciones p ON c.id_posicion = p.id
+    FROM deduccionesrecurrentes dr
+    JOIN conceptosnomina cn ON dr.id_concepto_deduccion = cn.id
+    JOIN contratos c ON dr.id_contrato = c.id
+    JOIN posiciones p ON c.id_posicion = p.id
     WHERE c.id_empleado = ?
     ORDER BY dr.estado
 ");
@@ -54,8 +54,8 @@ $stmt_deductions->execute([$employee_id]);
 $deductions = $stmt_deductions->fetchAll();
 
 // Obtener conceptos para los dropdowns de los formularios
-$conceptos_ingreso = $pdo->query("SELECT id, descripcion_publica FROM ConceptosNomina WHERE tipo_concepto = 'Ingreso'")->fetchAll();
-$conceptos_deduccion = $pdo->query("SELECT id, descripcion_publica FROM ConceptosNomina WHERE tipo_concepto = 'Deducción'")->fetchAll();
+$conceptos_ingreso = $pdo->query("SELECT id, descripcion_publica FROM conceptosnomina WHERE tipo_concepto = 'Ingreso'")->fetchAll();
+$conceptos_deduccion = $pdo->query("SELECT id, descripcion_publica FROM conceptosnomina WHERE tipo_concepto = 'Deducción'")->fetchAll();
 
 
 require_once '../includes/header.php';
