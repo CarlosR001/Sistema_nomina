@@ -1,5 +1,5 @@
 <?php
-// ordenes/edit.php - v2.0 (Compatible con v2.0 de update.php)
+// ordenes/edit.php - v2.1 (Consulta de supervisor flexibilizada)
 
 require_once '../auth.php';
 require_login();
@@ -26,7 +26,6 @@ if (!$orden_id) {
 $form_data = $_SESSION['form_data'] ?? [];
 unset($_SESSION['form_data']);
 
-// Cargar datos de la orden si no hay datos de formulario previos
 if (empty($form_data)) {
     $stmt = $pdo->prepare("SELECT * FROM ordenes WHERE id = ?");
     $stmt->execute([$orden_id]);
@@ -37,11 +36,9 @@ if (empty($form_data)) {
         exit;
     }
 } else {
-    // Usar datos de la sesión, pero mantener el ID original
     $orden = $form_data;
     $orden['id'] = $orden_id;
 }
-
 
 // Cargar datos para los dropdowns
 $clientes = $pdo->query("SELECT id, nombre_cliente FROM clientes WHERE estado = 'Activo' ORDER BY nombre_cliente")->fetchAll();
@@ -49,13 +46,15 @@ $lugares = $pdo->query("SELECT id, nombre_zona_o_muelle FROM lugares ORDER BY no
 $productos = $pdo->query("SELECT id, nombre_producto FROM productos ORDER BY nombre_producto")->fetchAll();
 $operaciones = $pdo->query("SELECT id, nombre_operacion FROM operaciones ORDER BY nombre_operacion")->fetchAll();
 $divisiones = $pdo->query("SELECT id, nombre_division FROM divisiones ORDER BY nombre_division")->fetchAll();
+
+// CORRECCIÓN: Flexibilizar la consulta del supervisor
 $supervisores = $pdo->query("
     SELECT e.id, e.nombres, e.primer_apellido 
     FROM empleados e 
     JOIN usuarios u ON e.id = u.id_empleado
     JOIN usuario_rol ur ON u.id = ur.id_usuario
     JOIN roles r ON ur.id_rol = r.id
-    WHERE r.nombre_rol = 'Supervisor' 
+    WHERE LOWER(r.nombre_rol) LIKE '%supervisor%' -- Búsqueda flexible
     ORDER BY e.nombres
 ")->fetchAll();
 
@@ -71,7 +70,6 @@ require_once '../includes/header.php';
     </ol>
 
     <?php
-    // --- 4. Mostrar mensajes flash ---
     if (isset($_SESSION['flash_message'])) {
         $flash = $_SESSION['flash_message'];
         echo '<div class="alert alert-' . htmlspecialchars($flash['type']) . '" role="alert">' . htmlspecialchars($flash['message']) . '</div>';
@@ -83,7 +81,6 @@ require_once '../includes/header.php';
         <div class="card-header"><i class="fas fa-edit me-1"></i>Detalles de la Orden</div>
         <div class="card-body">
             <form action="update.php" method="POST">
-                <!-- 5. Campos ocultos para ID y token CSRF -->
                 <input type="hidden" name="id" value="<?php echo htmlspecialchars($orden['id']); ?>">
                 <input type="hidden" name="csrf_token" value="<?php echo $csrf_token; ?>">
                 
@@ -143,6 +140,5 @@ require_once '../includes/header.php';
 </div>
 
 <?php 
-// --- 6. Corregir inclusión del footer ---
 require_once '../includes/footer.php'; 
 ?>
