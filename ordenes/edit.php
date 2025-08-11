@@ -1,9 +1,20 @@
 <?php
-// ordenes/edit.php
+// ordenes/edit.php - v2.0 (Compatible con v2.0 de update.php)
 
 require_once '../auth.php';
 require_login();
 require_permission('ordenes.gestionar');
+
+// --- 1. Iniciar sesión para tokens y mensajes flash ---
+if (session_status() == PHP_SESSION_NONE) {
+    session_start();
+}
+
+// --- 2. Generar token CSRF para el formulario ---
+if (empty($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+$csrf_token = $_SESSION['csrf_token'];
 
 $orden_id = $_GET['id'] ?? null;
 if (!$orden_id) {
@@ -11,15 +22,26 @@ if (!$orden_id) {
     exit;
 }
 
-// Cargar datos de la orden
-$stmt = $pdo->prepare("SELECT * FROM ordenes WHERE id = ?");
-$stmt->execute([$orden_id]);
-$orden = $stmt->fetch();
+// --- 3. Recuperar datos para rellenar el formulario si hubo un error ---
+$form_data = $_SESSION['form_data'] ?? [];
+unset($_SESSION['form_data']);
 
-if (!$orden) {
-    header('Location: index.php?status=error&message=' . urlencode('Orden no encontrada.'));
-    exit;
+// Cargar datos de la orden si no hay datos de formulario previos
+if (empty($form_data)) {
+    $stmt = $pdo->prepare("SELECT * FROM ordenes WHERE id = ?");
+    $stmt->execute([$orden_id]);
+    $orden = $stmt->fetch();
+    if (!$orden) {
+        $_SESSION['flash_message'] = ['type' => 'error', 'message' => 'Orden no encontrada.'];
+        header('Location: index.php');
+        exit;
+    }
+} else {
+    // Usar datos de la sesión, pero mantener el ID original
+    $orden = $form_data;
+    $orden['id'] = $orden_id;
 }
+
 
 // Cargar datos para los dropdowns
 $clientes = $pdo->query("SELECT id, nombre_cliente FROM clientes WHERE estado = 'Activo' ORDER BY nombre_cliente")->fetchAll();
@@ -27,8 +49,6 @@ $lugares = $pdo->query("SELECT id, nombre_zona_o_muelle FROM lugares ORDER BY no
 $productos = $pdo->query("SELECT id, nombre_producto FROM productos ORDER BY nombre_producto")->fetchAll();
 $operaciones = $pdo->query("SELECT id, nombre_operacion FROM operaciones ORDER BY nombre_operacion")->fetchAll();
 $divisiones = $pdo->query("SELECT id, nombre_division FROM divisiones ORDER BY nombre_division")->fetchAll();
-
-// CORRECCIÓN: Cargar supervisores usando el nuevo sistema de roles
 $supervisores = $pdo->query("
     SELECT e.id, e.nombres, e.primer_apellido 
     FROM empleados e 
@@ -50,57 +70,68 @@ require_once '../includes/header.php';
         <li class="breadcrumb-item active">Editar Orden</li>
     </ol>
 
+    <?php
+    // --- 4. Mostrar mensajes flash ---
+    if (isset($_SESSION['flash_message'])) {
+        $flash = $_SESSION['flash_message'];
+        echo '<div class="alert alert-' . htmlspecialchars($flash['type']) . '" role="alert">' . htmlspecialchars($flash['message']) . '</div>';
+        unset($_SESSION['flash_message']);
+    }
+    ?>
+
     <div class="card mb-4">
         <div class="card-header"><i class="fas fa-edit me-1"></i>Detalles de la Orden</div>
         <div class="card-body">
             <form action="update.php" method="POST">
+                <!-- 5. Campos ocultos para ID y token CSRF -->
                 <input type="hidden" name="id" value="<?php echo htmlspecialchars($orden['id']); ?>">
+                <input type="hidden" name="csrf_token" value="<?php echo $csrf_token; ?>">
+                
                 <div class="row g-3">
-                    <div class="col-md-4"><label for="codigo_orden" class="form-label">Código de Orden</label><input type="text" class="form-control" id="codigo_orden" name="codigo_orden" value="<?php echo htmlspecialchars($orden['codigo_orden']); ?>" required></div>
-                    <div class="col-md-4"><label for="fecha_creacion" class="form-label">Fecha de Creación</label><input type="date" class="form-control" id="fecha_creacion" name="fecha_creacion" value="<?php echo htmlspecialchars($orden['fecha_creacion']); ?>" required></div>
+                    <div class="col-md-4"><label for="codigo_orden" class="form-label">Código de Orden</label><input type="text" class="form-control" id="codigo_orden" name="codigo_orden" value="<?php echo htmlspecialchars($orden['codigo_orden'] ?? ''); ?>" required></div>
+                    <div class="col-md-4"><label for="fecha_creacion" class="form-label">Fecha de Creación</label><input type="date" class="form-control" id="fecha_creacion" name="fecha_creacion" value="<?php echo htmlspecialchars($orden['fecha_creacion'] ?? ''); ?>" required></div>
                     <div class="col-md-4"><label for="id_cliente" class="form-label">Cliente</label><select class="form-select" id="id_cliente" name="id_cliente" required>
-                        <?php foreach ($clientes as $cliente): ?><option value="<?php echo $cliente['id']; ?>" <?php echo ($orden['id_cliente'] == $cliente['id']) ? 'selected' : ''; ?>><?php echo htmlspecialchars($cliente['nombre_cliente']); ?></option><?php endforeach; ?>
+                        <?php foreach ($clientes as $cliente): ?><option value="<?php echo $cliente['id']; ?>" <?php echo (($orden['id_cliente'] ?? '') == $cliente['id']) ? 'selected' : ''; ?>><?php echo htmlspecialchars($cliente['nombre_cliente']); ?></option><?php endforeach; ?>
                     </select></div>
                     <div class="col-md-4"><label for="id_lugar" class="form-label">Lugar / Muelle</label><select class="form-select" id="id_lugar" name="id_lugar" required>
-                        <?php foreach ($lugares as $lugar): ?><option value="<?php echo $lugar['id']; ?>" <?php echo ($orden['id_lugar'] == $lugar['id']) ? 'selected' : ''; ?>><?php echo htmlspecialchars($lugar['nombre_zona_o_muelle']); ?></option><?php endforeach; ?>
+                        <?php foreach ($lugares as $lugar): ?><option value="<?php echo $lugar['id']; ?>" <?php echo (($orden['id_lugar'] ?? '') == $lugar['id']) ? 'selected' : ''; ?>><?php echo htmlspecialchars($lugar['nombre_zona_o_muelle']); ?></option><?php endforeach; ?>
                     </select></div>
                     <div class="col-md-4"><label for="id_producto" class="form-label">Producto</label><select class="form-select" id="id_producto" name="id_producto" required>
-                        <?php foreach ($productos as $producto): ?><option value="<?php echo $producto['id']; ?>" <?php echo ($orden['id_producto'] == $producto['id']) ? 'selected' : ''; ?>><?php echo htmlspecialchars($producto['nombre_producto']); ?></option><?php endforeach; ?>
+                        <?php foreach ($productos as $producto): ?><option value="<?php echo $producto['id']; ?>" <?php echo (($orden['id_producto'] ?? '') == $producto['id']) ? 'selected' : ''; ?>><?php echo htmlspecialchars($producto['nombre_producto']); ?></option><?php endforeach; ?>
                     </select></div>
                     <div class="col-md-4"><label for="id_operacion" class="form-label">Operación</label><select class="form-select" id="id_operacion" name="id_operacion" required>
-                        <?php foreach ($operaciones as $operacion): ?><option value="<?php echo $operacion['id']; ?>" <?php echo ($orden['id_operacion'] == $operacion['id']) ? 'selected' : ''; ?>><?php echo htmlspecialchars($operacion['nombre_operacion']); ?></option><?php endforeach; ?>
+                        <?php foreach ($operaciones as $operacion): ?><option value="<?php echo $operacion['id']; ?>" <?php echo (($orden['id_operacion'] ?? '') == $operacion['id']) ? 'selected' : ''; ?>><?php echo htmlspecialchars($operacion['nombre_operacion']); ?></option><?php endforeach; ?>
                     </select></div>
                     <div class="col-md-4"><label for="id_supervisor" class="form-label">Supervisor Asignado</label>
-    <select class="form-select" id="id_supervisor" name="id_supervisor" required>
-        <?php foreach ($supervisores as $supervisor): ?>
-            <option value="<?php echo $supervisor['id']; ?>" <?php echo ($orden['id_supervisor'] == $supervisor['id']) ? 'selected' : ''; ?>>
-                <?php echo htmlspecialchars($supervisor['nombres'] . ' ' . $supervisor['primer_apellido']); ?>
-            </option>
-        <?php endforeach; ?>
-    </select>
-</div>
-
+                        <select class="form-select" id="id_supervisor" name="id_supervisor">
+                            <option value="">Sin supervisor</option>
+                            <?php foreach ($supervisores as $supervisor): ?>
+                                <option value="<?php echo $supervisor['id']; ?>" <?php echo (($orden['id_supervisor'] ?? '') == $supervisor['id']) ? 'selected' : ''; ?>>
+                                    <?php echo htmlspecialchars($supervisor['nombres'] . ' ' . $supervisor['primer_apellido']); ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
                     <div class="col-md-4"><label for="id_division" class="form-label">División</label>
-    <select class="form-select" id="id_division" name="id_division" required>
-        <?php foreach ($divisiones as $division): ?>
-            <option value="<?php echo $division['id']; ?>" <?php echo ($orden['id_division'] == $division['id']) ? 'selected' : ''; ?>>
-                <?php echo htmlspecialchars($division['nombre_division']); ?>
-            </option>
-        <?php endforeach; ?>
-    </select>
-</div>
-<div class="col-md-4"><label for="fecha_finalizacion" class="form-label">Fecha de Finalización (Opcional)</label>
-    <input type="date" class="form-control" id="fecha_finalizacion" name="fecha_finalizacion" value="<?php echo htmlspecialchars($orden['fecha_finalizacion']); ?>">
-</div>
-<div class="col-md-4"><label for="estado_orden" class="form-label">Estado</label>
-    <select class="form-select" id="estado_orden" name="estado_orden" required>
-        <option value="Pendiente" <?php echo ($orden['estado_orden'] == 'Pendiente') ? 'selected' : ''; ?>>Pendiente</option>
-        <option value="En Proceso" <?php echo ($orden['estado_orden'] == 'En Proceso') ? 'selected' : ''; ?>>En Proceso</option>
-        <option value="Completada" <?php echo ($orden['estado_orden'] == 'Completada') ? 'selected' : ''; ?>>Completada</option>
-        <option value="Cancelada" <?php echo ($orden['estado_orden'] == 'Cancelada') ? 'selected' : ''; ?>>Cancelada</option>
-    </select>
-</div>
-
+                        <select class="form-select" id="id_division" name="id_division" required>
+                            <?php foreach ($divisiones as $division): ?>
+                                <option value="<?php echo $division['id']; ?>" <?php echo (($orden['id_division'] ?? '') == $division['id']) ? 'selected' : ''; ?>>
+                                    <?php echo htmlspecialchars($division['nombre_division']); ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div class="col-md-4"><label for="fecha_finalizacion" class="form-label">Fecha de Finalización (Opcional)</label>
+                        <input type="date" class="form-control" id="fecha_finalizacion" name="fecha_finalizacion" value="<?php echo htmlspecialchars($orden['fecha_finalizacion'] ?? ''); ?>">
+                    </div>
+                    <div class="col-md-4"><label for="estado_orden" class="form-label">Estado</label>
+                        <select class="form-select" id="estado_orden" name="estado_orden" required>
+                            <option value="Pendiente" <?php echo (($orden['estado_orden'] ?? '') == 'Pendiente') ? 'selected' : ''; ?>>Pendiente</option>
+                            <option value="En Proceso" <?php echo (($orden['estado_orden'] ?? '') == 'En Proceso') ? 'selected' : ''; ?>>En Proceso</option>
+                            <option value="Finalizada" <?php echo (($orden['estado_orden'] ?? '') == 'Finalizada') ? 'selected' : ''; ?>>Finalizada</option>
+                            <option value="Cancelada" <?php echo (($orden['estado_orden'] ?? '') == 'Cancelada') ? 'selected' : ''; ?>>Cancelada</option>
+                        </select>
+                    </div>
                 </div>
                 <div class="mt-4">
                     <button type="submit" class="btn btn-primary">Actualizar Orden</button>
@@ -111,4 +142,7 @@ require_once '../includes/header.php';
     </div>
 </div>
 
-<?php require_once '../includes/header.php'; ?>
+<?php 
+// --- 6. Corregir inclusión del footer ---
+require_once '../includes/footer.php'; 
+?>
