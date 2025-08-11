@@ -1,23 +1,46 @@
 <?php
-// ordenes/create.php
+// ordenes/create.php - v2.2 (CON CÓDIGO DE DIAGNÓSTICO DE ROLES)
 
 require_once '../auth.php';
 require_login();
 require_permission('ordenes.gestionar');
 
+// --- INICIO: CÓDIGO DE DIAGNÓSTICO ---
+// Este bloque mostrará los roles disponibles para ayudarnos a depurar.
+try {
+    $roles_disponibles = $pdo->query("SELECT id, nombre_rol FROM roles")->fetchAll(PDO::FETCH_ASSOC);
+    echo '<div style="background-color: #ffc; border: 1px solid #e6e6e6; padding: 15px; margin: 15px; font-family: monospace;">';
+    echo '<strong>Diagnóstico de Roles:</strong><br>';
+    echo 'Por favor, copie y pegue esta lista en el chat.<br><br>';
+    if ($roles_disponibles) {
+        foreach ($roles_disponibles as $rol) {
+            echo 'ID: ' . htmlspecialchars($rol['id']) . ', Nombre: ' . htmlspecialchars($rol['nombre_rol']) . '<br>';
+        }
+    } else {
+        echo 'No se encontraron roles en la tabla `roles`.';
+    }
+    echo '</div>';
+} catch (Exception $e) {
+    echo '<div style="background-color: #fdd; border: 1px solid red; padding: 15px; margin: 15px;">Error al consultar roles: ' . $e->getMessage() . '</div>';
+}
+// --- FIN: CÓDIGO DE DIAGNÓSTICO ---
+
+
 // Cargar datos para los dropdowns
 $clientes = $pdo->query("SELECT id, nombre_cliente FROM clientes WHERE estado = 'Activo' ORDER BY nombre_cliente")->fetchAll();
-$lugares = $pdo->query("SELECT id, nombre_zona_o_muelle FROM lugares ORDER BY nombre_zona_o_muelle")->fetchAll(); // <-- CORREGIDO
+$lugares = $pdo->query("SELECT id, nombre_zona_o_muelle FROM lugares ORDER BY nombre_zona_o_muelle")->fetchAll();
 $productos = $pdo->query("SELECT id, nombre_producto FROM productos ORDER BY nombre_producto")->fetchAll();
 $operaciones = $pdo->query("SELECT id, nombre_operacion FROM operaciones ORDER BY nombre_operacion")->fetchAll();
 $divisiones = $pdo->query("SELECT id, nombre_division FROM divisiones ORDER BY nombre_division")->fetchAll();
+
+// La consulta original que intentamos arreglar
 $supervisores = $pdo->query("
     SELECT e.id, e.nombres, e.primer_apellido 
     FROM empleados e 
     JOIN usuarios u ON e.id = u.id_empleado
     JOIN usuario_rol ur ON u.id = ur.id_usuario
     JOIN roles r ON ur.id_rol = r.id
-    WHERE r.nombre_rol = 'Supervisor' 
+    WHERE LOWER(r.nombre_rol) LIKE '%supervisor%'
     ORDER BY e.nombres
 ")->fetchAll();
 
@@ -87,8 +110,8 @@ require_once '../includes/header.php';
                     </div>
                     <div class="col-md-4">
                         <label for="id_supervisor" class="form-label">Supervisor Asignado</label>
-                        <select class="form-select" id="id_supervisor" name="id_supervisor" required>
-                            <option value="">Seleccionar...</option>
+                        <select class="form-select" id="id_supervisor" name="id_supervisor">
+                             <option value="">(Lista Vacía)</option>
                             <?php foreach ($supervisores as $supervisor): ?>
                                 <option value="<?php echo $supervisor['id']; ?>"><?php echo htmlspecialchars($supervisor['nombres'] . ' ' . $supervisor['primer_apellido']); ?></option>
                             <?php endforeach; ?>
