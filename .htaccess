@@ -1,5 +1,17 @@
-# BEGIN Force HTTPS
-RewriteEngine On
-RewriteCond %{HTTPS} off
-RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
-# END Force HTTPS
+# === REGLAS DE REDIRECCIÓN A HTTPS (VERSIÓN UNIVERSAL) ===
+# No editar estas líneas manualmente a menos que sepa lo que hace.
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    
+    # Condición 1: Comprueba si la conexión NO es HTTPS a través de la cabecera del proxy.
+    RewriteCond %{HTTP:X-Forwarded-Proto} !https
+    
+    # Condición 2: Comprueba si la conexión NO es HTTPS de la forma estándar.
+    RewriteCond %{HTTPS} off
+    
+    # Si CUALQUIERA de las dos condiciones anteriores es verdadera, redirige a HTTPS.
+    RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301,NE]
+</IfModule>
+
+# === FIN DE LAS REGLAS DE REDIRECCIÓN ===
