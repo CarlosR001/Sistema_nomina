@@ -1,16 +1,26 @@
 <?php
-// config/init.php - v2.0 (Configuración para Bluehost)
+// config/init.php - v3.0 (Configuración Multi-Entorno)
 
 // ----------------------------------------------------------------------
-// CONFIGURACIÓN ESPECIAL PARA BLUEHOST
+// DETECCIÓN AUTOMÁTICA DE ENTORNO
+// ----------------------------------------------------------------------
+// Comprueba si el script se está ejecutando en un servidor local o de producción.
+$is_local_environment = (in_array($_SERVER['REMOTE_ADDR'], ['127.0.0.1', '::1']) || substr($_SERVER['HTTP_HOST'], 0, 9) === 'localhost');
+
+// ----------------------------------------------------------------------
+// CONFIGURACIÓN DE SESIÓN BASADA EN EL ENTORNO
 // ----------------------------------------------------------------------
 
-// 1. Ruta de sesión para Bluehost.
-// ¡MUY IMPORTANTE! Debe estar ANTES de session_start().
-// Reemplaza 'johanse7' con tu nombre de usuario de cPanel si es diferente.
-ini_set('session.save_path', '/home3/johanse7/tmp');
+if ($is_local_environment) {
+    // Entorno Local (Tu PC): No se necesita una ruta de sesión especial.
+    // PHP usará la configuración por defecto de XAMPP/WAMP.
+} else {
+    // Entorno de Producción (Bluehost): Se especifica la ruta de sesión.
+    // Reemplaza 'johanse7' con tu usuario de cPanel si es diferente.
+    ini_set('session.save_path', '/home3/johanse7/tmp');
+}
 
-// 2. Iniciar la sesión (ahora sí, después de definir la ruta).
+// Iniciar la sesión SIEMPRE después de cualquier configuración de ini_set().
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
@@ -19,28 +29,45 @@ if (session_status() === PHP_SESSION_NONE) {
 // CONFIGURACIÓN GENERAL DE LA APLICACIÓN
 // ----------------------------------------------------------------------
 
-// 3. Definir la URL base dinámica para el entorno de producción.
+// Definir la URL base (BASE_URL) de forma dinámica y robusta.
 if (!defined('BASE_URL')) {
-    // Esto crea la URL base como "https://tu-dominio.com"
-    $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' || $_SERVER['SERVER_PORT'] == 443) ? "https" : "http";
-    define('BASE_URL', $protocol . '://' . $_SERVER['HTTP_HOST'] . '/');
+    if ($is_local_environment) {
+        // Para desarrollo local (ej: http://localhost/Sistema_nomina/)
+        // Asegura que la barra final esté presente.
+        $base_url = sprintf(
+            "%s://%s%s",
+            isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] != 'off' ? 'https' : 'http',
+            $_SERVER['HTTP_HOST'],
+            dirname($_SERVER['REQUEST_URI']) . '/'
+        );
+         // Si la URL base es solo "http://localhost//", corrígela.
+        $base_url = str_replace('//', '/', $base_url);
+        define('BASE_URL', $base_url);
+    } else {
+        // Para producción (ej: https://jyc.johansen.com.do/)
+        $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' || $_SERVER['SERVER_PORT'] == 443) ? "https" : "http";
+        define('BASE_URL', $protocol . '://' . $_SERVER['HTTP_HOST'] . '/');
+    }
 }
 
-// 4. Establecer la zona horaria correcta para República Dominicana.
+// Establecer la zona horaria correcta.
 date_default_timezone_set('America/Santo_Domingo');
 
-// 5. Cargar la conexión a la base de datos.
-// __DIR__ asegura que la ruta siempre sea correcta.
+// Cargar la conexión a la base de datos.
 require_once __DIR__ . '/database.php';
-
 
 // ----------------------------------------------------------------------
 // MANEJO DE ERRORES (MODO DEPURACIÓN)
 // ----------------------------------------------------------------------
-// Para la prueba piloto, es útil ver los errores directamente.
-// Cuando el sistema esté en producción final, cambia '1' a '0'.
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
+// Mostrar errores en local, ocultarlos en producción.
+if ($is_local_environment) {
+    ini_set('display_errors', 1);
+    ini_set('display_startup_errors', 1);
+    error_reporting(E_ALL);
+} else {
+    ini_set('display_errors', 0);
+    ini_set('display_startup_errors', 0);
+    error_reporting(0);
+}
 
 ?>
