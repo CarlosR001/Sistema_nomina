@@ -1,10 +1,8 @@
 <?php
-// auth.php - v2.0 (Lógica de Login Simplificada y Segura)
+// auth.php - v2.1 (Corrección de Orden de Sesión)
 
-// La sesión ya se inicia en init.php, pero lo dejamos por si se llama a este archivo directamente.
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
+// El session_start() se elimina de aquí, ya que ahora es gestionado correctamente por init.php
+// Esto previene el error "Warning: ini_set(): Session ini settings cannot be changed".
 
 require_once __DIR__ . '/config/init.php';
 
