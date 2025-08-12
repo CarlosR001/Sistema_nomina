@@ -29,6 +29,13 @@ if (session_status() === PHP_SESSION_NONE) {
                         <a class="nav-link" href="<?php echo BASE_URL; ?>index.php">Inicio</a>
                     </li>
 
+                    <!-- Menú para Inspectores -->
+                    <?php if (has_permission('horas.registrar')): ?>
+                    <li class="nav-item">
+                        <a class="nav-link" href="<?php echo BASE_URL; ?>time_tracking/index.php">Portal de Horas</a>
+                    </li>
+                    <?php endif; ?>
+
                     <!-- Menú Entrada de Datos -->
                     <?php if (has_permission('organizacion.gestionar') || has_permission('nomina.procesar')): ?>
                     <li class="nav-item dropdown">

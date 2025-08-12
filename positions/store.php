@@ -14,7 +14,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (!empty($nombre_posicion) && !empty($id_departamento)) {
         try {
-            $sql = "INSERT INTO Posiciones (nombre_posicion, id_departamento) VALUES (:nombre_posicion, :id_departamento)";
+            $sql = "INSERT INTO posiciones (nombre_posicion, id_departamento) VALUES (:nombre_posicion, :id_departamento)";
             $stmt = $pdo->prepare($sql);
             $stmt->bindParam(':nombre_posicion', $nombre_posicion);
             $stmt->bindParam(':id_departamento', $id_departamento);
