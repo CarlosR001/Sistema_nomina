@@ -1,10 +1,13 @@
 <?php
-// config/init.php - v3.1 (Configuración Multi-Entorno Robusta)
+// config/init.php - v3.2 (Configuración Multi-Entorno Final)
 
 // ----------------------------------------------------------------------
 // DETECCIÓN AUTOMÁTICA DE ENTORNO
 // ----------------------------------------------------------------------
-$is_local_environment = (in_array($_SERVER['REMOTE_ADDR'], ['1227.0.0.1', '::1']) || strpos($_SERVER['HTTP_HOST'], 'localhost') !== false);
+$is_local_environment = (
+    in_array($_SERVER['REMOTE_ADDR'], ['127.0.0.1', '::1']) || 
+    strpos($_SERVER['HTTP_HOST'], 'localhost') !== false
+);
 
 // ----------------------------------------------------------------------
 // CONFIGURACIÓN DE SESIÓN BASADA EN EL ENTORNO
@@ -29,14 +32,10 @@ if (!defined('BASE_URL')) {
     $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' || ($_SERVER['SERVER_PORT'] ?? 80) == 443) ? "https" : "http";
     $host = $_SERVER['HTTP_HOST'];
 
-    if ($is_local_environment) {
-        // LOCAL: Combina el protocolo, host y el nombre de la carpeta del proyecto.
-        // Cambia '/Sistema_nomina/' si tu carpeta se llama diferente.
-        define('BASE_URL', $protocol . '://' . $host . '/Sistema_nomina/');
-    } else {
-        // PRODUCCIÓN: Usa la raíz del dominio.
-        define('BASE_URL', $protocol . '://' . $host . '/');
-    }
+    // Para un servidor de desarrollo que se ejecuta en la raíz del proyecto (como `php -S` o un Virtual Host),
+    // la URL base es simplemente el host. Para producción, es lo mismo.
+    // La diferencia es manejada por el propio `host` (`localhost:3000` vs `jyc.johansen.com.do`).
+    define('BASE_URL', $protocol . '://' . $host . '/');
 }
 
 // Establecer la zona horaria correcta.
