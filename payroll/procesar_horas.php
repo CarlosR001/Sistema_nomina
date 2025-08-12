@@ -78,20 +78,22 @@ try {
     // La consulta principal ahora se une con `ordenes` para obtener el `id_lugar` (zona).
     // Se usa un alias (AS) para que el resto del script no necesite cambios.
     $sql_horas = "SELECT 
-                    c.id as contrato_id, c.tarifa_por_hora, 
-                    e.nombres, e.primer_apellido, 
-                    rh.fecha_trabajada, rh.hora_inicio, rh.hora_fin, 
-                    o.id_lugar AS id_zona_trabajo, -- <-- Se obtiene de la orden y se renombra
-                    rh.transporte_aprobado,
-                    rh.hora_gracia_antes, rh.hora_gracia_despues 
-                  FROM contratos c 
-                  JOIN empleados e ON c.id_empleado = e.id 
-                  JOIN registrohoras rh ON c.id = rh.id_contrato
-                  LEFT JOIN ordenes o ON rh.id_orden = o.id -- <-- Nueva unión
-                  WHERE c.tipo_nomina = 'Inspectores' 
-                    AND rh.estado_registro = 'Aprobado' 
-                    AND rh.fecha_trabajada BETWEEN ? AND ? 
-                  ORDER BY c.id, rh.fecha_trabajada, rh.hora_inicio";
+    c.id as contrato_id, c.tarifa_por_hora, 
+    e.nombres, e.primer_apellido, 
+    rh.fecha_trabajada, rh.hora_inicio, rh.hora_fin, 
+    o.id_lugar AS id_zona_trabajo,
+    rh.transporte_aprobado,
+    rh.transporte_mitad, -- <-- CAMBIO: Se añade la nueva columna
+    rh.hora_gracia_antes, rh.hora_gracia_despues 
+  FROM contratos c 
+  JOIN empleados e ON c.id_empleado = e.id 
+  JOIN registrohoras rh ON c.id = rh.id_contrato
+  LEFT JOIN ordenes o ON rh.id_orden = o.id
+  WHERE c.tipo_nomina = 'Inspectores' 
+    AND rh.estado_registro = 'Aprobado' 
+    AND rh.fecha_trabajada BETWEEN ? AND ? 
+  ORDER BY c.id, rh.fecha_trabajada, rh.hora_inicio";
+
     // --- FIN DE LA MODIFICACIÓN CLAVE ---
    $stmt_horas = $pdo->prepare($sql_horas);
     $stmt_horas->execute([$fecha_inicio, $fecha_fin]);
@@ -103,27 +105,36 @@ try {
         $tarifa_hora = (float)$registros[0]['tarifa_por_hora'];
         $total_horas_feriado = 0; $total_horas_laborales = 0; $total_horas_nocturnas_bono = 0; $total_horas_gracia = 0;
         
-        // --- Lógica de Transporte (sin cambios) ---
-        $registros_por_dia = [];
-        foreach ($registros as $reg) {
-            $registros_por_dia[$reg['fecha_trabajada']][] = $reg;
-        }
-        $pago_transporte_total = 0;
-        foreach ($registros_por_dia as $fecha => $registros_del_dia) {
-            usort($registros_del_dia, function($a, $b) { return strcmp($a['hora_inicio'], $b['hora_inicio']); });
-            $es_primer_viaje_del_dia = true;
-            foreach ($registros_del_dia as $turno) {
-                if ($turno['transporte_aprobado'] && isset($turno['id_zona_trabajo']) && isset($zonas[$turno['id_zona_trabajo']])) {
-                    $costo_lugar = (float)$zonas[$turno['id_zona_trabajo']];
-                    if ($es_primer_viaje_del_dia) {
-                        $pago_transporte_total += $costo_lugar;
-                        $es_primer_viaje_del_dia = false;
+              // Bucle unificado para calcular todo (horas y transporte)
+              foreach ($registros as $reg) {
+                // --- NUEVA LÓGICA DE TRANSPORTE SIMPLIFICADA ---
+                if ($reg['transporte_aprobado'] && !empty($reg['id_zona_trabajo']) && isset($zonas[$reg['id_zona_trabajo']])) {
+                    $costo_lugar = (float)$zonas[$reg['id_zona_trabajo']];
+                    if ($reg['transporte_mitad']) {
+                        $pago_transporte_total += ($costo_lugar * 0.5); // Paga el 50%
                     } else {
-                        $pago_transporte_total += ($costo_lugar * 0.50);
+                        $pago_transporte_total += $costo_lugar; // Paga el 100%
                     }
                 }
+                // --- FIN NUEVA LÓGICA ---
+    
+                $inicio = new DateTime($reg['hora_inicio']);
+                $fin = new DateTime($reg['hora_fin']);
+                if ($fin <= $inicio) $fin->modify('+1 day');
+                $duracion_horas = round(($fin->getTimestamp() - $inicio->getTimestamp()) / 3600, 2);
+    
+                if (in_array($reg['fecha_trabajada'], $feriados)) { 
+                    $total_horas_feriado += $duracion_horas; 
+                } else { 
+                    $total_horas_laborales += $duracion_horas; 
+                }
+    
+                $total_horas_nocturnas_bono += calcular_horas_nocturnas_reales($inicio, $fin);
+    
+                if ($reg['hora_gracia_antes']) $total_horas_gracia++;
+                if ($reg['hora_gracia_despues']) $total_horas_gracia++;
             }
-        }
+    
         
         // Bucle para sumar horas, ahora incluye el cálculo de nocturnas
         foreach ($registros as $reg) {

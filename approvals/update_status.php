@@ -1,6 +1,5 @@
 <?php
-// approvals/update_status.php - v1.2
-// Procesa la aprobación de transporte junto con el estado del registro.
+// approvals/update_status.php - v2.0 (Lógica de Transporte Simplificada)
 
 require_once '../auth.php';
 require_login();
@@ -11,60 +10,61 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !isset($_POST['registros'], $_POST[
     exit();
 }
 
-$registros_data = $_POST['registros'];
+$registros = $_POST['registros'];
 $new_status = $_POST['action'];
-
-if (!in_array($new_status, ['Aprobado', 'Rechazado', 'Pendiente'])) {
-    header('Location: index.php?status=error&message=Acción no válida.');
-    exit();
-}
-
-if (empty($registros_data) || !is_array($registros_data)) {
-     header('Location: index.php?status=error&message=No se seleccionó ningún registro.');
-    exit();
-}
+$user_id = $_SESSION['user_id'];
+$current_time = date('Y-m-d H:i:s');
 
 try {
     $pdo->beginTransaction();
 
-    $sql = "UPDATE RegistroHoras 
-            SET estado_registro = ?, transporte_aprobado = ?, id_usuario_aprobador = ?, fecha_aprobacion = ?
-            WHERE id = ?";
-    $stmt = $pdo->prepare($sql);
+    $sql_update = "UPDATE registrohoras SET 
+                       estado_registro = :estado, 
+                       id_usuario_aprobador = :aprobador, 
+                       fecha_aprobacion = :fecha,
+                       transporte_aprobado = :transporte,
+                       transporte_mitad = :mitad -- <-- Nueva columna
+                   WHERE id = :id";
+    $stmt = $pdo->prepare($sql_update);
 
-    $affected_rows = 0;
-    
-    // Iterar sobre cada registro seleccionado
-    foreach ($registros_data as $registro_id => $data) {
-        if (!isset($data['id'])) continue; // Si solo viene el transporte pero no el ID, ignorar.
+    foreach ($registros as $id => $data) {
+        if (!empty($data['id'])) {
+            // Determinar los valores para los checkboxes
+            $transporte_aprobado = isset($data['transporte']) ? 1 : 0;
+            $transporte_mitad = isset($data['transporte_mitad']) ? 1 : 0;
+            
+            // Si el transporte no está aprobado, forzar el 50% a 0 para consistencia.
+            if ($transporte_aprobado == 0) {
+                $transporte_mitad = 0;
+            }
 
-        $transporte_aprobado = isset($data['transporte']) ? 1 : 0;
-        
-        // Si se revierte, limpiar datos de aprobación. Si se aprueba/rechaza, llenarlos.
-        $id_aprobador = ($new_status === 'Pendiente') ? null : $_SESSION['user_id'];
-        $fecha_aprobacion = ($new_status === 'Pendiente') ? null : date('Y-m-d H:i:s');
-        
-        $stmt->execute([
-            $new_status,
-            $transporte_aprobado,
-            $id_aprobador,
-            $fecha_aprobacion,
-            $registro_id
-        ]);
-        $affected_rows += $stmt->rowCount();
+            $params = [
+                ':estado' => $new_status,
+                ':aprobador' => $user_id,
+                ':fecha' => $current_time,
+                ':transporte' => $transporte_aprobado,
+                ':mitad' => $transporte_mitad,
+                ':id' => $id
+            ];
+
+            // Si se revierte a 'Pendiente', no actualizamos los datos de aprobación
+            if ($new_status === 'Pendiente') {
+                $sql_revert = "UPDATE registrohoras SET estado_registro = 'Pendiente', id_usuario_aprobador = NULL, fecha_aprobacion = NULL WHERE id = ?";
+                $pdo->prepare($sql_revert)->execute([$id]);
+            } else {
+                $stmt->execute($params);
+            }
+        }
     }
-    
+
     $pdo->commit();
-
-    $accion_texto = ($new_status === 'Pendiente') ? 'revertido' : strtolower($new_status) . 's';
-    $redirect_view = ($new_status === 'Aprobado' || $new_status === 'Rechazado') ? '?view=pendientes' : '?view=aprobados';
-
-    header('Location: index.php' . $redirect_view . '&status=success&message=' . $affected_rows . ' registro(s) han sido ' . $accion_texto . '.');
+    header('Location: index.php?status=success&message=Registros actualizados correctamente.');
     exit();
 
-} catch (PDOException $e) {
-    if ($pdo->inTransaction()) $pdo->rollBack();
-    header('Location: index.php?status=error&message=' . urlencode('Error de base de datos: ' . $e->getMessage()));
+} catch (Exception $e) {
+    if ($pdo->inTransaction()) {
+        $pdo->rollBack();
+    }
+    header('Location: index.php?status=error&message=' . urlencode('Error al actualizar: ' . $e->getMessage()));
     exit();
 }
-?>
