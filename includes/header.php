@@ -1,9 +1,15 @@
 <?php
-// includes/header.php - v2.0 (Con Menú Dinámico Basado en Permisos)
+// includes/header.php - v2.1 (Muestra Nombre Completo en lugar de Username)
 
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
+
+// Lógica para determinar qué nombre mostrar.
+if (isset($_SESSION['user_id'])) {
+    $display_name = !empty($_SESSION['user_full_name']) && trim($_SESSION['user_full_name']) !== '' ? $_SESSION['user_full_name'] : $_SESSION['username'];
+}
+
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -134,7 +140,7 @@ if (session_status() === PHP_SESSION_NONE) {
             </ul>
             <?php if (isset($_SESSION['user_id'])): ?>
                 <span class="navbar-text me-3">
-                    Hola, <?php echo htmlspecialchars($_SESSION['username']); ?>
+                    Hola, <?php echo htmlspecialchars($display_name); ?>
                 </span>
                 <a href="<?php echo BASE_URL; ?>auth.php?action=logout" class="btn btn-outline-light">Cerrar Sesión</a>
             <?php endif; ?>
