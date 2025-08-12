@@ -1,10 +1,10 @@
 <?php
 
-// --- Credenciales de la Base de Datos en Bluehost ---
+// --- Credenciales para la Base de Datos LOCAL ---
 define('DB_HOST', 'localhost');
-define('DB_NAME', 'johanse7_general');
-define('DB_USER', 'johanse7_Carlos_001');
-define('DB_PASS', 'Johansen8070*');
+define('DB_NAME', 'nominajyc'); // Nombre de tu base de datos local
+define('DB_USER', 'root');      // Usuario por defecto en XAMPP/WAMP
+define('DB_PASS', '');          // Contraseña por defecto (vacía)
 define('DB_CHAR', 'utf8mb4');
 
 // --- DSN (Data Source Name) ---

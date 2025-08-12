@@ -29,10 +29,10 @@ require_once '../includes/header.php';
     <tbody>
         <?php while ($row = $stmt->fetch()): ?>
             <tr>
-                <td><?php echo htmlspecialchars($row['cedula']); ?></td>
-                <td><?php echo htmlspecialchars($row['nombres']); ?></td>
-                <td><?php echo htmlspecialchars($row['primer_apellido']); ?></td>
-                <td><?php echo htmlspecialchars($row['email_personal']); ?></td>
+                <td><?php echo htmlspecialchars($row['cedula'] ?? ''); ?></td>
+                <td><?php echo htmlspecialchars($row['nombres'] ?? ''); ?></td>
+                <td><?php echo htmlspecialchars($row['primer_apellido'] ?? ''); ?></td>
+                <td><?php echo htmlspecialchars($row['email_personal'] ?? ''); ?></td>
                 <td class="text-center">
                           <a href="<?php echo BASE_URL; ?>employees/edit.php?id=<?php echo htmlspecialchars($row['id']); ?>" class="btn btn-warning btn-sm" title="Editar Empleado"><i class="bi bi-pencil-square"></i></a>
                           <a href="<?php echo BASE_URL; ?>contracts/index.php?employee_id=<?php echo htmlspecialchars($row['id']); ?>" class="btn btn-info btn-sm" title="Ver Contratos"><i class="bi bi-file-text"></i></a>
