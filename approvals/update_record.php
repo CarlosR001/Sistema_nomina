@@ -42,7 +42,7 @@ $hora_fin = ($hora_fin_num == 24) ? "23:59:59" : $hora_fin_num . ":00:00";
 
 try {
     // La consulta UPDATE ahora modifica id_orden y omite los campos de proyecto/zona
-    $sql = "UPDATE RegistroHoras SET 
+    $sql = "UPDATE registrohoras SET 
                 fecha_trabajada = ?,
                 id_orden = ?,
                 hora_inicio = ?,
