@@ -123,8 +123,8 @@ if (isset($_GET['error'])) {
     <div class="login-card">
         <div class="login-header">
             <div class="icon"><i class="bi bi-building"></i></div>
-            <h2>Sistema de Nómina</h2>
-            <p class="text-muted">J&C Group</p>
+            <h2>Johansen & CO., S.A</h2>
+            <p class="text-muted">J&C</p>
         </div>
         <div class="card-body pt-0">
             <?php if ($error_message): ?>
