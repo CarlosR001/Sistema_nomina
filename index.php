@@ -1,41 +1,38 @@
 <?php
-// index.php (Página principal) - v3.0 (Dashboard Inteligente)
+// index.php (Página principal) - v3.1 (Dashboard Inteligente y Robusto)
 require_once 'auth.php';
 require_login();
 
 // --- Redirección automática para Inspectores ---
-// Si el usuario tiene permiso para registrar horas, pero NO para procesar nómina (lo que lo distingue de un admin),
-// se asume que su único rol es ser inspector y se le redirige a su portal.
 if (has_permission('horas.registrar') && !has_permission('nomina.procesar')) {
     header('Location: ' . BASE_URL . 'time_tracking/index.php');
     exit();
 }
 
 // --- Dashboard para Roles Administrativos ---
-// Si el script continúa, es porque el usuario es Admin, Supervisor, Contable, etc.
 
 // Cargar estadísticas clave para el dashboard
 try {
-    // Contar horas pendientes de aprobación
     $stmt_pending = $pdo->query("SELECT COUNT(id) FROM registrohoras WHERE estado_registro = 'Pendiente'");
     $horas_pendientes = $stmt_pending->fetchColumn();
     
-    // Contar empleados activos
     $stmt_active_emp = $pdo->query("SELECT COUNT(id) FROM empleados WHERE estado_empleado = 'Activo'");
     $empleados_activos = $stmt_active_emp->fetchColumn();
 
 } catch (PDOException $e) {
-    // En caso de error, se asignan valores por defecto para no romper la página.
     $horas_pendientes = 'N/A';
     $empleados_activos = 'N/A';
 }
+
+// CORRECCIÓN: Usar el nombre de usuario como fallback si el nombre completo no está en la sesión.
+$welcome_name = !empty($_SESSION['user_full_name']) ? $_SESSION['user_full_name'] : $_SESSION['username'];
 
 require_once 'includes/header.php';
 ?>
 
 <div class="p-5 mb-4 bg-light rounded-3">
     <div class="container-fluid py-5">
-        <h1 class="display-5 fw-bold">Bienvenido, <?php echo htmlspecialchars($_SESSION['user_full_name']); ?></h1>
+        <h1 class="display-5 fw-bold">Bienvenido, <?php echo htmlspecialchars($welcome_name); ?></h1>
         <p class="col-md-8 fs-4">
             Este es el panel de control principal. Desde aquí puede acceder a las funciones clave del sistema.
         </p>
