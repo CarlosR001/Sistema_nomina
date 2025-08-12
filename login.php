@@ -1,5 +1,5 @@
 <?php
-// login.php - v3.0 (Diseño Premium)
+// login.php - v4.0 (Diseño Corporativo Premium)
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
@@ -35,8 +35,6 @@ if (isset($_GET['error'])) {
         :root {
             --primary-color: #0d6efd;
             --primary-color-darker: #0a58ca;
-            --background-gradient-start: #e9ecef;
-            --background-gradient-end: #dee2e6;
         }
 
         body {
@@ -44,18 +42,22 @@ if (isset($_GET['error'])) {
             align-items: center;
             justify-content: center;
             min-height: 100vh;
-            background: linear-gradient(135deg, var(--background-gradient-start), var(--background-gradient-end));
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-image: linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.6)), url('https://images.pexels.com/photos/3184465/pexels-photo-3184465.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
         }
 
         .login-card {
             max-width: 450px;
             width: 100%;
-            background-color: white;
+            background-color: rgba(255, 255, 255, 0.95);
             border: none;
             border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
-            overflow: hidden; /* Para que el borde superior no se salga */
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
             border-top: 5px solid var(--primary-color);
         }
 
@@ -110,8 +112,8 @@ if (isset($_GET['error'])) {
         }
         
         .card-footer {
-            background-color: #f8f9fa;
-            border-top: 1px solid #e9ecef;
+            background-color: rgba(248, 249, 250, 0.8);
+            border-top: 1px solid rgba(0, 0, 0, 0.1);
             font-size: 0.9rem;
         }
     </style>
@@ -120,9 +122,9 @@ if (isset($_GET['error'])) {
 
     <div class="login-card">
         <div class="login-header">
-            <div class="icon"><i class="bi bi-shield-lock-fill"></i></div>
-            <h2>Nómina J&C</h2>
-            <p class="text-muted">Por favor, inicie sesión para continuar</p>
+            <div class="icon"><i class="bi bi-building"></i></div>
+            <h2>Sistema de Nómina</h2>
+            <p class="text-muted">J&C Group</p>
         </div>
         <div class="card-body pt-0">
             <?php if ($error_message): ?>
@@ -147,7 +149,7 @@ if (isset($_GET['error'])) {
             </form>
         </div>
         <div class="card-footer text-center text-muted">
-            &copy; <?php echo date('Y'); ?> J&C Group
+            &copy; <?php echo date('Y'); ?> Johansen & Co.
         </div>
     </div>
 
