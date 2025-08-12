@@ -1,22 +1,17 @@
 <?php
-// config/init.php - v3.0 (Configuración Multi-Entorno)
+// config/init.php - v3.1 (Configuración Multi-Entorno Robusta)
 
 // ----------------------------------------------------------------------
 // DETECCIÓN AUTOMÁTICA DE ENTORNO
 // ----------------------------------------------------------------------
-// Comprueba si el script se está ejecutando en un servidor local o de producción.
-$is_local_environment = (in_array($_SERVER['REMOTE_ADDR'], ['127.0.0.1', '::1']) || substr($_SERVER['HTTP_HOST'], 0, 9) === 'localhost');
+$is_local_environment = (in_array($_SERVER['REMOTE_ADDR'], ['1227.0.0.1', '::1']) || strpos($_SERVER['HTTP_HOST'], 'localhost') !== false);
 
 // ----------------------------------------------------------------------
 // CONFIGURACIÓN DE SESIÓN BASADA EN EL ENTORNO
 // ----------------------------------------------------------------------
 
-if ($is_local_environment) {
-    // Entorno Local (Tu PC): No se necesita una ruta de sesión especial.
-    // PHP usará la configuración por defecto de XAMPP/WAMP.
-} else {
+if (!$is_local_environment) {
     // Entorno de Producción (Bluehost): Se especifica la ruta de sesión.
-    // Reemplaza 'johanse7' con tu usuario de cPanel si es diferente.
     ini_set('session.save_path', '/home3/johanse7/tmp');
 }
 
@@ -29,24 +24,18 @@ if (session_status() === PHP_SESSION_NONE) {
 // CONFIGURACIÓN GENERAL DE LA APLICACIÓN
 // ----------------------------------------------------------------------
 
-// Definir la URL base (BASE_URL) de forma dinámica y robusta.
+// Definir la URL base (BASE_URL) de forma robusta.
 if (!defined('BASE_URL')) {
+    $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' || ($_SERVER['SERVER_PORT'] ?? 80) == 443) ? "https" : "http";
+    $host = $_SERVER['HTTP_HOST'];
+
     if ($is_local_environment) {
-        // Para desarrollo local (ej: http://localhost/Sistema_nomina/)
-        // Asegura que la barra final esté presente.
-        $base_url = sprintf(
-            "%s://%s%s",
-            isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] != 'off' ? 'https' : 'http',
-            $_SERVER['HTTP_HOST'],
-            dirname($_SERVER['REQUEST_URI']) . '/'
-        );
-         // Si la URL base es solo "http://localhost//", corrígela.
-        $base_url = str_replace('//', '/', $base_url);
-        define('BASE_URL', $base_url);
+        // LOCAL: Combina el protocolo, host y el nombre de la carpeta del proyecto.
+        // Cambia '/Sistema_nomina/' si tu carpeta se llama diferente.
+        define('BASE_URL', $protocol . '://' . $host . '/Sistema_nomina/');
     } else {
-        // Para producción (ej: https://jyc.johansen.com.do/)
-        $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' || $_SERVER['SERVER_PORT'] == 443) ? "https" : "http";
-        define('BASE_URL', $protocol . '://' . $_SERVER['HTTP_HOST'] . '/');
+        // PRODUCCIÓN: Usa la raíz del dominio.
+        define('BASE_URL', $protocol . '://' . $host . '/');
     }
 }
 
