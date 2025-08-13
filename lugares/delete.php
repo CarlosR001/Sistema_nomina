@@ -1,5 +1,5 @@
 <?php
-// zones/delete.php
+// lugares/delete.php - v2.0 (Lógica de Movimientos Eliminada)
 
 require_once '../auth.php';
 require_login();
@@ -15,20 +15,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     try {
         // Verificar si el lugar (o sub-lugar) está siendo usado en alguna orden
-        $stmt_check = $pdo->prepare("SELECT COUNT(*) FROM ordenes WHERE id_lugar = ?");
-        $stmt_check->execute([$id]);
-        if ($stmt_check->fetchColumn() > 0) {
-            throw new Exception("No se puede eliminar el lugar principal porque está asignado a una o más órdenes.");
+        $stmt_check_orden = $pdo->prepare("SELECT COUNT(*) FROM ordenes WHERE id_lugar = ?");
+        $stmt_check_orden->execute([$id]);
+        if ($stmt_check_orden->fetchColumn() > 0) {
+            throw new Exception("No se puede eliminar porque está asignado a una o más órdenes.");
         }
         
-        // Adicionalmente, verificar si es un sub-lugar y está en uso en registro_movimientos_transporte
-        $stmt_check_mov = $pdo->prepare("SELECT COUNT(*) FROM registro_movimientos_transporte WHERE id_sub_lugar = ?");
-        $stmt_check_mov->execute([$id]);
-        if ($stmt_check_mov->fetchColumn() > 0) {
-            throw new Exception("No se puede eliminar el sub-lugar porque tiene movimientos de transporte registrados.");
+        // Verificar si el lugar (o sub-lugar) está siendo usado en algún registro de horas
+        $stmt_check_horas = $pdo->prepare("SELECT COUNT(*) FROM registrohoras WHERE id_zona_trabajo = ?");
+        $stmt_check_horas->execute([$id]);
+        if ($stmt_check_horas->fetchColumn() > 0) {
+            throw new Exception("No se puede eliminar porque está en uso en uno o más reportes de horas.");
         }
 
-        // Si no está en uso, proceder a eliminar de la tabla 'lugares'
+        // Si no está en uso, proceder a eliminar
         $stmt = $pdo->prepare("DELETE FROM lugares WHERE id = ?");
         $stmt->execute([$id]);
 

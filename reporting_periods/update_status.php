@@ -22,7 +22,7 @@ if (!in_array($new_status, $allowed_statuses)) {
 }
 
 try {
-    $stmt = $pdo->prepare("UPDATE PeriodosDeReporte SET estado_periodo = ? WHERE id = ?");
+    $stmt = $pdo->prepare("UPDATE periodosdereporte SET estado_periodo = ? WHERE id = ?");
     $stmt->execute([$new_status, $periodo_id]);
     
     header('Location: index.php?status=success&message=' . urlencode('El estado del período ha sido actualizado.'));

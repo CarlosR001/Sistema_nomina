@@ -1,19 +1,18 @@
 <?php
-// payroll/generar_novedades.php - v2.1
-// Muestra una advertencia si se detectan horas sin aprobar durante la previsualización.
+// payroll/generar_novedades.php - v2.2 (Lógica de Período Corregida)
 
 require_once '../auth.php';
 require_login();
 require_permission('nomina.procesar');
 
-// Recuperar resultados de la sesión, si existen.
 $preview_results = $_SESSION['preview_results'] ?? null;
 $preview_period_id = $_SESSION['preview_period_id'] ?? null;
 $pending_hours_check = $_SESSION['pending_hours_check'] ?? null;
 
 unset($_SESSION['preview_results'], $_SESSION['preview_period_id'], $_SESSION['pending_hours_check']);
 
-$periodos_abiertos = $pdo->query("SELECT id, fecha_inicio_periodo, fecha_fin_periodo FROM periodosdereporte WHERE tipo_nomina = 'Inspectores' AND estado_periodo = 'Abierto' ORDER BY fecha_inicio_periodo DESC")->fetchAll();
+// CORRECCIÓN: Ahora busca períodos 'Cerrado para Registro', que es el estado correcto para esta fase.
+$periodos_para_procesar = $pdo->query("SELECT id, fecha_inicio_periodo, fecha_fin_periodo FROM periodosdereporte WHERE tipo_nomina = 'Inspectores' AND estado_periodo = 'Cerrado para Registro' ORDER BY fecha_inicio_periodo DESC")->fetchAll();
 
 require_once '../includes/header.php';
 ?>
@@ -34,17 +33,17 @@ require_once '../includes/header.php';
         <h5>Paso 1: Seleccionar Período y Previsualizar</h5>
     </div>
     <div class="card-body">
-        <?php if (empty($periodos_abiertos)): ?>
-            <div class="alert alert-warning">No hay períodos de reporte abiertos para la nómina de Inspectores.</div>
+        <?php if (empty($periodos_para_procesar)): ?>
+            <div class="alert alert-warning">No hay períodos de reporte cerrados para inspectores que estén listos para ser procesados.</div>
         <?php else: ?>
             <form action="procesar_horas.php" method="POST">
                 <input type="hidden" name="mode" value="preview">
                 <div class="row g-3 align-items-end">
                     <div class="col-md-8">
-                        <label for="periodo_id" class="form-label">Período de Reporte</label>
+                        <label for="periodo_id" class="form-label">Períodos Listos para Procesar:</label>
                         <select name="periodo_id" id="periodo_id" class="form-select" required>
                             <option value="">Selecciona un período...</option>
-                            <?php foreach ($periodos_abiertos as $periodo): ?>
+                            <?php foreach ($periodos_para_procesar as $periodo): ?>
                                 <option value="<?php echo $periodo['id']; ?>" <?php if ($periodo['id'] == $preview_period_id) echo 'selected'; ?>>
                                     Semana del <?php echo htmlspecialchars($periodo['fecha_inicio_periodo']) . " al " . htmlspecialchars($periodo['fecha_fin_periodo']); ?>
                                 </option>
@@ -63,7 +62,7 @@ require_once '../includes/header.php';
 <?php if (isset($preview_results)): ?>
     <?php if (isset($pending_hours_check) && $pending_hours_check > 0): ?>
     <div class="alert alert-warning mt-4">
-        <strong><i class="bi bi-exclamation-triangle-fill"></i> Atención:</strong> Se han detectado <strong><?php echo $pending_hours_check; ?></strong> registro(s) de horas en estado 'Pendiente' o 'Rechazado' para este período.
+        <strong><i class="bi bi-exclamation-triangle-fill"></i> Atención:</strong> Se han detectado <strong><?php echo $pending_hours_check; ?></strong> registro(s) de horas en estado 'Pendiente' para este período.
         Estos registros no serán incluidos en el cálculo. Se recomienda <a href="../approvals/index.php" class="alert-link">ir a Aprobaciones</a> para revisarlos antes de continuar.
     </div>
     <?php endif; ?>
@@ -73,7 +72,6 @@ require_once '../includes/header.php';
             <h5>Paso 2: Previsualización de Resultados</h5>
         </div>
         <div class="card-body">
-            <!-- (Tabla de previsualización sin cambios) -->
             <table class="table table-sm table-bordered">
                 <thead class="table-light"><tr><th>Empleado</th><th class="text-end">Pago Normal</th><th class="text-end">Pago Extra</th><th class="text-end">Pago Feriado</th><th class="text-end">Bono Nocturno</th><th class="text-end">Transporte</th><th class="text-end"><strong>Ingreso Bruto</strong></th></tr></thead>
                 <tbody>
@@ -95,7 +93,7 @@ require_once '../includes/header.php';
                 </tbody>
             </table>
             <hr>
-            <p class="text-danger"><strong>Advertencia:</strong> Al confirmar, se borrarán y reemplazarán las novedades de ingreso previamente calculadas para este período.</p>
+            <p class="text-danger"><strong>Advertencia:</strong> Al confirmar, se borrarán y reemplazarán las novedades de ingreso previamente calculadas para este período (no afectará las novedades manuales).</p>
             <form action="procesar_horas.php" method="POST">
                 <input type="hidden" name="periodo_id" value="<?php echo htmlspecialchars($preview_period_id); ?>">
                 <input type="hidden" name="mode" value="final">
