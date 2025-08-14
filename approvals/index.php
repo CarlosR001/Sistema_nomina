@@ -1,25 +1,37 @@
 <?php
-// approvals/index.php - v6.2 (Filtros Persistentes - Corrección Definitiva)
+// approvals/index.php - v6.3 (Corrección Final de Nombres de Filtro)
 require_once '../auth.php';
 require_login();
 require_permission('aprobaciones.gestionar');
 
-// --- Lógica de Filtros y Vistas ---
+// --- Lógica de Filtros y Vistas (CORREGIDO) ---
+// Se usan los nombres de parámetro GET directamente como nombres de variable
 $view = $_GET['view'] ?? 'pendientes';
 $estado_a_buscar = ($view === 'aprobados') ? 'Aprobado' : 'Pendiente';
-$filtro_fecha_desde = $_GET['fecha_desde'] ?? '';
-$filtro_fecha_hasta = $_GET['fecha_hasta'] ?? '';
-$filtro_empleado_id = $_GET['empleado_id'] ?? '';
-$filtro_orden_id = $_GET['orden_id'] ?? '';
-// CREACIÓN DE LA CADENA DE FILTROS PARA PERSISTENCIA
-$filter_query_string = http_build_query(array_filter(compact('view', 'filtro_fecha_desde', 'filtro_fecha_hasta', 'filtro_empleado_id', 'filtro_orden_id')));
+$fecha_desde = $_GET['fecha_desde'] ?? '';
+$fecha_hasta = $_GET['fecha_hasta'] ?? '';
+$empleado_id = $_GET['empleado_id'] ?? '';
+$orden_id = $_GET['orden_id'] ?? '';
 
-// --- Carga de Datos ---
+// CREACIÓN DE LA CADENA DE FILTROS PARA PERSISTENCIA
+// Se construye el array manualmente para asegurar los nombres correctos
+$filter_params = [
+    'view' => $view,
+    'fecha_desde' => $fecha_desde,
+    'fecha_hasta' => $fecha_hasta,
+    'empleado_id' => $empleado_id,
+    'orden_id' => $orden_id
+];
+$filter_query_string = http_build_query(array_filter($filter_params));
+
+
+// --- Carga de Datos para Dropdowns ---
 $empleados_con_registros = $pdo->query("SELECT DISTINCT e.id, e.nombres, e.primer_apellido FROM empleados e JOIN contratos c ON e.id = c.id_empleado JOIN registrohoras r ON c.id = r.id_contrato ORDER BY e.nombres")->fetchAll();
 $ordenes_con_registros = $pdo->query("SELECT DISTINCT o.id, o.codigo_orden FROM ordenes o JOIN registrohoras r ON o.id = r.id_orden ORDER BY o.codigo_orden")->fetchAll();
 $ordenes_para_modal = $pdo->query("SELECT id, codigo_orden FROM ordenes WHERE estado_orden = 'En Proceso' ORDER BY codigo_orden")->fetchAll();
 $todos_los_lugares = $pdo->query("SELECT id, nombre_zona_o_muelle, parent_id FROM lugares ORDER BY nombre_zona_o_muelle")->fetchAll();
 
+// --- Consulta Principal a la BD ---
 $sql = "SELECT 
             r.id, r.fecha_trabajada, r.hora_inicio, r.hora_fin, 
             r.transporte_aprobado, r.transporte_mitad, r.hora_gracia_antes, r.hora_gracia_despues,
@@ -34,10 +46,10 @@ $sql = "SELECT
         LEFT JOIN usuarios u_aprob ON r.id_usuario_aprobador = u_aprob.id
         WHERE r.estado_registro = ?";
 $params = [$estado_a_buscar];
-if (!empty($filtro_fecha_desde)) { $sql .= " AND r.fecha_trabajada >= ?"; $params[] = $filtro_fecha_desde; }
-if (!empty($filtro_fecha_hasta)) { $sql .= " AND r.fecha_trabajada <= ?"; $params[] = $filtro_fecha_hasta; }
-if (!empty($filtro_empleado_id)) { $sql .= " AND e.id = ?"; $params[] = $filtro_empleado_id; }
-if (!empty($filtro_orden_id)) { $sql .= " AND o.id = ?"; $params[] = $filtro_orden_id; }
+if (!empty($fecha_desde)) { $sql .= " AND r.fecha_trabajada >= ?"; $params[] = $fecha_desde; }
+if (!empty($fecha_hasta)) { $sql .= " AND r.fecha_trabajada <= ?"; $params[] = $fecha_hasta; }
+if (!empty($empleado_id)) { $sql .= " AND e.id = ?"; $params[] = $empleado_id; }
+if (!empty($orden_id)) { $sql .= " AND o.id = ?"; $params[] = $orden_id; }
 $sql .= " ORDER BY r.fecha_trabajada DESC, e.nombres, r.hora_inicio";
 $stmt = $pdo->prepare($sql);
 $stmt->execute($params);
@@ -53,10 +65,10 @@ require_once '../includes/header.php';
         <form method="GET">
             <input type="hidden" name="view" value="<?php echo htmlspecialchars($view); ?>">
             <div class="row g-3 align-items-end">
-                <div class="col-md-3"><label class="form-label">Desde</label><input type="date" class="form-control" name="fecha_desde" value="<?php echo htmlspecialchars($filtro_fecha_desde); ?>"></div>
-                <div class="col-md-3"><label class="form-label">Hasta</label><input type="date" class="form-control" name="fecha_hasta" value="<?php echo htmlspecialchars($filtro_fecha_hasta); ?>"></div>
-                <div class="col-md-2"><label class="form-label">Empleado</label><select class="form-select" name="empleado_id"><option value="">Todos</option><?php foreach ($empleados_con_registros as $e): ?><option value="<?php echo $e['id']; ?>" <?php echo ($filtro_empleado_id == $e['id']) ? 'selected' : ''; ?>><?php echo htmlspecialchars($e['nombres'] . ' ' . $e['primer_apellido']); ?></option><?php endforeach; ?></select></div>
-                <div class="col-md-2"><label class="form-label">Orden</label><select class="form-select" name="orden_id"><option value="">Todas</option><?php foreach ($ordenes_con_registros as $o): ?><option value="<?php echo $o['id']; ?>" <?php echo ($filtro_orden_id == $o['id']) ? 'selected' : ''; ?>><?php echo htmlspecialchars($o['codigo_orden']); ?></option><?php endforeach; ?></select></div>
+                <div class="col-md-3"><label class="form-label">Desde</label><input type="date" class="form-control" name="fecha_desde" value="<?php echo htmlspecialchars($fecha_desde); ?>"></div>
+                <div class="col-md-3"><label class="form-label">Hasta</label><input type="date" class="form-control" name="fecha_hasta" value="<?php echo htmlspecialchars($fecha_hasta); ?>"></div>
+                <div class="col-md-2"><label class="form-label">Empleado</label><select class="form-select" name="empleado_id"><option value="">Todos</option><?php foreach ($empleados_con_registros as $e): ?><option value="<?php echo $e['id']; ?>" <?php echo ($empleado_id == $e['id']) ? 'selected' : ''; ?>><?php echo htmlspecialchars($e['nombres'] . ' ' . $e['primer_apellido']); ?></option><?php endforeach; ?></select></div>
+                <div class="col-md-2"><label class="form-label">Orden</label><select class="form-select" name="orden_id"><option value="">Todas</option><?php foreach ($ordenes_con_registros as $o): ?><option value="<?php echo $o['id']; ?>" <?php echo ($orden_id == $o['id']) ? 'selected' : ''; ?>><?php echo htmlspecialchars($o['codigo_orden']); ?></option><?php endforeach; ?></select></div>
                 <div class="col-md-2 text-end"><button type="submit" class="btn btn-primary">Filtrar</button><a href="index.php?view=<?php echo htmlspecialchars($view); ?>" class="btn btn-secondary ms-2">Limpiar</a></div>
             </div>
         </form>

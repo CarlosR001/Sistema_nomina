@@ -1,5 +1,5 @@
 <?php
-// approvals/update_status.php - v2.1 (Redirección Inteligente)
+// approvals/update_status.php - v2.3 (Corrección de Clave Foránea Definitiva)
 
 require_once '../auth.php';
 require_login();
@@ -10,13 +10,31 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !isset($_POST['registros'], $_POST[
     exit();
 }
 
-// --- CAPTURAR FILTROS ---
-$filters = $_POST['filters'] ?? '';
+// --- LÓGICA DE REDIRECCIÓN ROBUSTA ---
+$filters_string = $_POST['filters'] ?? '';
+parse_str($filters_string, $redirect_params);
+
+function redirect_with_message($params, $status, $message) {
+    $params['status'] = $status;
+    $params['message'] = urlencode($message);
+    header('Location: index.php?' . http_build_query($params));
+    exit();
+}
+// --- FIN LÓGICA DE REDIRECCIÓN ---
 
 $registros = $_POST['registros'];
 $new_status = $_POST['action'];
-$user_id = $_SESSION['user_id'];
+
+// --- CORRECCIÓN CRÍTICA ---
+// Se debe usar el ID del EMPLEADO que aprueba (vinculado al usuario), no el ID del USUARIO.
+// Esta variable se crea durante el login en auth.php.
+$approver_employee_id = $_SESSION['user_id_empleado']; 
 $current_time = date('Y-m-d H:i:s');
+
+// Validación para asegurar que el usuario que aprueba está correctamente vinculado.
+if (empty($approver_employee_id)) {
+    redirect_with_message($redirect_params, 'error', 'Error de Aprobación: Su cuenta de usuario no está vinculada a un registro de empleado. Contacte al administrador.');
+}
 
 try {
     $pdo->beginTransaction();
@@ -45,7 +63,7 @@ try {
             } else {
                 $params = [
                     ':estado' => $new_status,
-                    ':aprobador' => $user_id,
+                    ':aprobador' => $approver_employee_id, // <-- Se usa la variable correcta
                     ':fecha' => $current_time,
                     ':transporte' => $transporte_aprobado,
                     ':mitad' => $transporte_mitad,
@@ -57,13 +75,11 @@ try {
     }
 
     $pdo->commit();
-    header('Location: index.php?' . $filters . '&status=success&message=Registros actualizados.');
-    exit();
+    redirect_with_message($redirect_params, 'success', 'Registros actualizados correctamente.');
 
 } catch (Exception $e) {
     if ($pdo->inTransaction()) {
         $pdo->rollBack();
     }
-    header('Location: index.php?' . $filters . '&status=error&message=' . urlencode('Error al actualizar: ' . $e->getMessage()));
-    exit();
+    redirect_with_message($redirect_params, 'error', 'Error al actualizar: ' . $e->getMessage());
 }
