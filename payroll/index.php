@@ -1,5 +1,5 @@
 <?php
-// payroll/index.php - v3.1 Corregido
+// payroll/index.php - v3.2 (Lógica de Período Corregida)
 
 require_once '../auth.php';
 require_login();
@@ -12,12 +12,13 @@ $error_message = null;
 $tipo_nomina_seleccionada = $_POST['tipo_nomina'] ?? 'Inspectores';
 
 try {
-    $stmt_periodos = $pdo->prepare("SELECT * FROM periodosdereporte WHERE estado_periodo = 'Abierto' AND tipo_nomina = ?");
+    // CORRECCIÓN: Ahora busca períodos 'Cerrado para Registro' que están listos para el cálculo final.
+    $stmt_periodos = $pdo->prepare("SELECT * FROM periodosdereporte WHERE estado_periodo = 'Cerrado para Registro' AND tipo_nomina = ?");
     $stmt_periodos->execute([$tipo_nomina_seleccionada]);
-    $periodos_abiertos = $stmt_periodos->fetchAll();
+    $periodos_para_procesar = $stmt_periodos->fetchAll();
 } catch (Exception $e) {
     $error_message = "Error al cargar los períodos: " . $e->getMessage();
-    $periodos_abiertos = [];
+    $periodos_para_procesar = [];
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['periodo_id'])) {
@@ -29,7 +30,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['periodo_id'])) {
         $periodo_sel = $stmt_periodo_sel->fetch();
 
         if (!$periodo_sel) {
-            throw new Exception("El período seleccionado (ID: {$periodo_seleccionado_id}) no es válido o no fue encontrado.");
+            throw new Exception("El período seleccionado no es válido.");
         }
 
         $fecha_inicio = $periodo_sel['fecha_inicio_periodo'];
@@ -49,10 +50,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['periodo_id'])) {
         $empleados_a_procesar = $stmt_empleados->fetchAll();
 
         if (empty($empleados_a_procesar)) {
-            $error_message = "No se encontraron empleados con datos de nómina para el período seleccionado.";
+            $error_message = "No se encontraron empleados con novedades para el período seleccionado.";
         }
         
-        // CORRECCIÓN: Se añadió `cn.tipo_concepto` a la consulta
         $novedades_stmt = $pdo->prepare("SELECT np.*, cn.descripcion_publica, cn.tipo_concepto FROM novedadesperiodo np JOIN conceptosnomina cn ON np.id_concepto = cn.id JOIN contratos c ON np.id_contrato = c.id WHERE c.id_empleado = ? AND np.periodo_aplicacion BETWEEN ? AND ?");
 
         foreach ($empleados_a_procesar as &$empleado) {
@@ -64,7 +64,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['periodo_id'])) {
             
             $ingreso_bruto_estimado = 0;
             foreach ($novedades as $novedad) {
-                if ($novedad['tipo_concepto'] === 'Ingreso') { // Esta es la línea 70
+                if ($novedad['tipo_concepto'] === 'Ingreso') {
                     $ingreso_bruto_estimado += $novedad['monto_valor'];
                 }
             }
@@ -87,7 +87,7 @@ require_once '../includes/header.php';
 <?php endif; ?>
 
 <div class="card mb-4">
-    <div class="card-header">Paso 1: Seleccionar Período a Revisar</div>
+    <div class="card-header">Paso 1: Seleccionar Período a Procesar</div>
     <div class="card-body">
         <form action="index.php" method="POST">
             <div class="row align-items-end">
@@ -98,10 +98,10 @@ require_once '../includes/header.php';
                     </select>
                 </div>
                 <div class="col-md-5">
-                    <label for="periodo_id" class="form-label">Períodos Abiertos:</label>
+                    <label for="periodo_id" class="form-label">Períodos Listos para Procesar:</label>
                     <select name="periodo_id" id="periodo_id" class="form-select" required>
                         <option value="">Seleccione un período...</option>
-                        <?php foreach($periodos_abiertos as $periodo): ?>
+                        <?php foreach($periodos_para_procesar as $periodo): ?>
                             <option value="<?php echo htmlspecialchars($periodo['id']); ?>" <?php echo ($periodo['id'] == $periodo_seleccionado_id) ? 'selected' : ''; ?>>
                                 <?php echo htmlspecialchars($periodo['fecha_inicio_periodo'] . ' al ' . $periodo['fecha_fin_periodo']); ?>
                             </option>
@@ -109,7 +109,7 @@ require_once '../includes/header.php';
                     </select>
                 </div>
                 <div class="col-md-2">
-                    <button type="submit" class="btn btn-primary w-100">Previsualizar Nómina</button>
+                    <button type="submit" class="btn btn-primary w-100">Revisar Nómina</button>
                 </div>
             </div>
         </form>
@@ -118,7 +118,7 @@ require_once '../includes/header.php';
 
 <?php if (!empty($empleados_a_procesar)): ?>
 <div class="card">
-    <div class="card-header bg-primary text-white">Paso 2: Revisión Detallada de Pre-Nómina</div>
+    <div class="card-header bg-primary text-white">Paso 2: Revisión de Novedades</div>
     <div class="card-body">
         <p>Se procesará la nómina para <strong><?php echo count($empleados_a_procesar); ?> empleado(s)</strong>. Revise los detalles antes de confirmar.</p>
         

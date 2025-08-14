@@ -1,15 +1,12 @@
 <?php
-// includes/header.php - v2.1 (Muestra Nombre Completo en lugar de Username)
-
+// includes/header.php - v2.2 (Añadido Menú de Reportes)
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
-
 // Lógica para determinar qué nombre mostrar.
 if (isset($_SESSION['user_id'])) {
     $display_name = !empty($_SESSION['user_full_name']) && trim($_SESSION['user_full_name']) !== '' ? $_SESSION['user_full_name'] : $_SESSION['username'];
 }
-
 ?>
 <!DOCTYPE html>
 <html lang="es">
@@ -85,13 +82,21 @@ if (isset($_SESSION['user_id'])) {
                         </ul>
                     </li>
                     <?php endif; ?>
-                                        <!-- Menú Reportes -->
-                     <?php if (has_permission('reportes.horas_extras.ver')): ?>
-                    <li class="nav-item">
-                        <a class="nav-link" href="<?php echo BASE_URL; ?>he_admin/index.php">Reporte H.E.</a>
+                    
+                    <!-- INICIO: CÓDIGO AÑADIDO -->
+                    <!-- Menú Reportes -->
+                    <?php if (has_permission('nomina.procesar')): ?>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownReportes" role="button" data-bs-toggle="dropdown" aria-expanded="false">Reportes</a>
+                        <ul class="dropdown-menu" aria-labelledby="navbarDropdownReportes">
+                            <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>reports/inspector_hours.php">Horas por Inspector</a></li>
+                            <?php if (has_permission('reportes.horas_extras.ver')): ?>
+                                <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>he_admin/index.php">Reporte H.E. Fijo</a></li>
+                            <?php endif; ?>
+                        </ul>
                     </li>
                     <?php endif; ?>
-
+                    <!-- FIN: CÓDIGO AÑADIDO -->
 
                     <!-- Menú Gestión de Órdenes -->
                     <?php if (has_permission('ordenes.gestionar')): ?>

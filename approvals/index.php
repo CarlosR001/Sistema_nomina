@@ -1,29 +1,17 @@
 <?php
-// approvals/index.php - v6.3 (Corrección Final de Nombres de Filtro)
+// approvals/index.php - v6.3 (Corrección de Nombre de Aprobador)
 require_once '../auth.php';
 require_login();
 require_permission('aprobaciones.gestionar');
 
-// --- Lógica de Filtros y Vistas (CORREGIDO) ---
-// Se usan los nombres de parámetro GET directamente como nombres de variable
+// --- Lógica de Filtros y Vistas ---
 $view = $_GET['view'] ?? 'pendientes';
 $estado_a_buscar = ($view === 'aprobados') ? 'Aprobado' : 'Pendiente';
-$fecha_desde = $_GET['fecha_desde'] ?? '';
-$fecha_hasta = $_GET['fecha_hasta'] ?? '';
-$empleado_id = $_GET['empleado_id'] ?? '';
-$orden_id = $_GET['orden_id'] ?? '';
-
-// CREACIÓN DE LA CADENA DE FILTROS PARA PERSISTENCIA
-// Se construye el array manualmente para asegurar los nombres correctos
-$filter_params = [
-    'view' => $view,
-    'fecha_desde' => $fecha_desde,
-    'fecha_hasta' => $fecha_hasta,
-    'empleado_id' => $empleado_id,
-    'orden_id' => $orden_id
-];
-$filter_query_string = http_build_query(array_filter($filter_params));
-
+$filtro_fecha_desde = $_GET['fecha_desde'] ?? '';
+$filtro_fecha_hasta = $_GET['fecha_hasta'] ?? '';
+$filtro_empleado_id = $_GET['empleado_id'] ?? '';
+$filtro_orden_id = $_GET['orden_id'] ?? '';
+$filter_query_string = http_build_query(array_filter(compact('view', 'filtro_fecha_desde', 'filtro_fecha_hasta', 'filtro_empleado_id', 'filtro_orden_id')));
 
 // --- Carga de Datos para Dropdowns ---
 $empleados_con_registros = $pdo->query("SELECT DISTINCT e.id, e.nombres, e.primer_apellido FROM empleados e JOIN contratos c ON e.id = c.id_empleado JOIN registrohoras r ON c.id = r.id_contrato ORDER BY e.nombres")->fetchAll();
@@ -31,25 +19,27 @@ $ordenes_con_registros = $pdo->query("SELECT DISTINCT o.id, o.codigo_orden FROM 
 $ordenes_para_modal = $pdo->query("SELECT id, codigo_orden FROM ordenes WHERE estado_orden = 'En Proceso' ORDER BY codigo_orden")->fetchAll();
 $todos_los_lugares = $pdo->query("SELECT id, nombre_zona_o_muelle, parent_id FROM lugares ORDER BY nombre_zona_o_muelle")->fetchAll();
 
-// --- Consulta Principal a la BD ---
+// --- CORRECCIÓN FINAL EN LA CONSULTA ---
+// Se une con la tabla 'empleados' para obtener el nombre del aprobador, no con 'usuarios'.
 $sql = "SELECT 
             r.id, r.fecha_trabajada, r.hora_inicio, r.hora_fin, 
             r.transporte_aprobado, r.transporte_mitad, r.hora_gracia_antes, r.hora_gracia_despues,
             r.id_zona_trabajo, e.nombres, e.primer_apellido, 
             o.id as orden_id, o.codigo_orden, l.nombre_zona_o_muelle, l.monto_transporte_completo,
-            u_aprob.nombre_usuario as aprobador, r.fecha_aprobacion
+            CONCAT(e_aprob.nombres, ' ', e_aprob.primer_apellido) as aprobador, -- <-- CAMBIO CLAVE
+            r.fecha_aprobacion
         FROM registrohoras r 
         JOIN contratos c ON r.id_contrato = c.id 
         JOIN empleados e ON c.id_empleado = e.id 
         LEFT JOIN ordenes o ON r.id_orden = o.id 
         LEFT JOIN lugares l ON r.id_zona_trabajo = l.id
-        LEFT JOIN usuarios u_aprob ON r.id_usuario_aprobador = u_aprob.id
+        LEFT JOIN empleados e_aprob ON r.id_usuario_aprobador = e_aprob.id -- <-- CAMBIO CLAVE
         WHERE r.estado_registro = ?";
 $params = [$estado_a_buscar];
-if (!empty($fecha_desde)) { $sql .= " AND r.fecha_trabajada >= ?"; $params[] = $fecha_desde; }
-if (!empty($fecha_hasta)) { $sql .= " AND r.fecha_trabajada <= ?"; $params[] = $fecha_hasta; }
-if (!empty($empleado_id)) { $sql .= " AND e.id = ?"; $params[] = $empleado_id; }
-if (!empty($orden_id)) { $sql .= " AND o.id = ?"; $params[] = $orden_id; }
+if (!empty($filtro_fecha_desde)) { $sql .= " AND r.fecha_trabajada >= ?"; $params[] = $filtro_fecha_desde; }
+if (!empty($filtro_fecha_hasta)) { $sql .= " AND r.fecha_trabajada <= ?"; $params[] = $filtro_fecha_hasta; }
+if (!empty($filtro_empleado_id)) { $sql .= " AND e.id = ?"; $params[] = $filtro_empleado_id; }
+if (!empty($filtro_orden_id)) { $sql .= " AND o.id = ?"; $params[] = $filtro_orden_id; }
 $sql .= " ORDER BY r.fecha_trabajada DESC, e.nombres, r.hora_inicio";
 $stmt = $pdo->prepare($sql);
 $stmt->execute($params);
@@ -65,9 +55,9 @@ require_once '../includes/header.php';
         <form method="GET">
             <input type="hidden" name="view" value="<?php echo htmlspecialchars($view); ?>">
             <div class="row g-3 align-items-end">
-                <div class="col-md-3"><label class="form-label">Desde</label><input type="date" class="form-control" name="fecha_desde" value="<?php echo htmlspecialchars($fecha_desde); ?>"></div>
-                <div class="col-md-3"><label class="form-label">Hasta</label><input type="date" class="form-control" name="fecha_hasta" value="<?php echo htmlspecialchars($fecha_hasta); ?>"></div>
-                <div class="col-md-2"><label class="form-label">Empleado</label><select class="form-select" name="empleado_id"><option value="">Todos</option><?php foreach ($empleados_con_registros as $e): ?><option value="<?php echo $e['id']; ?>" <?php echo ($empleado_id == $e['id']) ? 'selected' : ''; ?>><?php echo htmlspecialchars($e['nombres'] . ' ' . $e['primer_apellido']); ?></option><?php endforeach; ?></select></div>
+                <div class="col-md-3"><label class="form-label">Desde</label><input type="date" class="form-control" name="fecha_desde" value="<?php echo htmlspecialchars($filtro_fecha_desde); ?>"></div>
+                <div class="col-md-3"><label class="form-label">Hasta</label><input type="date" class="form-control" name="fecha_hasta" value="<?php echo htmlspecialchars($filtro_fecha_hasta); ?>"></div>
+                <div class="col-md-2"><label class="form-label">Empleado</label><select class="form-select" name="empleado_id"><option value="">Todos</option><?php foreach ($empleados_con_registros as $e): ?><option value="<?php echo $e['id']; ?>" <?php echo ($filtro_empleado_id == $e['id']) ? 'selected' : ''; ?>><?php echo htmlspecialchars($e['nombres'] . ' ' . $e['primer_apellido']); ?></option><?php endforeach; ?></select></div>
                 <div class="col-md-2"><label class="form-label">Orden</label><select class="form-select" name="orden_id"><option value="">Todas</option><?php foreach ($ordenes_con_registros as $o): ?><option value="<?php echo $o['id']; ?>" <?php echo ($orden_id == $o['id']) ? 'selected' : ''; ?>><?php echo htmlspecialchars($o['codigo_orden']); ?></option><?php endforeach; ?></select></div>
                 <div class="col-md-2 text-end"><button type="submit" class="btn btn-primary">Filtrar</button><a href="index.php?view=<?php echo htmlspecialchars($view); ?>" class="btn btn-secondary ms-2">Limpiar</a></div>
             </div>
@@ -88,7 +78,7 @@ require_once '../includes/header.php';
                 <thead class="table-dark">
                     <tr>
                         <th><input class="form-check-input" type="checkbox" id="selectAll"></th>
-                        <th>Empleado</th><th>Fecha/Hora</th><th>Orden</th><th>Lugar</th>
+                        <th>Empleado</th><th>Fecha/Hora</th><th>Orden</th><th>Lugar Específico</th>
                         <th class="text-end">Monto</th><th>Aprobar (100%)</th><th>Reducir (50%)</th>
                         <th class="text-center">Acciones</th>
                     </tr>
@@ -98,7 +88,9 @@ require_once '../includes/header.php';
                         <tr class="registro-row" data-monto-completo="<?php echo htmlspecialchars($row['monto_transporte_completo'] ?? 0); ?>">
                             <td><input class="form-check-input record-checkbox" type="checkbox" name="registros[<?php echo $row['id']; ?>][id]" value="<?php echo $row['id']; ?>"></td>
                             <td><?php echo htmlspecialchars($row['nombres'] . ' ' . $row['primer_apellido']); ?></td>
-                            <td><?php echo htmlspecialchars($row['fecha_trabajada']); ?><br><span class="text-muted"><?php echo date('H:i', strtotime($row['hora_inicio'])) . " - " . date('H:i', strtotime($row['hora_fin'])); ?></span>
+                            <td>
+                                <?php echo htmlspecialchars($row['fecha_trabajada']); ?><br>
+                                <span class="text-muted"><?php echo date('H:i', strtotime($row['hora_inicio'])) . " - " . date('H:i', strtotime($row['hora_fin'])); ?></span>
                                 <?php $horas_gracia = ($row['hora_gracia_antes'] ? 1 : 0) + ($row['hora_gracia_despues'] ? 1 : 0); if ($horas_gracia > 0): ?>
                                     <span class="badge bg-info ms-1" title="Incluye <?php echo $horas_gracia; ?> hora(s) de gracia">+<?php echo $horas_gracia; ?>H</span>
                                 <?php endif; ?>
@@ -129,16 +121,17 @@ require_once '../includes/header.php';
         </div>
         <?php endif; ?>
     </form>
-<?php else: ?>
+<?php else: // VISTA DE APROBADOS ?>
     <div class="table-responsive">
         <table class="table table-striped table-hover">
-            <thead class="table-dark"><tr><th>Empleado</th><th>Fecha/Hora</th><th>Orden</th><th>Lugar</th><th>Aprobado Por</th><th>Fecha</th><th class="text-center">Acciones</th></tr></thead>
+            <thead class="table-dark"><tr><th>Empleado</th><th>Fecha/Hora</th><th>Orden</th><th>Lugar Específico</th><th>Aprobado Por</th><th>Fecha Aprob.</th><th class="text-center">Acciones</th></tr></thead>
             <tbody>
                 <?php foreach ($registros as $row): ?>
                     <tr>
                         <td><?php echo htmlspecialchars($row['nombres'] . ' ' . $row['primer_apellido']); ?></td>
                         <td>
-                            <?php echo htmlspecialchars($row['fecha_trabajada']); ?> <span class="text-muted"><?php echo date('H:i', strtotime($row['hora_inicio'])) ."-". date('H:i', strtotime($row['hora_fin'])); ?></span>
+                            <?php echo htmlspecialchars($row['fecha_trabajada']); ?> 
+                            <span class="text-muted"><?php echo date('H:i', strtotime($row['hora_inicio'])) ."-". date('H:i', strtotime($row['hora_fin'])); ?></span>
                             <?php $horas_gracia = ($row['hora_gracia_antes'] ? 1 : 0) + ($row['hora_gracia_despues'] ? 1 : 0); if ($horas_gracia > 0): ?>
                                 <span class="badge bg-info ms-1" title="Incluye <?php echo $horas_gracia; ?> hora(s) de gracia">+<?php echo $horas_gracia; ?>H</span>
                             <?php endif; ?>
