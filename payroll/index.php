@@ -1,5 +1,5 @@
 <?php
-// payroll/index.php - v3.2 (Lógica de Período Corregida)
+// payroll/index.php - v3.3 (con Total en Previsualización)
 
 require_once '../auth.php';
 require_login();
@@ -9,10 +9,10 @@ $empleados_a_procesar = [];
 $periodo_seleccionado_id = null;
 $detalles_por_empleado = [];
 $error_message = null;
+$total_bruto_estimado = 0; // Inicializar total
 $tipo_nomina_seleccionada = $_POST['tipo_nomina'] ?? 'Inspectores';
 
 try {
-    // CORRECCIÓN: Ahora busca períodos 'Cerrado para Registro' que están listos para el cálculo final.
     $stmt_periodos = $pdo->prepare("SELECT * FROM periodosdereporte WHERE estado_periodo = 'Cerrado para Registro' AND tipo_nomina = ?");
     $stmt_periodos->execute([$tipo_nomina_seleccionada]);
     $periodos_para_procesar = $stmt_periodos->fetchAll();
@@ -39,8 +39,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['periodo_id'])) {
         $sql_empleados = "SELECT e.id as empleado_id, e.nombres, e.primer_apellido
                           FROM empleados e
                           WHERE e.id IN (
-                              SELECT DISTINCT c.id_empleado
-                              FROM contratos c
+                              SELECT DISTINCT c.id_empleado FROM contratos c
                               JOIN novedadesperiodo np ON c.id = np.id_contrato
                               WHERE np.periodo_aplicacion BETWEEN ? AND ?
                           )
@@ -71,6 +70,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['periodo_id'])) {
             $empleado['ingreso_bruto_estimado'] = $ingreso_bruto_estimado;
         }
         unset($empleado);
+
+        // CALCULAR EL TOTAL GENERAL
+        if (!empty($empleados_a_procesar)) {
+            $total_bruto_estimado = array_sum(array_column($empleados_a_procesar, 'ingreso_bruto_estimado'));
+        }
 
     } catch (Exception $e) {
         $error_message = "Error al previsualizar la nómina: " . $e->getMessage();
@@ -141,25 +145,29 @@ require_once '../includes/header.php';
                             </button>
                         </td>
                     </tr>
-                    <tr>
-                        <td colspan="3" class="p-0">
-                            <div class="collapse" id="details-<?php echo $empleado['empleado_id']; ?>">
-                                <div class="p-3 bg-light border">
-                                    <h5 class="mt-3">Novedades Aplicadas</h5>
-                                    <ul class="list-group">
-                                        <?php foreach($detalles_por_empleado[$empleado['empleado_id']]['novedades'] as $novedad): ?>
-                                            <li class="list-group-item d-flex justify-content-between align-items-center">
-                                                <?php echo htmlspecialchars($novedad['descripcion_publica']); ?>
-                                                <span class="badge bg-<?php echo $novedad['tipo_concepto'] === 'Ingreso' ? 'success' : 'danger'; ?> rounded-pill">$<?php echo number_format($novedad['monto_valor'], 2); ?></span>
-                                            </li>
-                                        <?php endforeach; ?>
-                                    </ul>
-                                </div>
-                            </div>
+                    <tr class="collapse" id="details-<?php echo $empleado['empleado_id']; ?>">
+                        <td colspan="3" class="p-3 bg-light">
+                            <h6 class="mt-2">Novedades Aplicadas</h6>
+                            <ul class="list-group">
+                                <?php foreach($detalles_por_empleado[$empleado['empleado_id']]['novedades'] as $novedad): ?>
+                                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                                        <?php echo htmlspecialchars($novedad['descripcion_publica']); ?>
+                                        <span class="badge bg-<?php echo $novedad['tipo_concepto'] === 'Ingreso' ? 'success' : 'danger'; ?> rounded-pill">$<?php echo number_format($novedad['monto_valor'], 2); ?></span>
+                                    </li>
+                                <?php endforeach; ?>
+                            </ul>
                         </td>
                     </tr>
                 <?php endforeach; ?>
             </tbody>
+            <!-- FILA DE TOTAL AÑADIDA -->
+            <tfoot class="table-light">
+                <tr>
+                    <td class="fw-bold">TOTAL GENERAL</td>
+                    <td class="text-end fw-bold fs-5">$<?php echo number_format($total_bruto_estimado, 2); ?></td>
+                    <td></td>
+                </tr>
+            </tfoot>
         </table>
 
         <form action="process.php" method="POST" class="mt-4 text-end">

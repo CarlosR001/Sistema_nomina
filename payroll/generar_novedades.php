@@ -1,17 +1,26 @@
 <?php
-// payroll/generar_novedades.php - v2.2 (Lógica de Período Corregida)
+// payroll/generar_novedades.php - v2.2 (Orden Alfabético en Preview)
 
 require_once '../auth.php';
 require_login();
 require_permission('nomina.procesar');
 
+// Recuperar resultados de la sesión, si existen.
 $preview_results = $_SESSION['preview_results'] ?? null;
 $preview_period_id = $_SESSION['preview_period_id'] ?? null;
 $pending_hours_check = $_SESSION['pending_hours_check'] ?? null;
 
 unset($_SESSION['preview_results'], $_SESSION['preview_period_id'], $_SESSION['pending_hours_check']);
 
-// CORRECCIÓN: Ahora busca períodos 'Cerrado para Registro', que es el estado correcto para esta fase.
+// --- NUEVA LÓGICA DE ORDENAMIENTO ---
+if ($preview_results) {
+    // uasort mantiene la asociación de claves (id_contrato) mientras ordena por el nombre del empleado.
+    uasort($preview_results, function ($a, $b) {
+        return strcmp($a['nombre_empleado'], $b['nombre_empleado']);
+    });
+}
+// --- FIN DE LA LÓGICA ---
+
 $periodos_para_procesar = $pdo->query("SELECT id, fecha_inicio_periodo, fecha_fin_periodo FROM periodosdereporte WHERE tipo_nomina = 'Inspectores' AND estado_periodo = 'Cerrado para Registro' ORDER BY fecha_inicio_periodo DESC")->fetchAll();
 
 require_once '../includes/header.php';
