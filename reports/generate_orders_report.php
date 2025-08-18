@@ -1,5 +1,5 @@
 <?php
-// reports/generate_orders_report.php
+// reports/generate_orders_report.php - v2.1 (con Filtro de Orden)
 
 require_once '../auth.php';
 require_login();
@@ -8,6 +8,7 @@ require_permission('nomina.procesar');
 // --- 1. Recepción y Validación de Datos ---
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') die("Acceso no permitido.");
 $id_cliente = $_POST['id_cliente'] ?? 'all';
+$id_orden = $_POST['id_orden'] ?? 'all'; // <-- NUEVO
 $estado_orden = $_POST['estado_orden'] ?? 'all';
 $fecha_desde = $_POST['fecha_desde'] ?? null;
 $fecha_hasta = $_POST['fecha_hasta'] ?? null;
@@ -25,6 +26,7 @@ try {
     $where_clauses = [];
     $params = [];
     if ($id_cliente !== 'all') { $where_clauses[] = "o.id_cliente = ?"; $params[] = $id_cliente; }
+    if ($id_orden !== 'all') { $where_clauses[] = "o.id = ?"; $params[] = $id_orden; } // <-- NUEVO
     if ($estado_orden !== 'all') { $where_clauses[] = "o.estado_orden = ?"; $params[] = $estado_orden; }
     if (!empty($fecha_desde)) { $where_clauses[] = "o.fecha_creacion >= ?"; $params[] = $fecha_desde; }
     if (!empty($fecha_hasta)) { $where_clauses[] = "o.fecha_creacion <= ?"; $params[] = $fecha_hasta; }
