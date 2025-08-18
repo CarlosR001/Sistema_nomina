@@ -156,11 +156,7 @@ require_once '../includes/header.php';
                         <td><span class="badge bg-info text-dark"><?php echo $frecuencia_texto; ?></span></td>
                         <td><span class="badge bg-<?php echo $income['estado'] === 'Activa' ? 'success' : 'secondary'; ?>"><?php echo htmlspecialchars($income['estado']); ?></span></td>
                         <td>
-                            <form action="toggle_ingreso.php" method="POST" class="d-inline">
-                                <input type="hidden" name="id_ingreso" value="<?php echo $income['id']; ?>">
-                                <input type="hidden" name="employee_id" value="<?php echo $employee_id; ?>">
-                                <button type="submit" class="btn btn-sm btn-info text-white"><?php echo $income['estado'] === 'Activa' ? 'Desactivar' : 'Activar'; ?></button>
-                            </form>
+                            <a href="toggle_ingreso.php?id=<?php echo $income['id']; ?>&employee_id=<?php echo $employee_id; ?>" class="btn btn-sm btn-info text-white"><?php echo $income['estado'] === 'Activa' ? 'Desactivar' : 'Activar'; ?></a>
                             <a href="edit_ingreso.php?id=<?php echo $income['id']; ?>&employee_id=<?php echo $employee_id; ?>" class="btn btn-sm btn-warning">Editar</a>
                             <form action="delete_ingreso.php" method="POST" class="d-inline" onsubmit="return confirm('¿Está seguro de que desea eliminar este ingreso de forma permanente?');">
                                 <input type="hidden" name="id_ingreso" value="<?php echo $income['id']; ?>">
@@ -244,13 +240,9 @@ require_once '../includes/header.php';
                         <td><span class="badge bg-<?php echo $deduction['estado'] === 'Activa' ? 'success' : 'secondary'; ?>"><?php echo htmlspecialchars($deduction['estado']); ?></span></td>
                         <td><?php echo htmlspecialchars($deduction['nombre_posicion']); ?></td>
                         <td>
-                            <form action="toggle_deduccion.php" method="POST" class="d-inline">
-                                <input type="hidden" name="id_deduccion" value="<?php echo $deduction['id']; ?>">
-                                <input type="hidden" name="employee_id" value="<?php echo $employee_id; ?>">
-                                <button type="submit" class="btn btn-sm btn-info text-white">
-                                    <?php echo $deduction['estado'] === 'Activa' ? 'Desactivar' : 'Activar'; ?>
-                                </button>
-                            </form>
+                            <a href="toggle_deduccion.php?id=<?php echo $deduction['id']; ?>&employee_id=<?php echo $employee_id; ?>" class="btn btn-sm btn-info text-white">
+                                <?php echo $deduction['estado'] === 'Activa' ? 'Desactivar' : 'Activar'; ?>
+                            </a>
                             <a href="edit_deduccion.php?id=<?php echo $deduction['id']; ?>&employee_id=<?php echo $employee_id; ?>" class="btn btn-sm btn-warning">Editar</a>
                             <form action="delete_deduccion.php" method="POST" class="d-inline" onsubmit="return confirm('¿Está seguro de que desea eliminar esta deducción de forma permanente?');">
                                 <input type="hidden" name="id_deduccion" value="<?php echo $deduction['id']; ?>">
