@@ -1,5 +1,5 @@
 <?php
-// includes/header.php - v2.5 (Layout Definitivo Corregido)
+// includes/header.php - v2.4 (Menú de Reportes Completo)
 if (session_status() === PHP_SESSION_NONE) { session_start(); }
 if (isset($_SESSION['user_id'])) {
     $display_name = !empty($_SESSION['user_full_name']) && trim($_SESSION['user_full_name']) !== '' ? $_SESSION['user_full_name'] : $_SESSION['username'];
@@ -58,18 +58,21 @@ if (isset($_SESSION['user_id'])) {
                             </ul>
                         </li>
                     <?php endif; ?>
+                    
                     <?php if (has_permission('nomina.procesar')): ?>
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownReportes" role="button" data-bs-toggle="dropdown">Reportes</a>
                         <ul class="dropdown-menu">
                             <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>reports/inspector_hours.php">Horas por Inspector</a></li>
-                            <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>reports/payroll_summary.php">Resumen General de Nómina</a></li>
+                            <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>reports/payroll_summary.php">Resumen de Nómina</a></li>
+                            <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>reports/orders_report.php">Reporte de Órdenes</a></li>
                             <?php if (has_permission('reportes.horas_extras.ver')): ?>
                                 <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>he_admin/index.php">Reporte H.E. Fijo</a></li>
                             <?php endif; ?>
                         </ul>
                     </li>
                     <?php endif; ?>
+
                     <?php if (has_permission('ordenes.gestionar')): ?>
                         <li class="nav-item dropdown"><a class="nav-link dropdown-toggle" href="#" id="ordenesDropdown" role="button" data-bs-toggle="dropdown">Gestión de Órdenes</a>
                             <ul class="dropdown-menu">
@@ -81,6 +84,7 @@ if (isset($_SESSION['user_id'])) {
                             </ul>
                         </li>
                     <?php endif; ?>
+                    
                     <?php if (has_permission('empleados.gestionar') || has_permission('organizacion.gestionar') || has_permission('usuarios.gestionar')): ?>
                         <li class="nav-item dropdown"><a class="nav-link dropdown-toggle" href="#" id="navbarDropdownOrganizacion" role="button" data-bs-toggle="dropdown">Organización</a>
                             <ul class="dropdown-menu">
@@ -111,8 +115,6 @@ if (isset($_SESSION['user_id'])) {
         </div>
     </div>
 </nav>
-
-<!-- ESTRUCTURA DE LAYOUT CORREGIDA: Se abre el contenedor aquí -->
 <div class="container-fluid px-4 py-4">
     <?php if (isset($_SESSION['flash_message'])): ?>
         <div class="alert alert-<?php echo $_SESSION['flash_message']['type']; ?> alert-dismissible fade show" role="alert">
@@ -121,5 +123,4 @@ if (isset($_SESSION['user_id'])) {
         </div>
         <?php unset($_SESSION['flash_message']); ?>
     <?php endif; ?>
-
     <!-- El contenido específico de cada página se insertará aquí -->
