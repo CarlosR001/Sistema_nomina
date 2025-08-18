@@ -1,5 +1,5 @@
 <?php
-// contracts/edit.php - v2.0 con Lógica de Inspector
+// contracts/edit.php - v2.2 (Lógica de Inspector Corregida y Completa)
 
 require_once '../auth.php';
 require_login();
@@ -11,7 +11,6 @@ if (!isset($_GET['id']) || !is_numeric($_GET['id'])) {
 }
 $id_contrato = $_GET['id'];
 
-// Obtener los datos del contrato a editar
 $stmt_contrato = $pdo->prepare("SELECT * FROM contratos WHERE id = ?");
 $stmt_contrato->execute([$id_contrato]);
 $contrato = $stmt_contrato->fetch();
@@ -21,7 +20,6 @@ if (!$contrato) {
     exit();
 }
 
-// Obtener listas para los dropdowns
 $posiciones = $pdo->query("SELECT id, nombre_posicion,
     CASE WHEN LOWER(nombre_posicion) LIKE '%inspector%' THEN 1 ELSE 0 END as es_inspector
     FROM posiciones ORDER BY nombre_posicion")->fetchAll();
@@ -71,7 +69,6 @@ require_once '../includes/header.php';
                     <input type="number" step="0.01" class="form-control" name="tarifa_por_hora" id="tarifa_por_hora" value="<?php echo htmlspecialchars($contrato['tarifa_por_hora']); ?>">
                 </div>
 
-                <!-- Otros campos del formulario... -->
                 <div class="col-md-6">
                     <label for="tipo_contrato" class="form-label">Tipo de Contrato</label>
                     <select class="form-select" name="tipo_contrato" required>
@@ -147,10 +144,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const tarifaInput = document.getElementById('tarifa_por_hora');
 
     function toggleFields(isInspector) {
+        // En lugar de deshabilitar el select de nómina, solo ajustamos su valor y los campos de pago
         if (isInspector) {
-            // Es Inspector
-            tipoNominaSelect.value = 'Inspectores';
-            tipoNominaSelect.disabled = true;
+            tipoNominaSelect.value = 'Inspectores'; // Forzar valor
             
             salarioDiv.style.display = 'none';
             salarioInput.required = false;
@@ -159,8 +155,7 @@ document.addEventListener('DOMContentLoaded', function() {
             tarifaInput.required = true;
 
         } else {
-            // No es Inspector (Admin/Directiva)
-            tipoNominaSelect.disabled = false;
+            // Si el valor actual es 'Inspectores', lo cambiamos a 'Administrativa' por defecto
             if (tipoNominaSelect.value === 'Inspectores') {
                 tipoNominaSelect.value = 'Administrativa';
             }
@@ -171,14 +166,6 @@ document.addEventListener('DOMContentLoaded', function() {
             tarifaDiv.style.display = 'none';
             tarifaInput.required = false;
         }
-
-        for (let option of tipoNominaSelect.options) {
-            if (option.value === 'Inspectores') {
-                option.disabled = !isInspector;
-            } else {
-                option.disabled = isInspector;
-            }
-        }
     }
 
     posicionSelect.addEventListener('change', function() {
@@ -187,11 +174,11 @@ document.addEventListener('DOMContentLoaded', function() {
         toggleFields(esInspector);
     });
 
-    // --- Lógica para la carga inicial en la página de edición ---
-    const initialOption = posicionSelect.options[posicionSelect.selectedIndex];
-    if (initialOption && initialOption.value) {
-        const esInspector = initialOption.getAttribute('data-es-inspector') === '1';
-        toggleFields(esInspector);
+    // Ejecutar al cargar la página para establecer el estado inicial correcto
+    const initialSelectedOption = posicionSelect.options[posicionSelect.selectedIndex];
+    if (initialSelectedOption) {
+        const isInspectorInitial = initialSelectedOption.getAttribute('data-es-inspector') === '1';
+        toggleFields(isInspectorInitial);
     }
 });
 </script>

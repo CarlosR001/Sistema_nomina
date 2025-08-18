@@ -1,56 +1,58 @@
 <?php
 // payroll/delete_payroll.php
-// Elimina una nómina procesada y todos sus detalles asociados.
+// Script para eliminar de forma segura una nómina procesada y todos sus detalles.
 
 require_once '../auth.php';
 require_login();
+// Solo usuarios con permiso para procesar nóminas pueden eliminar.
 require_permission('nomina.procesar');
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !isset($_POST['nomina_id'])) {
-    header('Location: ' . BASE_URL . 'payroll/review.php?status=error&message=Solicitud inválida.');
+    header('Location: ' . BASE_URL . 'nomina_administrativa/index.php?status=error&message=Solicitud no válida.');
     exit();
 }
 
-$id_nomina = $_POST['nomina_id'];
+$id_nomina = filter_input(INPUT_POST, 'nomina_id', FILTER_VALIDATE_INT);
+
+if (!$id_nomina) {
+    header('Location: ' . BASE_URL . 'nomina_administrativa/index.php?status=error&message=ID de nómina no válido.');
+    exit();
+}
 
 try {
     $pdo->beginTransaction();
 
-    // 1. Obtener los IDs de las novedades que fueron aplicadas en esta nómina
-    // (Esta es una aproximación, ya que no guardamos el id_novedad en NominaDetalle.
-    // Una mejor forma es revertir TODAS las novedades del período de la nómina)
-    $stmt_nomina_info = $pdo->prepare("SELECT periodo_inicio, periodo_fin FROM nominasprocesadas WHERE id = ?");
-    $stmt_nomina_info->execute([$id_nomina]);
-    $nomina_info = $stmt_nomina_info->fetch();
+    // Primero, verificamos que la nómina a borrar no esté ya finalizada o pagada, como medida de seguridad.
+    $stmt_check = $pdo->prepare("SELECT estado_nomina FROM nominasprocesadas WHERE id = ?");
+    $stmt_check->execute([$id_nomina]);
+    $estado_actual = $stmt_check->fetchColumn();
 
-    if ($nomina_info) {
-        // 2. Revertir el estado de TODAS las novedades dentro del período de esa nómina a 'Pendiente'
-        $stmt_revert_novedades = $pdo->prepare(
-            "UPDATE novedadesperiodo SET estado_novedad = 'Pendiente' WHERE periodo_aplicacion BETWEEN ? AND ? AND id_contrato IN (SELECT DISTINCT id_contrato FROM nominadetalle WHERE id_nomina_procesada = ?)"
-        );
-        $stmt_revert_novedades->execute([$nomina_info['periodo_inicio'], $nomina_info['periodo_fin'], $id_nomina]);
+    if ($estado_actual === 'Aprobada y Finalizada' || $estado_actual === 'Pagada') {
+        throw new Exception('No se puede eliminar una nómina que ya ha sido aprobada o pagada.');
     }
 
-    // 3. Eliminar los registros de detalle de la nómina
-    $stmt_delete_detalles = $pdo->prepare("DELETE FROM nominadetalle WHERE id_nomina_procesada = ?");
-    $stmt_delete_detalles->execute([$id_nomina]);
+    // Si pasa la validación, procedemos a borrar.
+    // 1. Borrar los detalles (registros hijos en nominadetalle).
+    $stmt_delete_details = $pdo->prepare("DELETE FROM nominadetalle WHERE id_nomina_procesada = ?");
+    $stmt_delete_details->execute([$id_nomina]);
 
-    // 4. Eliminar el registro principal de la nómina
-    $stmt_delete_nomina = $pdo->prepare("DELETE FROM nominasprocesadas WHERE id = ?");
-    $stmt_delete_nomina->execute([$id_nomina]);
-    
-    // (Opcional) Si la nómina era Semanal, podríamos querer reabrir el período de reporte.
-    // Por ahora, lo dejamos como una acción manual para evitar complejidad.
+    // 2. Borrar la cabecera (registro padre en nominasprocesadas).
+    $stmt_delete_header = $pdo->prepare("DELETE FROM nominasprocesadas WHERE id = ?");
+    $stmt_delete_header->execute([$id_nomina]);
 
     $pdo->commit();
-    header('Location: ' . BASE_URL . 'payroll/review.php?status=success&message=' . urlencode('Nómina eliminada correctamente. Las novedades asociadas han sido revertidas a Pendiente.'));
+
+    $_SESSION['flash_message'] = ['type' => 'success', 'message' => 'La nómina ha sido eliminada correctamente.'];
+    header('Location: ' . BASE_URL . 'nomina_administrativa/index.php');
     exit();
 
-} catch (PDOException $e) {
+} catch (Exception $e) {
     if ($pdo->inTransaction()) {
         $pdo->rollBack();
     }
-    header('Location: ' . BASE_URL . 'payroll/review.php?status=error&message=' . urlencode('Error al eliminar la nómina: ' . $e->getMessage()));
+    error_log("Error al eliminar la nómina ID $id_nomina: " . $e->getMessage());
+    $_SESSION['flash_message'] = ['type' => 'error', 'message' => 'Error al eliminar la nómina: ' . $e->getMessage()];
+    header('Location: ' . BASE_URL . 'nomina_administrativa/index.php');
     exit();
 }
 ?>

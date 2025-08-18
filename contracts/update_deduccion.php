@@ -29,7 +29,7 @@ if (empty($id_deduccion) || empty($employee_id) || !is_numeric($monto_deduccion)
 
 try {
     // Preparar la consulta SQL de actualización
-    $sql = "UPDATE DeduccionesRecurrentes SET monto_deduccion = ?, quincena_aplicacion = ? WHERE id = ?";
+    $sql = "UPDATE deduccionesrecurrentes SET monto_deduccion = ?, quincena_aplicacion = ? WHERE id = ?";
     $stmt = $pdo->prepare($sql);
     
     // Ejecutar la consulta

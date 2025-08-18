@@ -28,10 +28,9 @@ $frecuencia_pago = $_POST['frecuencia_pago'] ?? null;
 $fecha_inicio = $_POST['fecha_inicio'] ?? null;
 $estado_contrato = $_POST['estado_contrato'] ?? null;
 $permite_horas_extras = isset($_POST['permite_horas_extras']) ? 1 : 0;
-// --- LÍNEAS A AÑADIR ---
 $horario_entrada = $_POST['horario_entrada'] ?? '08:00:00';
 $horario_salida = $_POST['horario_salida'] ?? '17:00:00';
-// --- FIN DE LÍNEAS A AÑADIR ---
+
 // Campos opcionales
 $fecha_fin = !empty($_POST['fecha_fin']) ? $_POST['fecha_fin'] : null;
 $salario_mensual_bruto = !empty($_POST['salario_mensual_bruto']) ? (float)$_POST['salario_mensual_bruto'] : null;

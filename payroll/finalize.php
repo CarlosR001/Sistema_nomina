@@ -17,7 +17,8 @@ try {
     $pdo->beginTransaction();
 
     // Actualizar el estado de la nómina a "Aprobada y Finalizada"
-    $stmt_update_nomina = $pdo->prepare("UPDATE NominasProcesadas SET estado_nomina = 'Aprobada y Finalizada' WHERE id = ?");
+    // CORRECCIÓN: El nombre de la tabla es en minúsculas: nominasprocesadas
+    $stmt_update_nomina = $pdo->prepare("UPDATE nominasprocesadas SET estado_nomina = 'Aprobada y Finalizada' WHERE id = ?");
     $stmt_update_nomina->execute([$id_nomina]);
     
     // Opcional: Podríamos añadir lógica adicional aquí, como marcar las novedades como 'Pagadas',
@@ -25,7 +26,7 @@ try {
     // Por ahora, solo actualizamos el estado de la nómina.
 
     $pdo->commit();
-
+    
     header('Location: ' . BASE_URL . 'payroll/show.php?id=' . $id_nomina . '&status=finalized');
     exit();
 
@@ -33,6 +34,7 @@ try {
     if ($pdo->inTransaction()) {
         $pdo->rollBack();
     }
+    error_log("Error al finalizar la nómina ID $id_nomina: " . $e->getMessage()); // Añadimos un log más detallado
     header('Location: ' . BASE_URL . 'payroll/show.php?id=' . $id_nomina . '&status=error&message=' . urlencode('Error al finalizar la nómina.'));
     exit();
 }

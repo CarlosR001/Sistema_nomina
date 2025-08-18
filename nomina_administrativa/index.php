@@ -38,12 +38,16 @@ if ($form_submitted) {
     // Verificar estado de la primera quincena
     $stmt_q1 = $pdo->prepare("SELECT id FROM nominasprocesadas WHERE tipo_nomina_procesada = 'Administrativa' AND periodo_inicio = ? AND periodo_fin = ?");
     $stmt_q1->execute([$q1_inicio, $q1_fin]);
-    $q1_procesada = $stmt_q1->fetch(PDO::FETCH_ASSOC);
+    $q1_procesada_data = $stmt_q1->fetch(PDO::FETCH_ASSOC);
+    if($q1_procesada_data) $q1_procesada = $q1_procesada_data;
+
 
     // Verificar estado de la segunda quincena
     $stmt_q2 = $pdo->prepare("SELECT id FROM nominasprocesadas WHERE tipo_nomina_procesada = 'Administrativa' AND periodo_inicio = ? AND periodo_fin = ?");
     $stmt_q2->execute([$q2_inicio, $q2_fin]);
-    $q2_procesada = $stmt_q2->fetch(PDO::FETCH_ASSOC);
+    $q2_procesada_data = $stmt_q2->fetch(PDO::FETCH_ASSOC);
+    if($q2_procesada_data) $q2_procesada = $q2_procesada_data;
+
 }
 
 // 1. Obtener todas las nóminas administrativas que ya fueron procesadas
@@ -147,24 +151,28 @@ require_once '../includes/header.php';
                     <th>Quincena</th>
                     <th>Período</th>
                     <th class="text-center">Estado</th>
-                    <th class="text-center" style="width: 200px;">Acciones</th>
+                    <th class="text-center" style="width: 220px;">Acciones</th>
                 </tr>
             </thead>
             <tbody>
                 <!-- Fila para la Primera Quincena -->
                 <tr>
                     <td><strong>1ra Quincena</strong></td>
-                    <td><?php echo $q1_inicio . ' al ' . $q1_fin; ?></td>
+                    <td><?php echo date('d/m/Y', strtotime($q1_inicio)) . ' al ' . date('d/m/Y', strtotime($q1_fin)); ?></td>
                     <td class="text-center align-middle">
-                        <?php if ($q1_id): ?>
+                        <?php if ($q1_procesada): ?>
                             <span class="badge bg-success">Procesada</span>
                         <?php else: ?>
                             <span class="badge bg-secondary">Pendiente</span>
                         <?php endif; ?>
                     </td>
                     <td class="text-center">
-                        <?php if ($q1_id): ?>
-                            <a href="<?php echo BASE_URL; ?>payroll/show.php?id=<?php echo $q1_id; ?>" class="btn btn-sm btn-info">Ver / Recalcular</a>
+                        <?php if ($q1_procesada): ?>
+                            <a href="<?php echo BASE_URL; ?>payroll/show.php?id=<?php echo $q1_procesada['id']; ?>" class="btn btn-sm btn-info">Ver / Recalcular</a>
+                            <form action="<?php echo BASE_URL; ?>payroll/delete_payroll.php" method="POST" class="d-inline" onsubmit="return confirm('¿Está seguro de que desea ELIMINAR esta nómina? Esta acción no se puede deshacer.');">
+                                <input type="hidden" name="nomina_id" value="<?php echo $q1_procesada['id']; ?>">
+                                <button type="submit" class="btn btn-sm btn-danger">Eliminar</button>
+                            </form>
                         <?php else: ?>
                             <form action="procesar_nomina_admin.php" method="POST" onsubmit="return confirm('¿Está seguro de que desea procesar la 1ra quincena?');">
                                 <input type="hidden" name="fecha_inicio" value="<?php echo $q1_inicio; ?>">
@@ -178,17 +186,21 @@ require_once '../includes/header.php';
                 <!-- Fila para la Segunda Quincena -->
                 <tr>
                     <td><strong>2da Quincena</strong></td>
-                    <td><?php echo $q2_inicio . ' al ' . $q2_fin; ?></td>
+                    <td><?php echo date('d/m/Y', strtotime($q2_inicio)) . ' al ' . date('d/m/Y', strtotime($q2_fin)); ?></td>
                     <td class="text-center align-middle">
-                        <?php if ($q2_id): ?>
+                        <?php if ($q2_procesada): ?>
                             <span class="badge bg-success">Procesada</span>
                         <?php else: ?>
                             <span class="badge bg-secondary">Pendiente</span>
                         <?php endif; ?>
                     </td>
                     <td class="text-center">
-                        <?php if ($q2_id): ?>
-                            <a href="<?php echo BASE_URL; ?>payroll/show.php?id=<?php echo $q2_id; ?>" class="btn btn-sm btn-info">Ver / Recalcular</a>
+                        <?php if ($q2_procesada): ?>
+                            <a href="<?php echo BASE_URL; ?>payroll/show.php?id=<?php echo $q2_procesada['id']; ?>" class="btn btn-sm btn-info">Ver / Recalcular</a>
+                            <form action="<?php echo BASE_URL; ?>payroll/delete_payroll.php" method="POST" class="d-inline" onsubmit="return confirm('¿Está seguro de que desea ELIMINAR esta nómina? Esta acción no se puede deshacer.');">
+                                <input type="hidden" name="nomina_id" value="<?php echo $q2_procesada['id']; ?>">
+                                <button type="submit" class="btn btn-sm btn-danger">Eliminar</button>
+                            </form>
                         <?php else: ?>
                             <form action="procesar_nomina_admin.php" method="POST" onsubmit="return confirm('¿Está seguro de que desea procesar la 2da quincena?');">
                                 <input type="hidden" name="fecha_inicio" value="<?php echo $q2_inicio; ?>">
