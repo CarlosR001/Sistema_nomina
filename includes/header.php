@@ -1,9 +1,6 @@
 <?php
-// includes/header.php - v2.2 (Añadido Menú de Reportes)
-if (session_status() === PHP_SESSION_NONE) {
-    session_start();
-}
-// Lógica para determinar qué nombre mostrar.
+// includes/header.php - v2.5 (Layout Definitivo Corregido)
+if (session_status() === PHP_SESSION_NONE) { session_start(); }
 if (isset($_SESSION['user_id'])) {
     $display_name = !empty($_SESSION['user_full_name']) && trim($_SESSION['user_full_name']) !== '' ? $_SESSION['user_full_name'] : $_SESSION['username'];
 }
@@ -18,145 +15,111 @@ if (isset($_SESSION['user_id'])) {
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.1/font/bootstrap-icons.css">
 </head>
 <body>
-
 <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
     <div class="container-fluid">
         <a class="navbar-brand" href="<?php echo BASE_URL; ?>">Nómina J&C</a>
-        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
-            <span class="navbar-toggler-icon"></span>
-        </button>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"><span class="navbar-toggler-icon"></span></button>
         <div class="collapse navbar-collapse" id="navbarNav">
             <ul class="navbar-nav me-auto mb-2 mb-lg-0">
                 <?php if (isset($_SESSION['user_id'])): ?>
-                    <li class="nav-item">
-                        <a class="nav-link" href="<?php echo BASE_URL; ?>index.php">Inicio</a>
-                    </li>
-
-                    <!-- Menú para Inspectores -->
+                    <li class="nav-item"><a class="nav-link" href="<?php echo BASE_URL; ?>index.php">Inicio</a></li>
                     <?php if (has_permission('horas.registrar')): ?>
-                    <li class="nav-item">
-                        <a class="nav-link" href="<?php echo BASE_URL; ?>time_tracking/index.php">Portal de Horas</a>
-                    </li>
+                        <li class="nav-item"><a class="nav-link" href="<?php echo BASE_URL; ?>time_tracking/index.php">Portal de Horas</a></li>
                     <?php endif; ?>
-
-                    <!-- Menú Entrada de Datos -->
                     <?php if (has_permission('organizacion.gestionar') || has_permission('nomina.procesar')): ?>
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownEntrada" role="button" data-bs-toggle="dropdown" aria-expanded="false">Entrada de Datos</a>
-                        <ul class="dropdown-menu" aria-labelledby="navbarDropdownEntrada">
-                            <?php if (has_permission('organizacion.gestionar')): ?>
-                                <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>reporting_periods/index.php">Períodos de Reporte</a></li>
-                            <?php endif; ?>
-                            <?php if (has_permission('nomina.procesar')): ?>
-                                <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>payroll/generar_novedades.php">Generar Novedades desde Horas</a></li>
-                                <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>novedades/index.php">Novedades Manuales</a></li>
-                                <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>novedades/ajuste_isr.php">Ajuste Manual de ISR</a></li>
-                            <?php endif; ?>
-                        </ul>
-                    </li>
-                    <?php endif; ?>
-
-                    <!-- Menú Nómina -->
-                    <?php if (has_permission('nomina.procesar') || has_permission('aprobaciones.gestionar') || has_permission('nomina.exportar.banco')): ?>
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownNomina" role="button" data-bs-toggle="dropdown" aria-expanded="false">Nómina</a>
-                        <ul class="dropdown-menu" aria-labelledby="navbarDropdownNomina">
-                            <?php if (has_permission('aprobaciones.gestionar')): ?>
-                                <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>approvals/index.php">Aprobaciones</a></li>
-                            <?php endif; ?>
-                            <?php if (has_permission('nomina.procesar')): ?>
-                                <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>payroll/index.php">Procesar Nómina</a></li>
-                                <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>payroll/review.php">Revisión de Nóminas</a></li>
-                                <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>nomina_administrativa/index.php">Nómina Administrativa</a></li>
-
-                                <li><hr class="dropdown-divider"></li>
-                                <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>pagos_especiales/index.php">Pagos Especiales</a></li>
-                                <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>liquidaciones/index.php">Liquidaciones</a></li>
-                                <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>tss/index.php">Exportación TSS</a></li>
-
+                        <li class="nav-item dropdown"><a class="nav-link dropdown-toggle" href="#" id="navbarDropdownEntrada" role="button" data-bs-toggle="dropdown">Entrada de Datos</a>
+                            <ul class="dropdown-menu">
+                                <?php if (has_permission('organizacion.gestionar')): ?><li><a class="dropdown-item" href="<?php echo BASE_URL; ?>reporting_periods/index.php">Períodos de Reporte</a></li><?php endif; ?>
+                                <?php if (has_permission('nomina.procesar')): ?>
+                                    <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>payroll/generar_novedades.php">Generar Novedades</a></li>
+                                    <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>novedades/index.php">Novedades Manuales</a></li>
+                                    <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>novedades/ajuste_isr.php">Ajuste Manual de ISR</a></li>
                                 <?php endif; ?>
-                            <?php if (has_permission('nomina.exportar.banco')): ?>
-                                <li><hr class="dropdown-divider"></li>
-                                <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>export_banco/index.php">Exportar para Banco</a></li>
-                            <?php endif; ?>
-                        </ul>
-                    </li>
+                            </ul>
+                        </li>
                     <?php endif; ?>
-                    
-                    <!-- INICIO: CÓDIGO AÑADIDO -->
-                    <!-- Menú Reportes -->
+                    <?php if (has_permission('nomina.procesar') || has_permission('aprobaciones.gestionar') || has_permission('nomina.exportar.banco')): ?>
+                        <li class="nav-item dropdown"><a class="nav-link dropdown-toggle" href="#" id="navbarDropdownNomina" role="button" data-bs-toggle="dropdown">Nómina</a>
+                            <ul class="dropdown-menu">
+                                <?php if (has_permission('aprobaciones.gestionar')): ?><li><a class="dropdown-item" href="<?php echo BASE_URL; ?>approvals/index.php">Aprobaciones</a></li><?php endif; ?>
+                                <?php if (has_permission('nomina.procesar')): ?>
+                                    <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>payroll/index.php">Procesar Nómina</a></li>
+                                    <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>payroll/review.php">Revisión de Nóminas</a></li>
+                                    <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>nomina_administrativa/index.php">Nómina Administrativa</a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>pagos_especiales/index.php">Pagos Especiales</a></li>
+                                    <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>liquidaciones/index.php">Liquidaciones</a></li>
+                                    <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>tss/index.php">Exportación TSS</a></li>
+                                <?php endif; ?>
+                                <?php if (has_permission('nomina.exportar.banco')): ?>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>export_banco/index.php">Exportar para Banco</a></li>
+                                <?php endif; ?>
+                            </ul>
+                        </li>
+                    <?php endif; ?>
                     <?php if (has_permission('nomina.procesar')): ?>
                     <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownReportes" role="button" data-bs-toggle="dropdown" aria-expanded="false">Reportes</a>
-                        <ul class="dropdown-menu" aria-labelledby="navbarDropdownReportes">
+                        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownReportes" role="button" data-bs-toggle="dropdown">Reportes</a>
+                        <ul class="dropdown-menu">
                             <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>reports/inspector_hours.php">Horas por Inspector</a></li>
+                            <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>reports/payroll_summary.php">Resumen General de Nómina</a></li>
                             <?php if (has_permission('reportes.horas_extras.ver')): ?>
                                 <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>he_admin/index.php">Reporte H.E. Fijo</a></li>
                             <?php endif; ?>
                         </ul>
                     </li>
                     <?php endif; ?>
-                    <!-- FIN: CÓDIGO AÑADIDO -->
-
-                    <!-- Menú Gestión de Órdenes -->
                     <?php if (has_permission('ordenes.gestionar')): ?>
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" id="ordenesDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">Gestión de Órdenes</a>
-                        <ul class="dropdown-menu" aria-labelledby="ordenesDropdown">
-                            <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>ordenes/index.php">Órdenes de Trabajo</a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>clientes/index.php">Clientes</a></li>
-                            <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>productos/index.php">Productos</a></li>
-                            <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>operaciones/index.php">Operaciones</a></li>
-                        </ul>
-                    </li>
+                        <li class="nav-item dropdown"><a class="nav-link dropdown-toggle" href="#" id="ordenesDropdown" role="button" data-bs-toggle="dropdown">Gestión de Órdenes</a>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>ordenes/index.php">Órdenes de Trabajo</a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>clientes/index.php">Clientes</a></li>
+                                <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>productos/index.php">Productos</a></li>
+                                <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>operaciones/index.php">Operaciones</a></li>
+                            </ul>
+                        </li>
                     <?php endif; ?>
-
-                    <!-- Menú Organización -->
                     <?php if (has_permission('empleados.gestionar') || has_permission('organizacion.gestionar') || has_permission('usuarios.gestionar')): ?>
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownOrganizacion" role="button" data-bs-toggle="dropdown" aria-expanded="false">Organización</a>
-                        <ul class="dropdown-menu" aria-labelledby="navbarDropdownOrganizacion">
-                             <?php if (has_permission('empleados.gestionar')): ?>
-                                <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>employees/index.php">Empleados y Contratos</a></li>
-                            <?php endif; ?>
-                            <?php if (has_permission('usuarios.gestionar')): ?>
-                                <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>users/index.php">Gestión de Usuarios</a></li>
-                                <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>roles/index.php">Gestión de Roles</a></li>
-                            <?php endif; ?>
-                            <?php if (has_permission('organizacion.gestionar')): ?>
-                                <li><hr class="dropdown-divider"></li>
-                                <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>departments/index.php">Departamentos</a></li>
-                                <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>positions/index.php">Posiciones</a></li>
-                                <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>divisiones/index.php">Divisiones</a></li>
-                                <li><hr class="dropdown-divider"></li>
-                                <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>lugares/index.php">Lugares y Sub-Lugares</a></li>
-                                <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>bancos/index.php">Bancos</a></li>
-                                <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>calendario/index.php">Calendario Feriado</a></li>
-                                <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>conceptos/index.php">Conceptos de Nómina</a></li>
-                                <li><hr class="dropdown-divider"></li>
-                                <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>configuracion/index.php">Configuración Global</a></li>
-                            <?php endif; ?>
-                        </ul>
-                    </li>
+                        <li class="nav-item dropdown"><a class="nav-link dropdown-toggle" href="#" id="navbarDropdownOrganizacion" role="button" data-bs-toggle="dropdown">Organización</a>
+                            <ul class="dropdown-menu">
+                                <?php if (has_permission('empleados.gestionar')): ?><li><a class="dropdown-item" href="<?php echo BASE_URL; ?>employees/index.php">Empleados</a></li><?php endif; ?>
+                                <?php if (has_permission('usuarios.gestionar')): ?><li><a class="dropdown-item" href="<?php echo BASE_URL; ?>users/index.php">Usuarios</a></li><li><a class="dropdown-item" href="<?php echo BASE_URL; ?>roles/index.php">Roles</a></li><?php endif; ?>
+                                <?php if (has_permission('organizacion.gestionar')): ?>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>departments/index.php">Departamentos</a></li>
+                                    <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>positions/index.php">Posiciones</a></li>
+                                    <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>divisiones/index.php">Divisiones</a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>lugares/index.php">Lugares y Sub-Lugares</a></li>
+                                    <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>bancos/index.php">Bancos</a></li>
+                                    <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>calendario/index.php">Calendario Feriado</a></li>
+                                    <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>conceptos/index.php">Conceptos de Nómina</a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>configuracion/index.php">Configuración Global</a></li>
+                                <?php endif; ?>
+                            </ul>
+                        </li>
                     <?php endif; ?>
-
                 <?php endif; ?>
             </ul>
             <?php if (isset($_SESSION['user_id'])): ?>
-                <span class="navbar-text me-3">
-                    Hola, <?php echo htmlspecialchars($display_name); ?>
-                </span>
+                <span class="navbar-text me-3">Hola, <?php echo htmlspecialchars($display_name); ?></span>
                 <a href="<?php echo BASE_URL; ?>auth.php?action=logout" class="btn btn-outline-light">Cerrar Sesión</a>
             <?php endif; ?>
         </div>
     </div>
 </nav>
 
-<main class="container mt-4">
-    <?php if (isset($_GET['status'], $_GET['message'])): ?>
-        <div class="alert alert-<?php echo $_GET['status'] === 'success' ? 'success' : 'danger'; ?> alert-dismissible fade show" role="alert">
-            <?php echo htmlspecialchars(urldecode($_GET['message'])); ?>
+<!-- ESTRUCTURA DE LAYOUT CORREGIDA: Se abre el contenedor aquí -->
+<div class="container-fluid px-4 py-4">
+    <?php if (isset($_SESSION['flash_message'])): ?>
+        <div class="alert alert-<?php echo $_SESSION['flash_message']['type']; ?> alert-dismissible fade show" role="alert">
+            <?php echo $_SESSION['flash_message']['message']; ?>
             <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
         </div>
+        <?php unset($_SESSION['flash_message']); ?>
     <?php endif; ?>
+
+    <!-- El contenido específico de cada página se insertará aquí -->

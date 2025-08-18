@@ -1,54 +1,68 @@
 <?php
-// ordenes/store.php
+// ordenes/store.php - v2.0 (con nuevos campos)
 
 require_once '../auth.php';
 require_login();
 require_permission('ordenes.gestionar');
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    
-    $codigo_orden = $_POST['codigo_orden'] ?? '';
-    $id_cliente = $_POST['id_cliente'] ?? null;
-    $id_lugar = $_POST['id_lugar'] ?? null;
-    $id_producto = $_POST['id_producto'] ?? null;
-    $id_operacion = $_POST['id_operacion'] ?? null;
-    $id_supervisor = $_POST['id_supervisor'] ?? null; // <-- NUEVO
-    $id_division = $_POST['id_division'] ?? null;
-    $fecha_creacion = $_POST['fecha_creacion'] ?? null;
-    $fecha_finalizacion = !empty($_POST['fecha_finalizacion']) ? $_POST['fecha_finalizacion'] : null;
-    $estado_orden = $_POST['estado_orden'] ?? 'Pendiente';
-    $id_usuario_creador = $_SESSION['user_id'];
-
-
-
-    // Validaciones básicas
-    if (empty($codigo_orden) || !$id_cliente || !$id_lugar || !$id_producto || !$id_operacion || !$fecha_creacion) {
-        header('Location: create.php?status=error&message=' . urlencode('Todos los campos son obligatorios.'));
-        exit;
-    }
-
-    try {
-        $stmt = $pdo->prepare(
-            "INSERT INTO ordenes (codigo_orden, id_cliente, id_lugar, id_producto, id_operacion, id_supervisor, id_division, fecha_creacion, fecha_finalizacion, id_usuario_creador, estado_orden) 
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
-        );
-        $stmt->execute([$codigo_orden, $id_cliente, $id_lugar, $id_producto, $id_operacion, $id_supervisor, $id_division, $fecha_creacion, $fecha_finalizacion, $id_usuario_creador, $estado_orden]);
-
-        $id_orden_creada = $pdo->lastInsertId();
-
-        header('Location: assign.php?id=' . $id_orden_creada . '&status=success&message=' . urlencode('Orden creada. Ahora asigne los inspectores.'));
-        exit;
-    } catch (PDOException $e) {
-        if ($e->getCode() == 23000) {
-            $message = urlencode('Error: Ya existe una orden con ese código.');
-        } else {
-            $message = urlencode('Error al guardar la orden: ' . $e->getMessage());
-        }
-        header('Location: create.php?status=error&message=' . $message);
-        exit;
-    }
-
-} else {
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     header('Location: index.php');
+    exit;
+}
+
+// Recoger todos los campos del formulario
+$codigo_orden = $_POST['codigo_orden'] ?? null;
+$numero_orden_compra = $_POST['numero_orden_compra'] ?? null; // <-- NUEVO
+$id_cliente = $_POST['id_cliente'] ?? null;
+$id_lugar = $_POST['id_lugar'] ?? null;
+$id_producto = $_POST['id_producto'] ?? null;
+$id_operacion = $_POST['id_operacion'] ?? null;
+$id_division = !empty($_POST['id_division']) ? $_POST['id_division'] : null;
+$id_supervisor = !empty($_POST['id_supervisor']) ? $_POST['id_supervisor'] : null;
+$observaciones = $_POST['observaciones'] ?? null; // <-- NUEVO
+$id_usuario_creador = $_SESSION['user_id'];
+$fecha_creacion = date('Y-m-d');
+$estado_orden = 'En Proceso';
+
+// Validaciones básicas
+if (empty($codigo_orden) || empty($id_cliente) || empty($id_lugar) || empty($id_producto) || empty($id_operacion)) {
+    header('Location: create.php?status=error&message=' . urlencode('Los campos obligatorios no pueden estar vacíos.'));
+    exit;
+}
+
+try {
+    // Consulta SQL actualizada para incluir los nuevos campos
+    $sql = "INSERT INTO ordenes (
+                codigo_orden, numero_orden_compra, id_cliente, id_lugar, id_producto, 
+                id_operacion, id_division, id_supervisor, fecha_creacion, 
+                id_usuario_creador, estado_orden, observaciones
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+    
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute([
+        $codigo_orden,
+        $numero_orden_compra, // <-- NUEVO
+        $id_cliente,
+        $id_lugar,
+        $id_producto,
+        $id_operacion,
+        $id_division,
+        $id_supervisor,
+        $fecha_creacion,
+        $id_usuario_creador,
+        $estado_orden,
+        $observaciones // <-- NUEVO
+    ]);
+
+    header('Location: index.php?status=success&message=' . urlencode('Orden creada exitosamente.'));
+    exit;
+
+} catch (PDOException $e) {
+    if ($e->errorInfo[1] == 1062) {
+        $message = urlencode('Error: El código de orden ya existe.');
+    } else {
+        $message = urlencode('Error de base de datos: ' . $e->getMessage());
+    }
+    header('Location: create.php?status=error&message=' . $message);
     exit;
 }
