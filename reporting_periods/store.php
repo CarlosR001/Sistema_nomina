@@ -14,7 +14,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (!empty($fecha_inicio) && !empty($fecha_fin) && !empty($tipo_nomina)) {
         try {
-            $sql = "INSERT INTO PeriodosDeReporte (fecha_inicio_periodo, fecha_fin_periodo, tipo_nomina, estado_periodo) VALUES (:inicio, :fin, :tipo, 'Abierto')";
+            $sql = "INSERT INTO periodosdereporte (fecha_inicio_periodo, fecha_fin_periodo, tipo_nomina, estado_periodo) VALUES (:inicio, :fin, :tipo, 'Abierto')";
             $stmt = $pdo->prepare($sql);
             $stmt->execute([
                 ':inicio' => $fecha_inicio,

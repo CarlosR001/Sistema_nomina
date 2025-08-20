@@ -23,7 +23,7 @@ if (empty($id) || empty($nombre_posicion) || empty($id_departamento)) {
 try {
     // Aquí podríamos añadir una validación para evitar nombres de posición duplicados si fuera necesario.
 
-    $stmt = $pdo->prepare("UPDATE Posiciones SET nombre_posicion = ?, id_departamento = ? WHERE id = ?");
+    $stmt = $pdo->prepare("UPDATE posiciones SET nombre_posicion = ?, id_departamento = ? WHERE id = ?");
     $stmt->execute([$nombre_posicion, $id_departamento, $id]);
 
     header('Location: index.php?status=success&message=Posición actualizada correctamente.');

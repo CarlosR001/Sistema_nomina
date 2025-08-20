@@ -14,7 +14,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!empty($nombre_departamento)) {
         try {
             // Asumo que este script es solo para crear, si también edita, la lógica debe ser diferente.
-            $sql = "INSERT INTO Departamentos (nombre_departamento, estado) VALUES (:nombre_departamento, 'Activo')";
+            $sql = "INSERT INTO departamentos (nombre_departamento, estado) VALUES (:nombre_departamento, 'Activo')";
             $stmt = $pdo->prepare($sql);
             $stmt->bindParam(':nombre_departamento', $nombre_departamento);
             $stmt->execute();

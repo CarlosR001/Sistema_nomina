@@ -23,7 +23,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     try {
         // Actualizar la consulta SQL para incluir la nueva columna
-        $sql = "UPDATE ConceptosNomina SET 
+        $sql = "UPDATE conceptosnomina SET 
                     codigo_concepto = ?, 
                     descripcion_publica = ?, 
                     tipo_concepto = ?, 

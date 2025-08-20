@@ -20,7 +20,7 @@ if (empty($fecha) || empty($descripcion)) {
 }
 
 try {
-    $stmt = $pdo->prepare("UPDATE CalendarioLaboralRD SET descripcion = ? WHERE fecha = ?");
+    $stmt = $pdo->prepare("UPDATE calendariolaboralrd SET descripcion = ? WHERE fecha = ?");
     $stmt->execute([$descripcion, $fecha]);
 
     header('Location: index.php?status=success&message=Día feriado actualizado correctamente.');

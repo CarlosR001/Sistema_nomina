@@ -12,7 +12,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (!empty($fecha) && !empty($descripcion)) {
         try {
-            $sql = "INSERT INTO CalendarioLaboralRD (fecha, descripcion, tipo_dia) VALUES (?, ?, ?)";
+            $sql = "INSERT INTO calendariolaboralrd (fecha, descripcion, tipo_dia) VALUES (?, ?, ?)";
             $stmt = $pdo->prepare($sql);
             $stmt->execute([$fecha, $descripcion, $tipo_dia]);
             header("Location: index.php?status=success&message=Feriado%20guardado%20exitosamente.");

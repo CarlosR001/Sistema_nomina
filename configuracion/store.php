@@ -10,7 +10,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['configs'])) {
     try {
         $pdo->beginTransaction();
 
-        $sql = "UPDATE ConfiguracionGlobal SET valor = :valor WHERE clave = :clave";
+        $sql = "UPDATE configuracionglobal SET valor = :valor WHERE clave = :clave";
         $stmt = $pdo->prepare($sql);
 
         foreach ($_POST['configs'] as $clave => $valor) {

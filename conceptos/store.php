@@ -26,7 +26,7 @@ try {
     }
 
     // Consulta SQL con la nueva columna
-    $sql = "INSERT INTO ConceptosNomina (codigo_concepto, descripcion_publica, tipo_concepto, origen_calculo, afecta_tss, afecta_isr, codigo_tss, incluir_en_volante) 
+    $sql = "INSERT INTO conceptosnomina (codigo_concepto, descripcion_publica, tipo_concepto, origen_calculo, afecta_tss, afecta_isr, codigo_tss, incluir_en_volante) 
             VALUES (?, ?, ?, 'Novedad', ?, ?, ?, ?)";
     
     $stmt = $pdo->prepare($sql);
