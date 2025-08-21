@@ -48,7 +48,19 @@ require_once '../includes/header.php';
                         <label for="rnc_cliente" class="form-label">RNC (Opcional)</label>
                         <input type="text" class="form-control" id="rnc_cliente" name="rnc_cliente" value="<?php echo htmlspecialchars($cliente['rnc_cliente']); ?>">
                     </div>
-                    <div class="col-md-6">
+                    <div class="col-md-12">
+                        <label for="Adress" class="form-label">Dirección (Opcional)</label>
+                        <input type="text" class="form-control" id="Adress" name="Adress" value="<?php echo htmlspecialchars($cliente['Adress'] ?? ''); ?>">
+                    </div>
+                    <div class="col-md-4">
+                        <label for="Country" class="form-label">País (Opcional)</label>
+                        <input type="text" class="form-control" id="Country" name="Country" value="<?php echo htmlspecialchars($cliente['Country'] ?? ''); ?>">
+                    </div>
+                    <div class="col-md-4">
+                        <label for="Phone_Number" class="form-label">Teléfono (Opcional)</label>
+                        <input type="text" class="form-control" id="Phone_Number" name="Phone_Number" value="<?php echo htmlspecialchars($cliente['Phone_Number'] ?? ''); ?>">
+                    </div>
+                    <div class="col-md-4">
                         <label for="estado" class="form-label">Estado</label>
                         <select class="form-select" id="estado" name="estado" required>
                             <option value="Activo" <?php echo ($cliente['estado'] == 'Activo') ? 'selected' : ''; ?>>Activo</option>

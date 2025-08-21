@@ -1,32 +1,30 @@
 <?php
-// payroll/review.php - v2.2 (Definitivo y Corregido)
+// payroll/review.php - v2.3 (Muestra Tipo de Cálculo)
 
 require_once '../auth.php';
 require_login();
 require_permission('nomina.procesar');
 
-// Función de ayuda para obtener el nombre del mes en español
 function get_month_name_es($month_number) {
     $meses = [1 => 'Enero', 2 => 'Febrero', 3 => 'Marzo', 4 => 'Abril', 5 => 'Mayo', 6 => 'Junio', 7 => 'Julio', 8 => 'Agosto', 9 => 'Septiembre', 10 => 'Octubre', 11 => 'Noviembre', 12 => 'Diciembre'];
     return $meses[(int)$month_number] ?? 'Mes Desconocido';
 }
 
-// 1. Obtener todas las nóminas relevantes
 $stmt_nominas = $pdo->query("
     SELECT 
         id, 
         periodo_inicio, 
         periodo_fin, 
-        tipo_nomina_procesada, 
+        tipo_nomina_procesada,
+        tipo_calculo_nomina, -- Columna añadida
         estado_nomina, 
         fecha_ejecucion 
     FROM nominasprocesadas
-    WHERE estado_nomina IN ('Aprobada y Finalizada', 'Pagada', 'Pendiente de Aprobación', 'Calculada') -- Ampliamos los estados a mostrar
+    WHERE estado_nomina IN ('Aprobada y Finalizada', 'Pagada', 'Pendiente de Aprobación', 'Calculada')
     ORDER BY periodo_fin DESC
 ");
 $nominas = $stmt_nominas->fetchAll(PDO::FETCH_ASSOC);
 
-// 2. Agrupar las nóminas por mes y año
 $nominas_agrupadas = [];
 foreach ($nominas as $nomina) {
     $fecha = new DateTime($nomina['periodo_fin']);
@@ -65,7 +63,8 @@ require_once '../includes/header.php';
                                 <thead class="table-light">
                                     <tr>
                                         <th>ID</th>
-                                        <th>Tipo</th>
+                                        <th>Tipo de Nómina</th>
+                                        <th>Tipo de Cálculo</th>
                                         <th>Período</th>
                                         <th>Estado</th>
                                         <th class="text-end">Acciones</th>
@@ -76,6 +75,9 @@ require_once '../includes/header.php';
                                     <tr>
                                         <td><?php echo $nomina['id']; ?></td>
                                         <td><?php echo htmlspecialchars($nomina['tipo_nomina_procesada']); ?></td>
+                                        <td>
+                                            <span class="badge bg-info text-dark"><?php echo htmlspecialchars($nomina['tipo_calculo_nomina']); ?></span>
+                                        </td>
                                         <td><?php echo date('d/m/Y', strtotime($nomina['periodo_inicio'])) . ' - ' . date('d/m/Y', strtotime($nomina['periodo_fin'])); ?></td>
                                         <td>
                                             <span class="badge bg-<?php 
