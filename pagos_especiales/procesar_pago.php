@@ -91,12 +91,17 @@ try {
 
     $deduccion_afp = 0; $deduccion_sfs = 0;
     if ($ingreso_total_tss > 0) {
-        $tope_salarial_tss = (float)($configs_db['TSS_TOPE_SALARIAL'] ?? 265840.00);
-        $porcentaje_afp = (float)($configs_db['TSS_PORCENTAJE_AFP'] ?? 0.0287);
-        $porcentaje_sfs = (float)($configs_db['TSS_PORCENTAJE_SFS'] ?? 0.0304);
-        $salario_cotizable_final = min($ingreso_total_tss, $tope_salarial_tss);
-        $deduccion_afp = round($salario_cotizable_final * $porcentaje_afp, 2);
-        $deduccion_sfs = round($salario_cotizable_final * $porcentaje_sfs, 2);
+            // Nuevas variables para topes separados
+    $tope_sfs_mensual = (float)($configs_db['TSS_TOPE_SFS'] ?? 0);
+    $tope_afp_mensual = (float)($configs_db['TSS_TOPE_AFP'] ?? 0);
+    $porcentaje_afp = (float)($configs_db['TSS_PORCENTAJE_AFP'] ?? 0.0287);
+    $porcentaje_sfs = (float)($configs_db['TSS_PORCENTAJE_SFS'] ?? 0.0304);
+
+    $salario_cotizable_sfs = min($ingreso_total_tss, $tope_sfs_mensual);
+    $deduccion_sfs = round($salario_cotizable_sfs * $porcentaje_sfs, 2);
+
+    $salario_cotizable_afp = min($ingreso_total_tss, $tope_afp_mensual);
+    $deduccion_afp = round($salario_cotizable_afp * $porcentaje_afp, 2);
     }
     
     $base_isr_neta = $base_isr_mensual_proyectada - ($deduccion_afp + $deduccion_sfs);
@@ -137,3 +142,4 @@ try {
     header('Location: index.php?status=error&message=' . urlencode('Error crítico al procesar el pago: ' . $e->getMessage()));
     exit();
 }
+

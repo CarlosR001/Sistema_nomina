@@ -63,13 +63,14 @@ try {
         $pdo->prepare("UPDATE novedadesperiodo SET estado_novedad = 'Pendiente' WHERE periodo_aplicacion BETWEEN ? AND ?")
         ->execute([$fecha_inicio, $fecha_fin]);
 
-    $configs_db = $pdo->query("SELECT clave, valor FROM configuracionglobal")->fetchAll(PDO::FETCH_KEY_PAIR);
-    $tope_salarial_tss = (float)($configs_db['TSS_TOPE_SALARIAL'] ?? 265840.00);
-    $porcentaje_afp = (float)($configs_db['TSS_PORCENTAJE_AFP'] ?? 0.0287);
-    $porcentaje_sfs = (float)($configs_db['TSS_PORCENTAJE_SFS'] ?? 0.0304);
-    $escala_isr = $pdo->query("SELECT * FROM escalasisr WHERE anio_fiscal = {$anio_actual} ORDER BY desde_monto_anual ASC")->fetchAll(PDO::FETCH_ASSOC);
-
-
+        $configs_db = $pdo->query("SELECT clave, valor FROM configuracionglobal")->fetchAll(PDO::FETCH_KEY_PAIR);
+          
+        $tope_sfs_mensual = (float)($configs_db['TSS_TOPE_SFS'] ?? 0);
+        $tope_afp_mensual = (float)($configs_db['TSS_TOPE_AFP'] ?? 0);
+        $porcentaje_afp = (float)($configs_db['TSS_PORCENTAJE_AFP'] ?? 0.0287);
+        $porcentaje_sfs = (float)($configs_db['TSS_PORCENTAJE_SFS'] ?? 0.0304);    
+        $escala_isr = $pdo->query("SELECT * FROM escalasisr WHERE anio_fiscal = {$anio_actual} ORDER BY desde_monto_anual ASC")->fetchAll(PDO::FETCH_ASSOC);
+        
     $sql_nomina = "INSERT INTO nominasprocesadas (tipo_nomina_procesada, periodo_inicio, periodo_fin, id_usuario_ejecutor, estado_nomina) VALUES (?, ?, ?, ?, 'Pendiente de Aprobación')";
     $stmt_nomina = $pdo->prepare($sql_nomina);
     $stmt_nomina->execute([$tipo_nomina, $fecha_inicio, $fecha_fin, $_SESSION['user_id']]);
@@ -104,11 +105,16 @@ try {
         $salario_cotizable_tss = 0;
         foreach ($conceptos as $data) { if ($data['tipo'] === 'Ingreso' && $data['aplica_tss']) { $salario_cotizable_tss += $data['monto']; } }
         
-        $tope_salarial_semanal = round($tope_salarial_tss / 4.333333, 2);
-        $salario_cotizable_final_semanal = min($salario_cotizable_tss, $tope_salarial_semanal);
-        
-        $deduccion_afp = round($salario_cotizable_final_semanal * $porcentaje_afp, 2);
-        $deduccion_sfs = round($salario_cotizable_final_semanal * $porcentaje_sfs, 2);
+               // --- INICIO DE LÓGICA DE TOPES SEPARADOS ---
+               $tope_sfs_semanal = round($tope_sfs_mensual / 4.333333, 2);
+               $salario_cotizable_sfs = min($salario_cotizable_tss, $tope_sfs_semanal);
+               $deduccion_sfs = round($salario_cotizable_sfs * $porcentaje_sfs, 2);
+       
+               $tope_afp_semanal = round($tope_afp_mensual / 4.333333, 2);
+               $salario_cotizable_afp = min($salario_cotizable_tss, $tope_afp_semanal);
+               $deduccion_afp = round($salario_cotizable_afp * $porcentaje_afp, 2);
+               // --- FIN DE LÓGICA DE TOPES SEPARADOS ---
+       
         if($deduccion_afp > 0) $conceptos['DED-AFP'] = ['desc' => 'Aporte AFP (2.87%)', 'monto' => $deduccion_afp, 'tipo' => 'Deducción'];
         if($deduccion_sfs > 0) $conceptos['DED-SFS'] = ['desc' => 'Aporte SFS (3.04%)', 'monto' => $deduccion_sfs, 'tipo' => 'Deducción'];
 
