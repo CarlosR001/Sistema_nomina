@@ -1,22 +1,22 @@
 <?php
-// payroll/payslip.php - v2.0 (Corrección de UI y Envío de Correo Individual)
+// payroll/payslip.php - v2.2 (Corrección con LEFT JOIN para visibilidad total)
 
 require_once '../auth.php';
 require_login();
-require_once '../config/init.php'; // Para BASE_URL y PHPMailer
+require_once '../config/init.php';
 require_once '../vendor/autoload.php';
-
 
 use PHPMailer\PHPMailer\PHPMailer;
 use PHPMailer\PHPMailer\Exception;
 
-// 1. Lógica de Autorización y Obtención de Datos (EXISTENTE Y CORRECTA)
+// 1. Autorización y obtención de IDs
 if (!isset($_GET['nomina_id']) || !is_numeric($_GET['nomina_id']) || !isset($_GET['contrato_id']) || !is_numeric($_GET['contrato_id'])) {
     header('Location: ' . BASE_URL . 'index.php?status=error&message=Faltan%20par%C3%A1metros.');
     exit();
 }
 $id_nomina = $_GET['nomina_id'];
 $id_contrato = $_GET['contrato_id'];
+
 $stmt_get_employee_id = $pdo->prepare("SELECT id_empleado FROM contratos WHERE id = ?");
 $stmt_get_employee_id->execute([$id_contrato]);
 $empleado_id_del_contrato = $stmt_get_employee_id->fetchColumn();
@@ -27,7 +27,7 @@ if (!has_permission('nomina.procesar') && $user_empleado_id != $empleado_id_del_
     die('Acceso denegado. No tienes permiso para ver este volante de pago.');
 }
 
-// 2. Obtención de Datos de la Nómina (EXISTENTE Y CORRECTA)
+// 2. Obtención de Datos de la Nómina (Consulta CORREGIDA con LEFT JOIN)
 $stmt_empleado = $pdo->prepare("SELECT e.nombres, e.primer_apellido, e.segundo_apellido, e.cedula, e.email_personal, p.nombre_posicion FROM contratos c JOIN empleados e ON c.id_empleado = e.id JOIN posiciones p ON c.id_posicion = p.id WHERE c.id = ?");
 $stmt_empleado->execute([$id_contrato]);
 $empleado = $stmt_empleado->fetch(PDO::FETCH_ASSOC);
@@ -41,10 +41,18 @@ if (!$empleado || !$nomina) {
     exit();
 }
 
-$detalles_stmt = $pdo->prepare("SELECT * FROM nominadetalle WHERE id_nomina_procesada = ? AND id_contrato = ? ORDER BY tipo_concepto DESC, codigo_concepto");
+// CORRECCIÓN CLAVE: Se cambia a LEFT JOIN para asegurar que todos los detalles se muestren.
+$detalles_stmt = $pdo->prepare(
+    "SELECT nd.*, cn.incluir_en_volante 
+     FROM nominadetalle nd
+     LEFT JOIN conceptosnomina cn ON nd.codigo_concepto = cn.codigo_concepto
+     WHERE nd.id_nomina_procesada = ? AND nd.id_contrato = ? 
+     ORDER BY nd.tipo_concepto DESC, nd.codigo_concepto"
+);
 $detalles_stmt->execute([$id_nomina, $id_contrato]);
 $detalles = $detalles_stmt->fetchAll(PDO::FETCH_ASSOC);
-// --- INICIO DE BLOQUE CORREGIDO: Procesamiento de detalles para visualización ---
+
+// Procesamiento de detalles para la visualización
 $ingresos = [];
 $deducciones = [];
 $bases_calculo = [];
@@ -53,6 +61,11 @@ $total_deducciones = 0;
 
 foreach ($detalles as $detalle) {
     $monto = (float)$detalle['monto_resultado'];
+    // Si no se encuentra el concepto en la tabla maestra, por defecto se incluye para contabilidad pero no para el empleado.
+    if (!isset($detalle['incluir_en_volante'])) {
+        $detalle['incluir_en_volante'] = 0; // No se envía en el correo.
+    }
+
     switch ($detalle['tipo_concepto']) {
         case 'Ingreso':
             $ingresos[] = $detalle;
@@ -68,10 +81,8 @@ foreach ($detalles as $detalle) {
     }
 }
 $neto_pagar = $total_ingresos - $total_deducciones;
-// --- FIN DE BLOQUE CORREGIDO ---
 
-
-// 3. Lógica de Envío de Correo (NUEVA Y CORREGIDA)
+// 3. Lógica de Envío de Correo (sin cambios, usa la plantilla)
 $email_status = '';
 $email_message = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['send_email'])) {
@@ -80,7 +91,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['send_email'])) {
         $email_message = 'El empleado no tiene una dirección de correo electrónico registrada.';
     } else {
         ob_start();
-        // Incluir solo el cuerpo del volante para el email
         include __DIR__ . '/payslip_template.php'; 
         $payslip_html = ob_get_clean();
 
@@ -109,16 +119,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['send_email'])) {
         }
     }
 }
-// Fin de la lógica de correo
 
 require_once '../includes/header.php';
 ?>
 
-<h1 class="mb-4">Desglose de Pago</h1>
+<h1 class="mb-4">Desglose de Pago (Vista de Contabilidad)</h1>
+
+<?php if ($email_message): ?>
+<div class="alert alert-<?php echo $email_status === 'success' ? 'success' : 'danger'; ?>" role="alert">
+    <?php echo $email_message; ?>
+</div>
+<?php endif; ?>
 
 <div class="card">
     <div class="card-header bg-dark text-white">
-        Recibo de Nómina
+        Recibo de Nómina - Vista Completa
     </div>
     <div class="card-body">
         <div class="row mb-4">
@@ -129,25 +144,27 @@ require_once '../includes/header.php';
             </div>
             <div class="col-md-6 text-md-end">
                 <p class="mb-0"><strong>ID de Nómina:</strong> <?php echo htmlspecialchars($nomina['id']); ?></p>
-                <p class="mb-0"><strong>Período de Pago:</strong> <?php echo htmlspecialchars($nomina['periodo_inicio'] . ' al ' . $nomina['periodo_fin']); ?></p>
+                <p class="mb-0"><strong>Período:</strong> <?php echo htmlspecialchars($nomina['periodo_inicio'] . ' al ' . $nomina['periodo_fin']); ?></p>
             </div>
         </div>
 
         <div class="row">
-            <!-- Columna de Resumen de Horas -->
             <div class="col-md-4">
-                <h5 class="text-info">Resumen de Horas</h5>
+                <h5 class="text-info">Bases de Cálculo</h5>
                 <table class="table table-sm">
-                    <?php foreach ($bases_calculo as $item): ?>
-                    <tr>
-                        <td><?php echo htmlspecialchars($item['descripcion_concepto']); ?></td>
-                        <td class="text-end"><strong><?php echo number_format($item['monto_resultado'], 2); ?></strong></td>
-                    </tr>
-                    <?php endforeach; ?>
+                    <?php if (empty($bases_calculo)): ?>
+                        <tr><td class="text-muted">No hay bases de cálculo para mostrar.</td></tr>
+                    <?php else: ?>
+                        <?php foreach ($bases_calculo as $item): ?>
+                        <tr>
+                            <td><?php echo htmlspecialchars($item['descripcion_concepto']); ?></td>
+                            <td class="text-end"><strong>$<?php echo number_format($item['monto_resultado'], 2); ?></strong></td>
+                        </tr>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
                 </table>
             </div>
 
-            <!-- Columna de Ingresos -->
             <div class="col-md-4">
                 <h5 class="text-success">Ingresos</h5>
                 <table class="table table-sm">
@@ -165,7 +182,6 @@ require_once '../includes/header.php';
                 </div>
             </div>
 
-            <!-- Columna de Deducciones -->
             <div class="col-md-4">
                 <h5 class="text-danger">Deducciones</h5>
                 <table class="table table-sm">
@@ -192,21 +208,17 @@ require_once '../includes/header.php';
 
     </div>
     <div class="card-footer text-center no-print">
-            <?php if (has_permission('nomina.procesar')): ?>
-                <!-- Formulario de envío de correo CORREGIDO -->
-                <form method="POST" action="" class="d-inline">
-                    <button type="submit" name="send_email" class="btn btn-secondary">
-                        <i class="fas fa-envelope"></i> Enviar por Correo
-                    </button>
-                </form>
-            <?php endif; ?>
-
-            <!-- Botón de imprimir ÚNICO Y CORRECTO -->
-            <button onclick="window.print();" class="btn btn-primary">
-                <i class="fas fa-print"></i> Imprimir
-            </button>
-        </div>
+        <?php if (has_permission('nomina.procesar')): ?>
+            <form method="POST" action="" class="d-inline">
+                <button type="submit" name="send_email" class="btn btn-secondary">
+                    <i class="fas fa-envelope"></i> Enviar por Correo al Empleado
+                </button>
+            </form>
+        <?php endif; ?>
+        <button onclick="window.print();" class="btn btn-primary">
+            <i class="fas fa-print"></i> Imprimir Vista Completa
+        </button>
     </div>
-
+</div>
 
 <?php require_once '../includes/footer.php'; ?>
