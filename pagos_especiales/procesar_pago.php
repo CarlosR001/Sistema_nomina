@@ -9,10 +9,28 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     header('Location: index.php');
     exit();
 }
+$id_nomina_a_recalcular = $_POST['id_nomina_a_recalcular'] ?? null;
+$contrato_id_original = null;
 
+if ($id_nomina_a_recalcular) {
+    // Si estamos recalculando, debemos encontrar el contrato original de esa nómina.
+    $stmt_contrato_original = $pdo->prepare(
+        "SELECT DISTINCT id_contrato FROM nominadetalle WHERE id_nomina_procesada = ?"
+    );
+    $stmt_contrato_original->execute([$id_nomina_a_recalcular]);
+    $contrato_id_original = $stmt_contrato_original->fetchColumn();
+    
+    if (!$contrato_id_original) {
+        header('Location: index.php?status=error&message=' . urlencode('Error: No se pudo identificar al empleado de la nómina a recalcular.'));
+        exit();
+    }
+}
 try {
     $pdo->beginTransaction();
-    
+    if ($id_nomina_a_recalcular) {
+        $pdo->prepare("DELETE FROM nominadetalle WHERE id_nomina_procesada = ?")->execute([$id_nomina_a_recalcular]);
+        $pdo->prepare("DELETE FROM nominasprocesadas WHERE id = ?")->execute([$id_nomina_a_recalcular]);
+    }
     // --- LÓGICA PARA REGALÍA ---
     if (isset($_POST['payment_type']) && $_POST['payment_type'] === 'regalia') {
         if (!isset($_SESSION['regalia_data'], $_SESSION['regalia_year'])) {

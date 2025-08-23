@@ -83,6 +83,7 @@ try {
     }
 
         $conceptos_del_empleado = [];
+        $monto_ajuste_isr = 0; 
         
         // Recopilación de Conceptos (sin cambios)
         $salario_quincenal_completo = round($empleado['salario_mensual_bruto'] / 2, 2);
@@ -112,13 +113,31 @@ try {
             if (!isset($conceptos_del_empleado[$codigo])) { $conceptos_del_empleado[$codigo] = ['monto' => 0, 'aplica_tss' => (bool)$ing_rec['afecta_tss'], 'aplica_isr' => (bool)$ing_rec['afecta_isr'], 'desc' => $ing_rec['descripcion_publica'], 'tipo' => 'Ingreso']; }
             $conceptos_del_empleado[$codigo]['monto'] += $ing_rec['monto_ingreso'];
         }
-        $stmt_novedades = $pdo->prepare("SELECT n.monto_valor, c.codigo_concepto, c.descripcion_publica, c.tipo_concepto, c.afecta_tss, c.afecta_isr FROM novedadesperiodo n JOIN conceptosnomina c ON n.id_concepto = c.id WHERE n.id_contrato = ? AND n.periodo_aplicacion BETWEEN ? AND ? AND n.estado_novedad = 'Pendiente'");
-        $stmt_novedades->execute([$id_contrato, $fecha_inicio, $fecha_fin]);
-        foreach ($stmt_novedades->fetchAll(PDO::FETCH_ASSOC) as $novedad) {
-            $codigo = $novedad['codigo_concepto'];
-            if (!isset($conceptos_del_empleado[$codigo])) { $conceptos_del_empleado[$codigo] = ['monto' => 0, 'aplica_tss' => (bool)$novedad['afecta_tss'], 'aplica_isr' => (bool)$novedad['afecta_isr'], 'desc' => $novedad['descripcion_publica'], 'tipo' => $novedad['tipo_concepto']]; }
-            $conceptos_del_empleado[$codigo]['monto'] += $novedad['monto_valor'];
+        // --- INICIO 
+$stmt_novedades = $pdo->prepare("SELECT n.id, n.monto_valor, c.codigo_concepto, c.descripcion_publica, c.tipo_concepto, c.afecta_tss, c.afecta_isr FROM novedadesperiodo n JOIN conceptosnomina c ON n.id_concepto = c.id WHERE n.id_contrato = ? AND n.periodo_aplicacion BETWEEN ? AND ? AND n.estado_novedad = 'Pendiente'");
+$stmt_novedades->execute([$id_contrato, $fecha_inicio, $fecha_fin]);
+
+foreach ($stmt_novedades->fetchAll(PDO::FETCH_ASSOC) as $novedad) {
+    $codigo = $novedad['codigo_concepto'];
+
+    if ($codigo === 'DED-AJUSTE-ISR' || $codigo === 'ING-AJUSTE-ISR') {
+        // Si es un ajuste, lo guardamos por separado y NO lo procesamos como una novedad normal.
+        // Un INGRESO (contrapartida) es un crédito que RESTA de la deducción final.
+        // Una DEDUCCIÓN es un débito que SUMA a la deducción final.
+        $monto_ajuste_isr += ($codigo === 'ING-AJUSTE-ISR' ? -$novedad['monto_valor'] : $novedad['monto_valor']);
+        
+        // Marcamos la novedad como aplicada para no volver a usarla
+        $pdo->prepare("UPDATE novedadesperiodo SET estado_novedad = 'Aplicada' WHERE id = ?")->execute([$novedad['id']]);
+    } else {
+        // Si es cualquier otra novedad, la procesamos normalmente.
+        if (!isset($conceptos_del_empleado[$codigo])) { 
+            $conceptos_del_empleado[$codigo] = ['monto' => 0, 'aplica_tss' => (bool)$novedad['afecta_tss'], 'aplica_isr' => (bool)$novedad['afecta_isr'], 'desc' => $novedad['descripcion_publica'], 'tipo' => $novedad['tipo_concepto']]; 
         }
+        $conceptos_del_empleado[$codigo]['monto'] += $novedad['monto_valor'];
+    }
+}
+//fn
+
         $stmt_ded_rec = $pdo->prepare("SELECT dr.monto_deduccion, cn.codigo_concepto, cn.descripcion_publica FROM deduccionesrecurrentes dr JOIN conceptosnomina cn ON dr.id_concepto_deduccion = cn.id WHERE dr.id_contrato = ? AND dr.estado = 'Activa' AND (dr.quincena_aplicacion = 0 OR dr.quincena_aplicacion = ?)");
         $stmt_ded_rec->execute([$id_contrato, $quincena]);
         foreach ($stmt_ded_rec->fetchAll(PDO::FETCH_ASSOC) as $ded_rec) {
@@ -200,6 +219,9 @@ try {
                 $deduccion_isr = round(max(0, $isr_anual / 24), 2);
             }
         }
+        // Aplicar el ajuste de ISR al monto final calculado
+$deduccion_isr += $monto_ajuste_isr;
+$deduccion_isr = max(0, $deduccion_isr); 
 
         $base_isr_quincenal_actual = max(0, $ingreso_total_isr - ($deduccion_afp + $deduccion_sfs));
         // --- [FIN] LÓGICA HÍBRIDA DE ISR ---

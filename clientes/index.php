@@ -1,5 +1,5 @@
 <?php
-// clientes/index.php
+// clientes/index.php - v2.0 (Vista de tabla extendida)
 
 require_once '../auth.php';
 require_login();
@@ -33,23 +33,29 @@ require_once '../includes/header.php';
                 <table id="datatablesSimple" class="table table-bordered table-striped table-hover">
                     <thead class="table-dark">
                         <tr>
-                            <th>Nombre del Cliente</th>
+                            <th>Nombre</th>
                             <th>RNC</th>
-                            <th>Estado</th>
+                            <th>Dirección</th>
+                            <th>País</th>
+                            <th>Teléfono</th>
+                            <th class="text-center">Estado</th>
                             <th class="text-center">Acciones</th>
                         </tr>
                     </thead>
                     <tbody>
                         <?php if (empty($clientes)): ?>
                             <tr>
-                                <td colspan="4" class="text-center">No hay clientes registrados.</td>
+                                <td colspan="7" class="text-center">No hay clientes registrados.</td>
                             </tr>
                         <?php else: ?>
                             <?php foreach ($clientes as $cliente): ?>
                                 <tr>
                                     <td><?php echo htmlspecialchars($cliente['nombre_cliente']); ?></td>
                                     <td><?php echo htmlspecialchars($cliente['rnc_cliente'] ?? 'N/A'); ?></td>
-                                    <td>
+                                    <td><?php echo htmlspecialchars($cliente['Adress'] ?? 'N/A'); ?></td>
+                                    <td><?php echo htmlspecialchars($cliente['Country'] ?? 'N/A'); ?></td>
+                                    <td><?php echo htmlspecialchars($cliente['Phone_Number'] ?? 'N/A'); ?></td>
+                                    <td class="text-center">
                                         <?php if ($cliente['estado'] == 'Activo'): ?>
                                             <span class="badge bg-success">Activo</span>
                                         <?php else: ?>
@@ -57,8 +63,8 @@ require_once '../includes/header.php';
                                         <?php endif; ?>
                                     </td>
                                     <td class="text-center">
-                                        <a href="edit.php?id=<?php echo $cliente['id']; ?>" class="btn btn-warning btn-sm" title="Editar">
-                                            <i class="bi bi-pencil-square"></i>
+                                        <a href="edit.php?id=<?php echo $cliente['id']; ?>" class="btn btn-primary btn-sm" title="Gestionar Cliente y Contactos">
+                                            <i class="bi bi-gear-fill"></i> Gestionar
                                         </a>
                                         <form action="delete.php" method="POST" class="d-inline" onsubmit="return confirm('¿Estás seguro de que deseas eliminar este cliente?');">
                                             <input type="hidden" name="id" value="<?php echo $cliente['id']; ?>">
