@@ -16,7 +16,7 @@ $stmt->execute([$banco_id]);
 $banco = $stmt->fetch();
 
 if (!$banco) {
-    header('Location: index.php?status=error&message=' . urlencode('Banco no encontrado.'));
+    redirect_with_error('index.php', 'Banco no encontrado.');
     exit;
 }
 

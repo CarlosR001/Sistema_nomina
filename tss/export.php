@@ -6,7 +6,7 @@ require_login();
 require_permission('nomina.procesar');
 
 if (!isset($_SESSION['tss_export_data'], $_SESSION['tss_export_period'])) {
-    header('Location: index.php?status=error&message=' . urlencode('No hay datos para exportar. Genere una previsualización primero.'));
+    redirect_with_error('index.php', 'No hay datos para exportar. Genere una previsualización primero.');
     exit();
 }
 

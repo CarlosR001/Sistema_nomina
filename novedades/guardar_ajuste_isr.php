@@ -83,7 +83,7 @@ try {
     }
 
     $pdo->commit();
-    header('Location: index.php?status=success&message=' . urlencode('El ajuste de ISR se ha guardado correctamente como dos novedades de período.'));
+    redirect_with_success('index.php', 'El ajuste de ISR se ha guardado correctamente como dos novedades de período.');
     exit();
 
 } catch (Exception $e) {

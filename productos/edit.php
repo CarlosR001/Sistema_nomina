@@ -16,7 +16,7 @@ $stmt->execute([$producto_id]);
 $producto = $stmt->fetch();
 
 if (!$producto) {
-    header('Location: index.php?status=error&message=' . urlencode('Producto no encontrado.'));
+    redirect_with_error('index.php', 'Producto no encontrado.');
     exit;
 }
 

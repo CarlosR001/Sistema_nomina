@@ -15,7 +15,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $phoneNumber = $_POST['Phone_Number'] ?? null;
 
     if (empty($nombre) || !$id) {
-        header('Location: index.php?status=error&message=' . urlencode('Faltan datos para actualizar.'));
+        redirect_with_error('index.php', 'Faltan datos para actualizar.');
         exit;
     }
 
@@ -33,7 +33,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt = $pdo->prepare("UPDATE clientes SET nombre_cliente = ?, rnc_cliente = ?, estado = ?, Adress = ?, Country = ?, Phone_Number = ? WHERE id = ?");
         $stmt->execute([$nombre, $rnc, $estado, $adress, $country, $phoneNumber, $id]);
 
-        header('Location: index.php?status=success&message=' . urlencode('Cliente actualizado correctamente.'));
+        redirect_with_success('index.php', 'Cliente actualizado correctamente.');
         exit;
     } catch (PDOException $e) {
         if ($e->getCode() == 23000) {

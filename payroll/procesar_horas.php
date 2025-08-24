@@ -22,7 +22,7 @@ function calcular_horas_nocturnas_reales(DateTime $inicio_turno, DateTime $fin_t
 }
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST' || !isset($_POST['periodo_id'], $_POST['mode'])) {
-    header('Location: generar_novedades.php?status=error&message=' . urlencode('Solicitud no válida.'));
+    redirect_with_error('generar_novedades.php', 'Solicitud no válida.');
     exit();
 }
 $periodo_id = $_POST['periodo_id'];
@@ -175,7 +175,7 @@ try {
         }
         
         $pdo->commit();
-        header('Location: generar_novedades.php?status=success&message=' . urlencode('Proceso completado. Las novedades de horas han sido generadas y las novedades manuales han sido preservadas.'));
+        redirect_with_success('generar_novedades.php', 'Proceso completado. Las novedades de horas han sido generadas y las novedades manuales han sido preservadas.');
         exit();
     }
 }

@@ -14,7 +14,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $phoneNumber = $_POST['Phone_Number'] ?? null;
 
     if (empty($nombre)) {
-        header('Location: create.php?status=error&message=' . urlencode('El nombre del cliente es obligatorio.'));
+        redirect_with_error('create.php', 'El nombre del cliente es obligatorio.');
         exit;
     }
 
@@ -23,7 +23,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt_check = $pdo->prepare("SELECT id FROM clientes WHERE rnc_cliente = ?");
         $stmt_check->execute([$rnc]);
         if ($stmt_check->fetch()) {
-            header('Location: create.php?status=error&message=' . urlencode('Error: Ya existe un cliente con ese RNC.'));
+            redirect_with_error('create.php', 'Error: Ya existe un cliente con ese RNC.');
             exit;
         }
     }
@@ -32,7 +32,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt = $pdo->prepare("INSERT INTO clientes (nombre_cliente, rnc_cliente, estado, Adress, Country, Phone_Number) VALUES (?, ?, ?, ?, ?, ?)");
         $stmt->execute([$nombre, $rnc, $estado, $adress, $country, $phoneNumber]);
 
-        header('Location: index.php?status=success&message=' . urlencode('Cliente añadido correctamente.'));
+        redirect_with_success('index.php', 'Cliente añadido correctamente.');
         exit;
     } catch (PDOException $e) {
         if ($e->getCode() == 23000) {

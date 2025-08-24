@@ -10,7 +10,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $id_contrato = $_POST['id_contrato'] ?? null;
 
     if (!$id_orden || !$id_contrato) {
-        header('Location: index.php?status=error&message=' . urlencode('Datos insuficientes.'));
+        redirect_with_error('index.php', 'Datos insuficientes.');
         exit;
     }
 

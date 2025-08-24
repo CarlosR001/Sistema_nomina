@@ -116,11 +116,5 @@ if (isset($_SESSION['user_id'])) {
     </div>
 </nav>
 <div class="container-fluid px-4 py-4">
-    <?php if (isset($_SESSION['flash_message'])): ?>
-        <div class="alert alert-<?php echo $_SESSION['flash_message']['type']; ?> alert-dismissible fade show" role="alert">
-            <?php echo $_SESSION['flash_message']['message']; ?>
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-        </div>
-        <?php unset($_SESSION['flash_message']); ?>
-    <?php endif; ?>
+    <?php display_flash_messages(); ?>
     <!-- El contenido específico de cada página se insertará aquí -->

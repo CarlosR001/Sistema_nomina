@@ -9,7 +9,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $id = $_POST['id'] ?? null;
 
     if (!$id) {
-        header('Location: index.php?status=error&message=' . urlencode('No se proporcionó un ID válido.'));
+        redirect_with_error('index.php', 'No se proporcionó un ID válido.');
         exit;
     }
 
@@ -25,7 +25,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt = $pdo->prepare("DELETE FROM operaciones WHERE id = ?");
         $stmt->execute([$id]);
 
-        header('Location: index.php?status=success&message=' . urlencode('Operación eliminada correctamente.'));
+        redirect_with_success('index.php', 'Operación eliminada correctamente.');
         exit;
 
     } catch (Exception $e) {

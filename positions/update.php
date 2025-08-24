@@ -30,7 +30,7 @@ try {
     exit();
 
 } catch (PDOException $e) {
-    header('Location: index.php?status=error&message=' . urlencode('Error de base de datos.'));
+    redirect_with_error('index.php', 'Error de base de datos.');
     exit();
 }
 ?>

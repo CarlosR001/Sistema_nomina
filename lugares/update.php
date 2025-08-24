@@ -26,7 +26,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt = $pdo->prepare("UPDATE lugares SET parent_id = ?, nombre_zona_o_muelle = ?, monto_transporte_completo = ? WHERE id = ?");
         $stmt->execute([$parent_id, $nombre, $monto, $id]);
 
-        header('Location: index.php?status=success&message=' . urlencode('Registro actualizado correctamente.'));
+        redirect_with_success('index.php', 'Registro actualizado correctamente.');
         exit;
     } catch (PDOException $e) {
         $message = urlencode('Error al actualizar el registro: ' . $e->getMessage());

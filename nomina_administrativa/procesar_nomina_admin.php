@@ -84,7 +84,7 @@ try {
 
         $conceptos_del_empleado = [];
         $monto_ajuste_isr = 0; 
-        
+        $monto_saldo_a_favor = 0;
         // Recopilación de Conceptos (sin cambios)
         $salario_quincenal_completo = round($empleado['salario_mensual_bruto'] / 2, 2);
         $salario_a_pagar = $salario_quincenal_completo;
@@ -113,30 +113,31 @@ try {
             if (!isset($conceptos_del_empleado[$codigo])) { $conceptos_del_empleado[$codigo] = ['monto' => 0, 'aplica_tss' => (bool)$ing_rec['afecta_tss'], 'aplica_isr' => (bool)$ing_rec['afecta_isr'], 'desc' => $ing_rec['descripcion_publica'], 'tipo' => 'Ingreso']; }
             $conceptos_del_empleado[$codigo]['monto'] += $ing_rec['monto_ingreso'];
         }
-        // --- INICIO 
+
 $stmt_novedades = $pdo->prepare("SELECT n.id, n.monto_valor, c.codigo_concepto, c.descripcion_publica, c.tipo_concepto, c.afecta_tss, c.afecta_isr FROM novedadesperiodo n JOIN conceptosnomina c ON n.id_concepto = c.id WHERE n.id_contrato = ? AND n.periodo_aplicacion BETWEEN ? AND ? AND n.estado_novedad = 'Pendiente'");
 $stmt_novedades->execute([$id_contrato, $fecha_inicio, $fecha_fin]);
 
 foreach ($stmt_novedades->fetchAll(PDO::FETCH_ASSOC) as $novedad) {
     $codigo = $novedad['codigo_concepto'];
 
-    if ($codigo === 'DED-AJUSTE-ISR' || $codigo === 'ING-AJUSTE-ISR') {
-        // Si es un ajuste, lo guardamos por separado y NO lo procesamos como una novedad normal.
-        // Un INGRESO (contrapartida) es un crédito que RESTA de la deducción final.
-        // Una DEDUCCIÓN es un débito que SUMA a la deducción final.
-        $monto_ajuste_isr += ($codigo === 'ING-AJUSTE-ISR' ? -$novedad['monto_valor'] : $novedad['monto_valor']);
-        
-        // Marcamos la novedad como aplicada para no volver a usarla
+    if ($codigo === 'SYS-SALDO-FAVOR') {
+        // 1. Es un Saldo a Favor: Lo guardamos y lo marcamos como aplicado.
+        $monto_saldo_a_favor += $novedad['monto_valor'];
         $pdo->prepare("UPDATE novedadesperiodo SET estado_novedad = 'Aplicada' WHERE id = ?")->execute([$novedad['id']]);
+
+    } elseif ($codigo === 'DED-AJUSTE-ISR' || $codigo === 'ING-AJUSTE-ISR') {
+        // 2. Es un Ajuste de ISR: Lo guardamos y lo marcamos como aplicado.
+        $monto_ajuste_isr += ($codigo === 'ING-AJUSTE-ISR' ? -$novedad['monto_valor'] : $novedad['monto_valor']);
+        $pdo->prepare("UPDATE novedadesperiodo SET estado_novedad = 'Aplicada' WHERE id = ?")->execute([$novedad['id']]);
+
     } else {
-        // Si es cualquier otra novedad, la procesamos normalmente.
+        // 3. Es cualquier otra novedad: Se procesa normalmente.
         if (!isset($conceptos_del_empleado[$codigo])) { 
             $conceptos_del_empleado[$codigo] = ['monto' => 0, 'aplica_tss' => (bool)$novedad['afecta_tss'], 'aplica_isr' => (bool)$novedad['afecta_isr'], 'desc' => $novedad['descripcion_publica'], 'tipo' => $novedad['tipo_concepto']]; 
         }
         $conceptos_del_empleado[$codigo]['monto'] += $novedad['monto_valor'];
     }
 }
-//fn
 
         $stmt_ded_rec = $pdo->prepare("SELECT dr.monto_deduccion, cn.codigo_concepto, cn.descripcion_publica FROM deduccionesrecurrentes dr JOIN conceptosnomina cn ON dr.id_concepto_deduccion = cn.id WHERE dr.id_contrato = ? AND dr.estado = 'Activa' AND (dr.quincena_aplicacion = 0 OR dr.quincena_aplicacion = ?)");
         $stmt_ded_rec->execute([$id_contrato, $quincena]);
@@ -202,11 +203,9 @@ foreach ($stmt_novedades->fetchAll(PDO::FETCH_ASSOC) as $novedad) {
             $deduccion_isr = round(max(0, ($isr_anual / 12) / 2), 2);
         
         } else {
-            // Escenario B: Segunda quincena O hay ingresos variables. Se usa el método acumulativo con proyección inteligente.
+            // Escenario B: Segunda quincena O hay ingresos variables. Se usa el método de proyección simple por período.
             $base_isr_quincenal_actual = max(0, $ingreso_total_isr - ($deduccion_afp + $deduccion_sfs));
-            // (Código del método acumulativo de la versión anterior aquí, que es correcto para este caso)
-            $deduccion_isr = 0; // Implementar lógica acumulativa completa si es necesario...
-            // Por ahora, usamos el método de proyección simple que es más robusto.
+            
             if ($base_isr_quincenal_actual > 0) {
                 $ingreso_anual_proyectado = $base_isr_quincenal_actual * 24;
                 $isr_anual = 0;
@@ -219,8 +218,30 @@ foreach ($stmt_novedades->fetchAll(PDO::FETCH_ASSOC) as $novedad) {
                 $deduccion_isr = round(max(0, $isr_anual / 24), 2);
             }
         }
-        // Aplicar el ajuste de ISR al monto final calculado
+        
+// Aplicar el ajuste manual primero
 $deduccion_isr += $monto_ajuste_isr;
+
+// Aplicar el Saldo a Favor
+if ($monto_saldo_a_favor > 0) {
+    $remanente = $monto_saldo_a_favor - $deduccion_isr;
+    if ($remanente > 0) {
+        // El saldo cubre todo el ISR y sobra. El ISR es 0 y se paga el remanente.
+        $deduccion_isr = 0;
+        $conceptos_del_empleado['ING-REEMBOLSO-SF'] = [
+            'monto' => $remanente, 
+            'aplica_tss' => false, 
+            'aplica_isr' => false, 
+            'desc' => 'Reembolso Saldo a Favor ISR', 
+            'tipo' => 'Ingreso'
+        ];
+    } else {
+        // El saldo es menor que el ISR, solo lo reduce.
+        $deduccion_isr -= $monto_saldo_a_favor;
+    }
+}
+
+// Línea de seguridad final para que el ISR nunca sea negativo.
 $deduccion_isr = max(0, $deduccion_isr); 
 
         $base_isr_quincenal_actual = max(0, $ingreso_total_isr - ($deduccion_afp + $deduccion_sfs));

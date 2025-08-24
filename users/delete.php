@@ -10,12 +10,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $current_user_id = $_SESSION['user_id'] ?? null;
 
     if (!$id || !$current_user_id) {
-        header('Location: index.php?status=error&message=' . urlencode('No se proporcionó un ID válido.'));
+        redirect_with_error('index.php', 'No se proporcionó un ID válido.');
         exit;
     }
 
     if ($id == $current_user_id) {
-        header('Location: index.php?status=error&message=' . urlencode('No puedes eliminar tu propio usuario.'));
+        redirect_with_error('index.php', 'No puedes eliminar tu propio usuario.');
         exit;
     }
 
@@ -42,7 +42,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $pdo->commit();
 
-        header('Location: index.php?status=success&message=' . urlencode('Usuario eliminado correctamente.'));
+        redirect_with_success('index.php', 'Usuario eliminado correctamente.');
         exit;
 
     } catch (Exception $e) {

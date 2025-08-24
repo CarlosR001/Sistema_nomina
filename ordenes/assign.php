@@ -17,7 +17,7 @@ $stmt_orden->execute([$orden_id]);
 $orden = $stmt_orden->fetch();
 
 if (!$orden) {
-    header('Location: index.php?status=error&message=' . urlencode('Orden no encontrada.'));
+    redirect_with_error('index.php', 'Orden no encontrada.');
     exit;
 }
 

@@ -16,7 +16,7 @@ $stmt->execute([$operacion_id]);
 $operacion = $stmt->fetch();
 
 if (!$operacion) {
-    header('Location: index.php?status=error&message=' . urlencode('Operación no encontrada.'));
+    redirect_with_error('index.php', 'Operación no encontrada.');
     exit;
 }
 

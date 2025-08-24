@@ -66,7 +66,7 @@ try {
     unset($_SESSION['liquidacion_data']);
     $pdo->commit();
 
-    header('Location: ../payroll/review.php?status=success&message=' . urlencode('Liquidación procesada y contrato finalizado exitosamente.'));
+    redirect_with_success('../payroll/review.php', 'Liquidación procesada y contrato finalizado exitosamente.');
     exit();
 
 } catch (Exception $e) {

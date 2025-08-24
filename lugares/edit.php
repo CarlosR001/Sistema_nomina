@@ -17,7 +17,7 @@ $stmt->execute([$id]);
 $lugar_a_editar = $stmt->fetch();
 
 if (!$lugar_a_editar) {
-    header('Location: index.php?status=error&message=' . urlencode('Registro no encontrado.'));
+    redirect_with_error('index.php', 'Registro no encontrado.');
     exit;
 }
 

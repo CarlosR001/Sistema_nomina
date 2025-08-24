@@ -10,7 +10,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $permisos_seleccionados = $_POST['permisos'] ?? [];
 
     if (!$id_rol) {
-        header('Location: index.php?status=error&message=' . urlencode('No se proporcionó un ID de rol.'));
+        redirect_with_error('index.php', 'No se proporcionó un ID de rol.');
         exit;
     }
 
@@ -31,7 +31,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $pdo->commit();
 
-        header('Location: index.php?status=success&message=' . urlencode('Permisos actualizados correctamente.'));
+        redirect_with_success('index.php', 'Permisos actualizados correctamente.');
         exit;
 
     } catch (PDOException $e) {

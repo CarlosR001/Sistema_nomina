@@ -9,7 +9,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $nombre = $_POST['nombre_producto'] ?? '';
 
     if (empty($nombre)) {
-        header('Location: create.php?status=error&message=' . urlencode('El nombre del producto es obligatorio.'));
+        redirect_with_error('create.php', 'El nombre del producto es obligatorio.');
         exit;
     }
 
@@ -17,7 +17,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt = $pdo->prepare("INSERT INTO productos (nombre_producto) VALUES (?)");
         $stmt->execute([$nombre]);
 
-        header('Location: index.php?status=success&message=' . urlencode('Producto añadido correctamente.'));
+        redirect_with_success('index.php', 'Producto añadido correctamente.');
         exit;
     } catch (PDOException $e) {
         $message = urlencode('Error al guardar el producto: ' . $e->getMessage());

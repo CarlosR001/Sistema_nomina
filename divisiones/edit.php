@@ -16,7 +16,7 @@ $stmt->execute([$id]);
 $division = $stmt->fetch();
 
 if (!$division) {
-    header('Location: index.php?status=error&message=' . urlencode('División no encontrada.'));
+    redirect_with_error('index.php', 'División no encontrada.');
     exit;
 }
 

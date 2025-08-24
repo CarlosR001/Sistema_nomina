@@ -16,11 +16,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     // Validaciones
     if (empty($id_empleado) || empty($nombre_usuario) || empty($contrasena)) {
-        header('Location: create.php?status=error&message=' . urlencode('Todos los campos son obligatorios.'));
+        redirect_with_error('create.php', 'Todos los campos son obligatorios.');
         exit();
     }
     if ($contrasena !== $confirmar_contrasena) {
-        header('Location: create.php?status=error&message=' . urlencode('Las contraseñas no coinciden.'));
+        redirect_with_error('create.php', 'Las contraseñas no coinciden.');
         exit();
     }
 
@@ -43,7 +43,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         
         $pdo->commit();
-        header('Location: index.php?status=success&message=' . urlencode('Usuario creado correctamente.'));
+        redirect_with_success('index.php', 'Usuario creado correctamente.');
         exit;
 
     } catch (PDOException $e) {

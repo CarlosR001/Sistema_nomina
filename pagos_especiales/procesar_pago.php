@@ -21,7 +21,7 @@ if ($id_nomina_a_recalcular) {
     $contrato_id_original = $stmt_contrato_original->fetchColumn();
     
     if (!$contrato_id_original) {
-        header('Location: index.php?status=error&message=' . urlencode('Error: No se pudo identificar al empleado de la nómina a recalcular.'));
+        redirect_with_error('index.php', 'Error: No se pudo identificar al empleado de la nómina a recalcular.');
         exit();
     }
 }

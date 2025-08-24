@@ -9,7 +9,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $nombre = $_POST['nombre_division'] ?? '';
 
     if (empty($nombre)) {
-        header('Location: create.php?status=error&message=' . urlencode('El nombre de la división es obligatorio.'));
+        redirect_with_error('create.php', 'El nombre de la división es obligatorio.');
         exit;
     }
 
@@ -17,7 +17,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt = $pdo->prepare("INSERT INTO divisiones (nombre_division) VALUES (?)");
         $stmt->execute([$nombre]);
 
-        header('Location: index.php?status=success&message=' . urlencode('División añadida correctamente.'));
+        redirect_with_success('index.php', 'División añadida correctamente.');
         exit;
     } catch (PDOException $e) {
         $message = urlencode('Error al guardar la división: ' . $e->getMessage());

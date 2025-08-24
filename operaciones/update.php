@@ -11,7 +11,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $descripcion = $_POST['descripcion'] ?? null;
 
     if (empty($nombre) || !$id) {
-        header('Location: index.php?status=error&message=' . urlencode('Faltan datos para actualizar.'));
+        redirect_with_error('index.php', 'Faltan datos para actualizar.');
         exit;
     }
 
@@ -19,7 +19,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt = $pdo->prepare("UPDATE operaciones SET nombre_operacion = ?, descripcion = ? WHERE id = ?");
         $stmt->execute([$nombre, $descripcion, $id]);
 
-        header('Location: index.php?status=success&message=' . urlencode('Operación actualizada correctamente.'));
+        redirect_with_success('index.php', 'Operación actualizada correctamente.');
         exit;
     } catch (PDOException $e) {
         $message = urlencode('Error al actualizar la operación: ' . $e->getMessage());

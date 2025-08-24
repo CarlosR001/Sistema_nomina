@@ -26,7 +26,7 @@ $estado_orden = 'En Proceso';
 
 // Validaciones básicas
 if (empty($codigo_orden) || empty($id_cliente) || empty($id_lugar) || empty($id_producto) || empty($id_operacion)) {
-    header('Location: create.php?status=error&message=' . urlencode('Los campos obligatorios no pueden estar vacíos.'));
+    redirect_with_error('create.php', 'Los campos obligatorios no pueden estar vacíos.');
     exit;
 }
 
@@ -54,7 +54,7 @@ try {
         $observaciones // <-- NUEVO
     ]);
 
-    header('Location: index.php?status=success&message=' . urlencode('Orden creada exitosamente.'));
+    redirect_with_success('index.php', 'Orden creada exitosamente.');
     exit;
 
 } catch (PDOException $e) {

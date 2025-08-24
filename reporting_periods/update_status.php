@@ -25,7 +25,7 @@ try {
     $stmt = $pdo->prepare("UPDATE periodosdereporte SET estado_periodo = ? WHERE id = ?");
     $stmt->execute([$new_status, $periodo_id]);
     
-    header('Location: index.php?status=success&message=' . urlencode('El estado del período ha sido actualizado.'));
+    redirect_with_success('index.php', 'El estado del período ha sido actualizado.');
     exit();
 
 } catch (PDOException $e) {

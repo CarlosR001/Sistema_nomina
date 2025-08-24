@@ -32,7 +32,7 @@ try {
     $stmt_delete->execute([$periodo_id]);
 
     $pdo->commit();
-    header('Location: index.php?status=success&message=' . urlencode('Período de reporte eliminado correctamente.'));
+    redirect_with_success('index.php', 'Período de reporte eliminado correctamente.');
     exit();
 
 } catch (Exception $e) {

@@ -14,19 +14,20 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 $fecha = $_POST['fecha'] ?? null;
 
 if (empty($fecha)) {
-    header('Location: index.php?status=error&message=Fecha no proporcionada.');
-    exit();
+    
+    redirect_with_error('index.php', 'Fecha no proporcionada.');
+   exit();
 }
 
 try {
-    $stmt = $pdo->prepare("DELETE FROM calendariolaboralrd WHERE fecha = ?");
-    $stmt->execute([$fecha]);
+   $stmt = $pdo->prepare("DELETE FROM calendariolaboralrd WHERE fecha = ?");
+   $stmt->execute([$fecha]);
 
-    header('Location: index.php?status=success&message=Día feriado eliminado correctamente.');
-    exit();
+   redirect_with_error('index.php', 'Día feriado eliminado correctamente.');
+   exit();
 
 } catch (PDOException $e) {
-    header('Location: index.php?status=error&message=' . urlencode('Error de base de datos.'));
-    exit();
+  redirect_with_error('index.php', 'Error de base de datos.');
+   exit();
 }
 ?>
