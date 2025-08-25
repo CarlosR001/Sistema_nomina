@@ -1,9 +1,13 @@
 <?php
-// payroll/review.php - v2.3 (Muestra Tipo de Cálculo)
+// payroll/review.php - v2.4 (Solución de Bloqueo de Sesión)
 
 require_once '../auth.php';
 require_login();
 require_permission('nomina.procesar');
+
+// Liberamos el bloqueo de la sesión después de las validaciones.
+// Esto permite que otras peticiones (como la de show.php) se ejecuten en paralelo sin esperar.
+session_write_close();
 
 function get_month_name_es($month_number) {
     $meses = [1 => 'Enero', 2 => 'Febrero', 3 => 'Marzo', 4 => 'Abril', 5 => 'Mayo', 6 => 'Junio', 7 => 'Julio', 8 => 'Agosto', 9 => 'Septiembre', 10 => 'Octubre', 11 => 'Noviembre', 12 => 'Diciembre'];

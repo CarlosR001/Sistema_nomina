@@ -1,5 +1,5 @@
 <?php
-// includes/header.php - v2.4 (Menú de Reportes Completo)
+// includes/header.php - v2.8 (Enlace al Log de Actividad)
 if (session_status() === PHP_SESSION_NONE) { session_start(); }
 if (isset($_SESSION['user_id'])) {
     $display_name = !empty($_SESSION['user_full_name']) && trim($_SESSION['user_full_name']) !== '' ? $_SESSION['user_full_name'] : $_SESSION['username'];
@@ -34,6 +34,7 @@ if (isset($_SESSION['user_id'])) {
                                     <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>payroll/generar_novedades.php">Generar Novedades</a></li>
                                     <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>novedades/index.php">Novedades Manuales</a></li>
                                     <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>novedades/ajuste_isr.php">Ajuste Manual de ISR</a></li>
+                                    <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>novedades/saldo_a_favor.php">Saldo a Favor ISR</a></li>
                                 <?php endif; ?>
                             </ul>
                         </li>
@@ -59,13 +60,15 @@ if (isset($_SESSION['user_id'])) {
                         </li>
                     <?php endif; ?>
                     
-                    <?php if (has_permission('nomina.procesar')): ?>
+                    <?php if (has_permission('nomina.procesar') || has_permission('ordenes.gestionar')): ?>
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" id="navbarDropdownReportes" role="button" data-bs-toggle="dropdown">Reportes</a>
                         <ul class="dropdown-menu">
                             <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>reports/inspector_hours.php">Horas por Inspector</a></li>
                             <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>reports/payroll_summary.php">Resumen de Nómina</a></li>
-                            <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>reports/orders_report.php">Reporte de Órdenes</a></li>
+                            <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>reports/orders_report.php">Reporte de Órdenes (Costos)</a></li>
+                            <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>reports/orders_selection.php">Reporte General de Órdenes</a></li>
+                            <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>reports/journal_entry.php">Entrada de Diario</a></li>
                             <?php if (has_permission('reportes.horas_extras.ver')): ?>
                                 <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>he_admin/index.php">Reporte H.E. Fijo</a></li>
                             <?php endif; ?>
@@ -89,7 +92,12 @@ if (isset($_SESSION['user_id'])) {
                         <li class="nav-item dropdown"><a class="nav-link dropdown-toggle" href="#" id="navbarDropdownOrganizacion" role="button" data-bs-toggle="dropdown">Organización</a>
                             <ul class="dropdown-menu">
                                 <?php if (has_permission('empleados.gestionar')): ?><li><a class="dropdown-item" href="<?php echo BASE_URL; ?>employees/index.php">Empleados</a></li><?php endif; ?>
-                                <?php if (has_permission('usuarios.gestionar')): ?><li><a class="dropdown-item" href="<?php echo BASE_URL; ?>users/index.php">Usuarios</a></li><li><a class="dropdown-item" href="<?php echo BASE_URL; ?>roles/index.php">Roles</a></li><?php endif; ?>
+                                <?php if (has_permission('usuarios.gestionar')): ?>
+                                    <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>users/index.php">Usuarios</a></li>
+                                    <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>roles/index.php">Roles</a></li>
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>logs/index.php">Log de Actividad</a></li>
+                                <?php endif; ?>
                                 <?php if (has_permission('organizacion.gestionar')): ?>
                                     <li><hr class="dropdown-divider"></li>
                                     <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>departments/index.php">Departamentos</a></li>

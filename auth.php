@@ -5,6 +5,9 @@ require_once __DIR__ . '/config/init.php';
 
 // --- Procesamiento de Logout ---
 if (isset($_GET['action']) && $_GET['action'] === 'logout') {
+    if (isset($_SESSION['user_id'])) {
+        log_activity('Cerró sesión');
+    }
     session_destroy();
     header('Location: ' . BASE_URL . 'login.php');
     exit();
@@ -28,6 +31,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['username'], $_POST['p
         if ($user) {
             if (password_verify($password, $user['contrasena'])) {
                 session_regenerate_id(true);
+                // ¡AQUÍ REGISTRAMOS EL INICIO DE SESIÓN!
+                log_activity('Inició sesión exitosamente');
                 $_SESSION['user_id'] = $user['id'];
                 $_SESSION['username'] = $user['nombre_usuario'];
                 $_SESSION['user_id_empleado'] = $user['id_empleado'];
@@ -71,9 +76,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['username'], $_POST['p
                 exit();
             }
         } else {
-            header('Location: ' . BASE_URL . 'login.php?error=user_not_found');
+            // Opcional: Registrar intento de login fallido
+            if ($user) {
+                $sql = "INSERT INTO logdeactividad (id_usuario, accion_realizada, detalle) VALUES (?, 'Intento de inicio de sesión fallido', ?)";
+                $pdo->prepare($sql)->execute([$user['id'], 'Contraseña incorrecta']);
+            }
+            header('Location: ' . BASE_URL . 'login.php?error=wrong_password&username=' . urlencode($username));
             exit();
         }
+        
     }
 }
 

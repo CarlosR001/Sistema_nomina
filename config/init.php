@@ -44,6 +44,40 @@ date_default_timezone_set('America/Santo_Domingo');
 // Cargar la conexión a la base de datos.
 require_once __DIR__ . '/database.php';
 
+
+
+//------------------------------------------------------------
+// FUNCIÓN DE LOG DE ACTIVIDAD
+// -----------------------------------------------------------
+if (!function_exists('log_activity')) {
+  /**
+     * Registra una acción del usuario en la base de datos.
+     *
+     * @param string $action Descripción de la acción (ej: 'Inició sesión').
+     * @param string|null $table La tabla afectada (ej: 'clientes').
+     * @param int|null $record_id El ID del registro afectado.
+     * @param string|null $details Detalles adicionales en formato de texto.
+     */
+    function log_activity($action, $table = null, $record_id = null, $details = null) {
+        global $pdo;
+        // Solo registra si hay un usuario en la sesión y una conexión a la BD.
+        if (!isset($_SESSION['user_id']) || !$pdo) {
+            return;
+        }
+
+        try {
+            $sql = "INSERT INTO logdeactividad (id_usuario, accion_realizada, tabla_afectada, id_registro_afectado, detalle) VALUES (?, ?, ?, ?, ?)";
+            $stmt = $pdo->prepare($sql);
+            $stmt->execute([$_SESSION['user_id'], $action, $table, $record_id, $details]);
+        } catch (PDOException $e) {
+            // Si el log falla, no debe detener la aplicación.
+            // Opcional: registrar el error del log en un archivo de texto.
+            error_log("Error al registrar actividad en el log: " . $e->getMessage());
+        }
+    }
+}
+
+//-------------------------------------------------------------
 // ----------------------------------------------------------------------
 // MANEJO DE ERRORES (MODO DEPURACIÓN)
 // ----------------------------------------------------------------------

@@ -1,5 +1,5 @@
 <?php
-// clientes/edit.php
+// clientes/edit.php - v1.1 (Corrección de error por valores nulos)
 
 require_once '../auth.php';
 require_login();
@@ -35,7 +35,7 @@ require_once '../includes/header.php';
     <ol class="breadcrumb mb-4">
         <li class="breadcrumb-item"><a href="<?php echo BASE_URL; ?>">Inicio</a></li>
         <li class="breadcrumb-item"><a href="index.php">Clientes</a></li>
-        <li class="breadcrumb-item active"><?php echo htmlspecialchars($cliente['nombre_cliente']); ?></li>
+        <li class="breadcrumb-item active"><?php echo htmlspecialchars($cliente['nombre_cliente'] ?? ''); ?></li>
     </ol>
 
     <!-- Formulario para editar datos del cliente -->
@@ -50,23 +50,23 @@ require_once '../includes/header.php';
                 <div class="row g-3">
                     <div class="col-md-6">
                         <label for="nombre_cliente" class="form-label">Nombre del Cliente</label>
-                        <input type="text" class="form-control" id="nombre_cliente" name="nombre_cliente" value="<?php echo htmlspecialchars($cliente['nombre_cliente']); ?>" required>
+                        <input type="text" class="form-control" id="nombre_cliente" name="nombre_cliente" value="<?php echo htmlspecialchars($cliente['nombre_cliente'] ?? ''); ?>" required>
                     </div>
                     <div class="col-md-6">
                         <label for="rnc_cliente" class="form-label">RNC</label>
-                        <input type="text" class="form-control" id="rnc_cliente" name="rnc_cliente" value="<?php echo htmlspecialchars($cliente['rnc_cliente']); ?>">
+                        <input type="text" class="form-control" id="rnc_cliente" name="rnc_cliente" value="<?php echo htmlspecialchars($cliente['rnc_cliente'] ?? ''); ?>">
                     </div>
                     <div class="col-md-12">
                         <label for="Adress" class="form-label">Dirección</label>
-                        <input type="text" class="form-control" id="Adress" name="Adress" value="<?php echo htmlspecialchars($cliente['Adress']); ?>">
+                        <input type="text" class="form-control" id="Adress" name="Adress" value="<?php echo htmlspecialchars($cliente['Adress'] ?? ''); ?>">
                     </div>
                     <div class="col-md-4">
                         <label for="Country" class="form-label">País</label>
-                        <input type="text" class="form-control" id="Country" name="Country" value="<?php echo htmlspecialchars($cliente['Country']); ?>">
+                        <input type="text" class="form-control" id="Country" name="Country" value="<?php echo htmlspecialchars($cliente['Country'] ?? ''); ?>">
                     </div>
                     <div class="col-md-4">
                         <label for="Phone_Number" class="form-label">Teléfono</label>
-                        <input type="text" class="form-control" id="Phone_Number" name="Phone_Number" value="<?php echo htmlspecialchars($cliente['Phone_Number']); ?>">
+                        <input type="text" class="form-control" id="Phone_Number" name="Phone_Number" value="<?php echo htmlspecialchars($cliente['Phone_Number'] ?? ''); ?>">
                     </div>
                     <div class="col-md-4">
                         <label for="estado" class="form-label">Estado</label>
@@ -108,10 +108,10 @@ require_once '../includes/header.php';
                     <?php else: ?>
                         <?php foreach ($contactos as $contacto): ?>
                         <tr>
-                            <td><?php echo htmlspecialchars($contacto['Contact_Name']); ?></td>
-                            <td><?php echo htmlspecialchars($contacto['Position']); ?></td>
-                            <td><?php echo htmlspecialchars($contacto['Email']); ?></td>
-                            <td><?php echo htmlspecialchars($contacto['Phone_Number']); ?></td>
+                            <td><?php echo htmlspecialchars($contacto['Contact_Name'] ?? ''); ?></td>
+                            <td><?php echo htmlspecialchars($contacto['Position'] ?? ''); ?></td>
+                            <td><?php echo htmlspecialchars($contacto['Email'] ?? ''); ?></td>
+                            <td><?php echo htmlspecialchars($contacto['Phone_Number'] ?? ''); ?></td>
                             <td>
                                 <!-- Próximamente: botones para editar/eliminar contactos -->
                                 <button class="btn btn-sm btn-secondary" disabled>Editar</button>
