@@ -52,6 +52,50 @@ $detalles_stmt = $pdo->prepare(
 $detalles_stmt->execute([$id_nomina, $id_contrato]);
 $detalles = $detalles_stmt->fetchAll(PDO::FETCH_ASSOC);
 
+
+// --- INICIO: Lógica v3 (CORRECTA) para Calcular ISR Mensual Proyectado ---
+$isr_mensual_proyectado_para_vista = 0;
+if (has_permission('nomina.procesar')) {
+    $id_contrato_actual = $payslip['id_contrato'];
+    $anio = date('Y', strtotime($nomina['periodo_fin']));
+
+    // 1. Obtener el salario mensual fijo del empleado
+    $stmt_contrato = $pdo->prepare("SELECT salario_mensual_bruto FROM contratos WHERE id = ?");
+    $stmt_contrato->execute([$id_contrato_actual]);
+    $salario_mensual_bruto = (float)$stmt_contrato->fetchColumn();
+
+    if ($salario_mensual_bruto > 0) {
+        // 2. Cargar configuraciones y escala de ISR
+        $configs_db_vista = $pdo->query("SELECT clave, valor FROM configuracionglobal")->fetchAll(PDO::FETCH_KEY_PAIR);
+        $escala_isr_vista = $pdo->query("SELECT * FROM escalasisr WHERE anio_fiscal = {$anio} ORDER BY desde_monto_anual ASC")->fetchAll(PDO::FETCH_ASSOC);
+
+        // 3. Calcular la base imponible anual PROYECTADA solo con el salario fijo (Lógica del CSV)
+        $porcentaje_sfs = (float)($configs_db_vista['TSS_PORCENTAJE_SFS'] ?? 0.0304);
+        $porcentaje_afp = (float)($configs_db_vista['TSS_PORCENTAJE_AFP'] ?? 0.0287);
+        $tope_sfs_mensual = (float)($configs_db_vista['TSS_TOPE_SFS'] ?? 0);
+        $tope_afp_mensual = (float)($configs_db_vista['TSS_TOPE_AFP'] ?? 0);
+
+        $sfs_mensual_fijo = round(min($salario_mensual_bruto, $tope_sfs_mensual) * $porcentaje_sfs, 2);
+        $afp_mensual_fijo = round(min($salario_mensual_bruto, $tope_afp_mensual) * $porcentaje_afp, 2);
+        $base_isr_mensual_fija = $salario_mensual_bruto - ($sfs_mensual_fijo + $afp_mensual_fijo);
+        $ingreso_anual_proyectado = $base_isr_mensual_fija * 12;
+
+        // 4. Calcular el ISR Anual
+        $isr_anual_total = 0;
+        if (count($escala_isr_vista) === 4) {
+            $tramo1 = (float)$escala_isr_vista[0]['hasta_monto_anual']; $tramo2 = (float)$escala_isr_vista[1]['hasta_monto_anual']; $tramo3 = (float)$escala_isr_vista[2]['hasta_monto_anual'];
+            if ($ingreso_anual_proyectado > $tramo3) { $excedente = $ingreso_anual_proyectado - $tramo3; $tasa = (float)$escala_isr_vista[3]['tasa_porcentaje'] / 100; $fijo = (float)$escala_isr_vista[3]['monto_fijo_adicional']; $isr_anual_total = $fijo + ($excedente * $tasa); } 
+            elseif ($ingreso_anual_proyectado > $tramo2) { $excedente = $ingreso_anual_proyectado - $tramo2; $tasa = (float)$escala_isr_vista[2]['tasa_porcentaje'] / 100; $fijo = (float)$escala_isr_vista[2]['monto_fijo_adicional']; $isr_anual_total = $fijo + ($excedente * $tasa); } 
+            elseif ($ingreso_anual_proyectado > $tramo1) { $excedente = $ingreso_anual_proyectado - $tramo1; $tasa = (float)$escala_isr_vista[1]['tasa_porcentaje'] / 100; $fijo = (float)$escala_isr_vista[1]['monto_fijo_adicional']; $isr_anual_total = $fijo + ($excedente * $tasa); }
+        }
+        
+        // 5. El ISR mensual proyectado es el anual dividido entre 12
+        $isr_mensual_proyectado_para_vista = round($isr_anual_total / 12, 2);
+    }
+}
+// --- FIN: Lógica v3 ---
+
+
 // Procesamiento de detalles para la visualización
 $ingresos = [];
 $deducciones = [];
@@ -122,6 +166,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['send_email'])) {
 
 require_once '../includes/header.php';
 ?>
+<!-- INICIO: Estilos para la Vista de Contabilidad -->
+<style>
+    .accounting-info {
+        background-color: #fff8e1; /* Un color amarillo claro */
+        border: 1px solid #ffecb3;
+        border-radius: 4px;
+        padding: 15px;
+        margin: 20px 0;
+        font-size: 1.1em;
+    }
+    .accounting-info .info-item {
+        display: flex;
+        justify-content: space-between;
+        color: #6d4c41;
+        font-weight: bold;
+    }
+</style>
+<!-- FIN: Estilos -->
+
 
 <h1 class="mb-4">Desglose de Pago (Vista de Contabilidad)</h1>
 
@@ -201,7 +264,15 @@ require_once '../includes/header.php';
         </div>
 
         <hr class="my-4">
-
+    
+    <?php if (has_permission('nomina.procesar') && $isr_mensual_proyectado_para_vista > 0): ?>
+        <div class="accounting-info">
+            <div class="info-item">
+                <span>ISR Total Estimado del Mes:</span>
+                <span>$<?php echo number_format($isr_mensual_proyectado_para_vista, 2); ?></span>
+            </div>
+        </div>
+        <?php endif; ?>
         <div class="text-end">
             <h3>Neto a Pagar: <span class="text-primary">$<?php echo number_format($neto_pagar, 2); ?></span></h3>
         </div>
