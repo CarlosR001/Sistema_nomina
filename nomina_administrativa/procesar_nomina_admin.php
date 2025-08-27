@@ -240,10 +240,32 @@ foreach ($stmt_novedades->fetchAll(PDO::FETCH_ASSOC) as $novedad) {
     // Escenario B: Segunda quincena O hay ingresos variables.
     // Ahora diferencia entre ingresos recurrentes (que se proyectan) y novedades (que no).
 
-    // 1. Calcular el ISR sobre el INGRESO FIJO (Salario + Recurrentes)
-    $base_isr_fijo = max(0, $ingresos_fijos_isr - ($deduccion_afp + $deduccion_sfs));
-    $ingreso_anual_proyectado_fijo = $base_isr_fijo * 24;
-    $isr_anual_fijo = 0;
+                // --- [INICIO] CORRECCIÓN DEFINITIVA DE BASE DE PROYECCIÓN ---
+            // 1. Calcular el ingreso mensual total proyectable (Salario + Todos los Recurrentes Mensuales que afectan ISR)
+            $salario_mensual_bruto = $empleado['salario_mensual_bruto'];
+            $stmt_rec_mensual_isr = $pdo->prepare("SELECT SUM(ir.monto_ingreso) FROM ingresosrecurrentes ir JOIN conceptosnomina cn ON ir.id_concepto_ingreso = cn.id WHERE ir.id_contrato = ? AND ir.estado = 'Activa' AND cn.afecta_isr = 1");
+            $stmt_rec_mensual_isr->execute([$id_contrato]);
+            $total_recurrentes_mensuales_isr = (float)$stmt_rec_mensual_isr->fetchColumn();
+            $ingreso_mensual_proyectable = $salario_mensual_bruto + $total_recurrentes_mensuales_isr;
+
+            // 2. Calcular el ingreso mensual cotizable a TSS (Salario + Recurrentes que aplican a TSS)
+            $stmt_rec_mensual_tss = $pdo->prepare("SELECT SUM(ir.monto_ingreso) FROM ingresosrecurrentes ir JOIN conceptosnomina cn ON ir.id_concepto_ingreso = cn.id WHERE ir.id_contrato = ? AND ir.estado = 'Activa' AND cn.afecta_tss = 1");
+            $stmt_rec_mensual_tss->execute([$id_contrato]);
+            $total_recurrentes_mensuales_tss = (float)$stmt_rec_mensual_tss->fetchColumn();
+            $ingreso_mensual_cotizable = $salario_mensual_bruto + $total_recurrentes_mensuales_tss;
+            
+            // 3. Calcular la TSS mensual teórica para la proyección
+            $afp_mensual_teorico = round(min($ingreso_mensual_cotizable, $tope_afp_mensual) * $porcentaje_afp, 2);
+            $sfs_mensual_teorico = round(min($ingreso_mensual_cotizable, $tope_sfs_mensual) * $porcentaje_sfs, 2);
+            $tss_mensual_teorico = $afp_mensual_teorico + $sfs_mensual_teorico;
+
+            // 4. Calcular la base anual proyectada
+            $base_isr_mensual = $ingreso_mensual_proyectable - $tss_mensual_teorico;
+            $ingreso_anual_proyectado_fijo = $base_isr_mensual * 12;
+            $isr_anual_fijo = 0;
+            // --- [FIN] CORRECCIÓN DEFINITIVA DE BASE DE PROYECCIÓN ---
+
+
     $tasa_marginal = 0;
 
     if (count($escala_isr) === 4) {
