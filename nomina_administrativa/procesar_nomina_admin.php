@@ -38,13 +38,32 @@ if (!$fecha_inicio || !$fecha_fin) {
 try {
     $pdo->beginTransaction();
 
-    if ($id_nomina_a_recalcular) {
+       if ($id_nomina_a_recalcular) {
+        // --- INICIO DE LA CORRECCIÓN ---
+        // 1. Obtenemos la lista de contratos de la nómina que vamos a recalcular.
+        $stmt_contratos = $pdo->prepare("SELECT DISTINCT id_contrato FROM nominadetalle WHERE id_nomina_procesada = ?");
+        $stmt_contratos->execute([$id_nomina_a_recalcular]);
+        $contratos_a_reiniciar = $stmt_contratos->fetchAll(PDO::FETCH_COLUMN);
+
+        if (!empty($contratos_a_reiniciar)) {
+            // 2. Creamos los placeholders (?) para la consulta
+            $placeholders = rtrim(str_repeat('?,', count($contratos_a_reiniciar)), ',');
+            
+            // 3. Reiniciamos las novedades SOLO para esos contratos en ese período.
+            $sql_update_novedades = "UPDATE novedadesperiodo SET estado_novedad = 'Pendiente' 
+                                     WHERE periodo_aplicacion BETWEEN ? AND ? AND id_contrato IN ($placeholders)";
+            
+            // Preparamos los parámetros: fecha de inicio, fecha fin, y luego la lista de IDs de contrato
+            $params = array_merge([$fecha_inicio, $fecha_fin], $contratos_a_reiniciar);
+            $pdo->prepare($sql_update_novedades)->execute($params);
+        }
+        // --- FIN DE LA CORRECCIÓN ---
+
+        // Ahora borramos la nómina antigua
         $pdo->prepare("DELETE FROM nominadetalle WHERE id_nomina_procesada = ?")->execute([$id_nomina_a_recalcular]);
         $pdo->prepare("DELETE FROM nominasprocesadas WHERE id = ?")->execute([$id_nomina_a_recalcular]);
     }
-    
-    $pdo->prepare("UPDATE novedadesperiodo SET estado_novedad = 'Pendiente' WHERE periodo_aplicacion BETWEEN ? AND ?")
-        ->execute([$fecha_inicio, $fecha_fin]);
+
     
     $quincena = (int)date('d', strtotime($fecha_fin)) <= 15 ? 1 : 2;
     $mes = (int)date('m', strtotime($fecha_fin));
@@ -65,26 +84,32 @@ try {
     $id_nomina_procesada = $pdo->lastInsertId();
 
     foreach ($empleados_a_procesar as $empleado) {
-        $id_contrato = $empleado['id_contrato'];
-        $stmt_check_skip = $pdo->prepare("
-        SELECT n.id FROM novedadesperiodo n
-        JOIN conceptosnomina c ON n.id_concepto = c.id
-        WHERE n.id_contrato = ? AND c.codigo_concepto = 'SYS-SKIP-PAYROLL' 
-        AND n.periodo_aplicacion BETWEEN ? AND ? AND n.estado_novedad = 'Pendiente'
-    ");
-    $stmt_check_skip->execute([$id_contrato, $fecha_inicio, $fecha_fin]);
-    $novedad_skip_id = $stmt_check_skip->fetchColumn();
+            $id_contrato = $empleado['id_contrato'];
+            $stmt_check_skip = $pdo->prepare("
+            SELECT n.id FROM novedadesperiodo n
+            JOIN conceptosnomina c ON n.id_concepto = c.id
+            WHERE n.id_contrato = ? AND c.codigo_concepto = 'SYS-SKIP-PAYROLL' 
+            AND n.periodo_aplicacion BETWEEN ? AND ? AND n.estado_novedad = 'Pendiente'
+        ");
+        $stmt_check_skip->execute([$id_contrato, $fecha_inicio, $fecha_fin]);
+        $novedad_skip_id = $stmt_check_skip->fetchColumn();
+    
+        if ($novedad_skip_id) {
+            // Si se encuentra la novedad, se marca como aplicada y se salta al siguiente empleado.
+            $stmt_mark_applied = $pdo->prepare("UPDATE novedadesperiodo SET estado_novedad = 'Aplicada' WHERE id = ?");
+            $stmt_mark_applied->execute([$novedad_skip_id]);
+            continue; // ¡Esta es la clave! Pasa al siguiente empleado en el bucle.
+        }
 
-    if ($novedad_skip_id) {
-        // Si se encuentra la novedad, se marca como aplicada y se salta al siguiente empleado.
-        $stmt_mark_applied = $pdo->prepare("UPDATE novedadesperiodo SET estado_novedad = 'Aplicada' WHERE id = ?");
-        $stmt_mark_applied->execute([$novedad_skip_id]);
-        continue; // ¡Esta es la clave! Pasa al siguiente empleado en el bucle.
-    }
-
+             // --- INICIO: RECOLECCIÓN Y CLASIFICACIÓN ---
         $conceptos_del_empleado = [];
-        $monto_ajuste_isr = 0; 
-        $monto_saldo_a_favor = 0;
+        $ingresos_fijos_isr = 0;       // Para Salario + Ingresos Recurrentes
+        $ingresos_extras_isr = 0;      // Para Novedades (Bonos, etc.)
+        $ids_novedades_a_marcar = [];
+        $monto_ajuste_isr = 0;
+        $monto_saldo_a_favor = 0; // Se mantiene de tu lógica original
+
+
         // Recopilación de Conceptos (sin cambios)
         $salario_quincenal_completo = round($empleado['salario_mensual_bruto'] / 2, 2);
         $salario_a_pagar = $salario_quincenal_completo;
@@ -106,12 +131,17 @@ try {
             $descripcion_salario = "Salario Quincenal (Prorrateado {$dias_laborables_a_pagar} días laborables)";
         }
         $conceptos_del_empleado['ING-SALARIO'] = ['monto' => $salario_a_pagar, 'aplica_tss' => true, 'aplica_isr' => true, 'desc' => $descripcion_salario, 'tipo' => 'Ingreso'];
+        $ingresos_fijos_isr += $salario_a_pagar;
         $stmt_ing_rec = $pdo->prepare("SELECT ir.monto_ingreso, cn.codigo_concepto, cn.descripcion_publica, cn.afecta_tss, cn.afecta_isr FROM ingresosrecurrentes ir JOIN conceptosnomina cn ON ir.id_concepto_ingreso = cn.id WHERE ir.id_contrato = ? AND ir.estado = 'Activa' AND (ir.quincena_aplicacion = 0 OR ir.quincena_aplicacion = ?)");
         $stmt_ing_rec->execute([$id_contrato, $quincena]);
         foreach ($stmt_ing_rec->fetchAll(PDO::FETCH_ASSOC) as $ing_rec) {
             $codigo = $ing_rec['codigo_concepto'];
             if (!isset($conceptos_del_empleado[$codigo])) { $conceptos_del_empleado[$codigo] = ['monto' => 0, 'aplica_tss' => (bool)$ing_rec['afecta_tss'], 'aplica_isr' => (bool)$ing_rec['afecta_isr'], 'desc' => $ing_rec['descripcion_publica'], 'tipo' => 'Ingreso']; }
             $conceptos_del_empleado[$codigo]['monto'] += $ing_rec['monto_ingreso'];
+      // Línea añadida para clasificar el ingreso
+            if ($ing_rec['afecta_isr']) {
+                $ingresos_fijos_isr += $ing_rec['monto_ingreso'];
+            }
         }
 
 $stmt_novedades = $pdo->prepare("SELECT n.id, n.monto_valor, c.codigo_concepto, c.descripcion_publica, c.tipo_concepto, c.afecta_tss, c.afecta_isr FROM novedadesperiodo n JOIN conceptosnomina c ON n.id_concepto = c.id WHERE n.id_contrato = ? AND n.periodo_aplicacion BETWEEN ? AND ? AND n.estado_novedad = 'Pendiente'");
@@ -132,6 +162,9 @@ foreach ($stmt_novedades->fetchAll(PDO::FETCH_ASSOC) as $novedad) {
 
     } else {
         // 3. Es cualquier otra novedad: Se procesa normalmente.
+        if ($novedad['tipo_concepto'] === 'Ingreso' && $novedad['afecta_isr']) {
+            $ingresos_extras_isr += $novedad['monto_valor'];
+        }
         if (!isset($conceptos_del_empleado[$codigo])) { 
             $conceptos_del_empleado[$codigo] = ['monto' => 0, 'aplica_tss' => (bool)$novedad['afecta_tss'], 'aplica_isr' => (bool)$novedad['afecta_isr'], 'desc' => $novedad['descripcion_publica'], 'tipo' => $novedad['tipo_concepto']]; 
         }
@@ -203,21 +236,34 @@ foreach ($stmt_novedades->fetchAll(PDO::FETCH_ASSOC) as $novedad) {
             $deduccion_isr = round(max(0, ($isr_anual / 12) / 2), 2);
         
         } else {
-            // Escenario B: Segunda quincena O hay ingresos variables. Se usa el método de proyección simple por período.
-            $base_isr_quincenal_actual = max(0, $ingreso_total_isr - ($deduccion_afp + $deduccion_sfs));
-            
-            if ($base_isr_quincenal_actual > 0) {
-                $ingreso_anual_proyectado = $base_isr_quincenal_actual * 24;
-                $isr_anual = 0;
-                 if (count($escala_isr) === 4) {
-                    $tramo1 = (float)$escala_isr[0]['hasta_monto_anual']; $tramo2 = (float)$escala_isr[1]['hasta_monto_anual']; $tramo3 = (float)$escala_isr[2]['hasta_monto_anual'];
-                    if ($ingreso_anual_proyectado > $tramo3) { $excedente = $ingreso_anual_proyectado - $tramo3; $tasa = (float)$escala_isr[3]['tasa_porcentaje'] / 100; $fijo = (float)$escala_isr[3]['monto_fijo_adicional']; $isr_anual = $fijo + ($excedente * $tasa); } 
-                    elseif ($ingreso_anual_proyectado > $tramo2) { $excedente = $ingreso_anual_proyectado - $tramo2; $tasa = (float)$escala_isr[2]['tasa_porcentaje'] / 100; $fijo = (float)$escala_isr[2]['monto_fijo_adicional']; $isr_anual = $fijo + ($excedente * $tasa); } 
-                    elseif ($ingreso_anual_proyectado > $tramo1) { $excedente = $ingreso_anual_proyectado - $tramo1; $tasa = (float)$escala_isr[1]['tasa_porcentaje'] / 100; $fijo = (float)$escala_isr[1]['monto_fijo_adicional']; $isr_anual = $fijo + ($excedente * $tasa); }
-                }
-                $deduccion_isr = round(max(0, $isr_anual / 24), 2);
-            }
-        }
+    // --- INICIO: LÓGICA DE ISR MEJORADA PARA INGRESOS VARIABLES ---
+    // Escenario B: Segunda quincena O hay ingresos variables.
+    // Ahora diferencia entre ingresos recurrentes (que se proyectan) y novedades (que no).
+
+    // 1. Calcular el ISR sobre el INGRESO FIJO (Salario + Recurrentes)
+    $base_isr_fijo = max(0, $ingresos_fijos_isr - ($deduccion_afp + $deduccion_sfs));
+    $ingreso_anual_proyectado_fijo = $base_isr_fijo * 24;
+    $isr_anual_fijo = 0;
+    $tasa_marginal = 0;
+
+    if (count($escala_isr) === 4) {
+        $tramo1 = (float)$escala_isr[0]['hasta_monto_anual']; $tramo2 = (float)$escala_isr[1]['hasta_monto_anual']; $tramo3 = (float)$escala_isr[2]['hasta_monto_anual'];
+        if ($ingreso_anual_proyectado_fijo > $tramo3) { $excedente = $ingreso_anual_proyectado_fijo - $tramo3; $tasa = (float)$escala_isr[3]['tasa_porcentaje'] / 100; $fijo = (float)$escala_isr[3]['monto_fijo_adicional']; $isr_anual_fijo = $fijo + ($excedente * $tasa); $tasa_marginal = $tasa; } 
+        elseif ($ingreso_anual_proyectado_fijo > $tramo2) { $excedente = $ingreso_anual_proyectado_fijo - $tramo2; $tasa = (float)$escala_isr[2]['tasa_porcentaje'] / 100; $fijo = (float)$escala_isr[2]['monto_fijo_adicional']; $isr_anual_fijo = $fijo + ($excedente * $tasa); $tasa_marginal = $tasa; } 
+        elseif ($ingreso_anual_proyectado_fijo > $tramo1) { $excedente = $ingreso_anual_proyectado_fijo - $tramo1; $tasa = (float)$escala_isr[1]['tasa_porcentaje'] / 100; $fijo = (float)$escala_isr[1]['monto_fijo_adicional']; $isr_anual_fijo = $fijo + ($excedente * $tasa); $tasa_marginal = $tasa; }
+    }
+
+    $isr_quincenal_fijo = round(max(0, $isr_anual_fijo / 24), 2);
+
+    // 2. Calcular el ISR sobre los INGRESOS EXTRAS (Novedades) usando la tasa marginal del ingreso fijo
+    $isr_extras = round($ingresos_extras_isr * $tasa_marginal, 2);
+    
+    // 3. El ISR total es la suma de ambos
+    $deduccion_isr = $isr_quincenal_fijo + $isr_extras;
+}
+
+// --- FIN: LÓGICA DE ISR CORREGIDA ---
+
         
 // Aplicar el ajuste manual primero
 $deduccion_isr += $monto_ajuste_isr;

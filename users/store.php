@@ -24,29 +24,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit();
     }
 
-    $hash_contrasena = password_hash($contrasena, PASSWORD_DEFAULT);
+ // --- CAMBIO IMPORTANTE ---
+// Se crea el hash de la contraseña usando explícitamente el algoritmo Argon2id y los parámetros personalizados.
+$hash_contrasena = password_hash($contrasena, PASSWORD_ARGON2ID, [
+    'memory_cost' => ARGON2_MEMORY_COST,
+    'time_cost'   => ARGON2_TIME_COST,
+    'threads'     => ARGON2_THREADS
+]);
+try {
+    $pdo->beginTransaction();
 
-    try {
-        $pdo->beginTransaction();
+    // 1. Insertar el usuario marcándolo para el cambio de contraseña
+    $stmt = $pdo->prepare("INSERT INTO usuarios (id_empleado, nombre_usuario, contrasena, estado, debe_cambiar_contrasena) VALUES (?, ?, ?, 'Activo', TRUE)");
+    $stmt->execute([$id_empleado, $nombre_usuario, $hash_contrasena]);
+    $id_usuario_creado = $pdo->lastInsertId();
 
-        // 1. Insertar el usuario en la tabla 'usuarios'
-        $stmt = $pdo->prepare("INSERT INTO usuarios (id_empleado, nombre_usuario, contrasena, estado) VALUES (?, ?, ?, 'Activo')");
-        $stmt->execute([$id_empleado, $nombre_usuario, $hash_contrasena]);
-        $id_usuario_creado = $pdo->lastInsertId();
-
-        // 2. Insertar las asignaciones en la tabla 'usuario_rol'
-        if (!empty($roles_asignados)) {
-            $stmt_rol = $pdo->prepare("INSERT INTO usuario_rol (id_usuario, id_rol) VALUES (?, ?)");
-            foreach ($roles_asignados as $id_rol) {
-                $stmt_rol->execute([$id_usuario_creado, $id_rol]);
-            }
+    // 2. Insertar las asignaciones en la tabla 'usuario_rol'
+    if (!empty($roles_asignados)) {
+        $stmt_rol = $pdo->prepare("INSERT INTO usuario_rol (id_usuario, id_rol) VALUES (?, ?)");
+        foreach ($roles_asignados as $id_rol) {
+            $stmt_rol->execute([$id_usuario_creado, $id_rol]);
         }
-        
-        $pdo->commit();
-        redirect_with_success('index.php', 'Usuario creado correctamente.');
-        exit;
+    }
+    
+    $pdo->commit();
 
-    } catch (PDOException $e) {
+    log_activity('Creó un nuevo usuario', 'usuarios', $id_usuario_creado, 'Usuario: ' . $nombre_usuario);
+
+    redirect_with_success('index.php', 'Usuario creado correctamente. Deberá cambiar su contraseña al primer inicio de sesión.');
+
+} catch (PDOException $e) {
         if ($pdo->inTransaction()) $pdo->rollBack();
         $message = 'Error al crear el usuario.';
         if ($e->getCode() == 23000) {

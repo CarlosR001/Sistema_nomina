@@ -1,5 +1,5 @@
 <?php
-// includes/header.php - v2.8 (Enlace al Log de Actividad)
+// includes/header.php - v2.9 (Solución Definitiva de Codificación)
 if (session_status() === PHP_SESSION_NONE) { session_start(); }
 if (isset($_SESSION['user_id'])) {
     $display_name = !empty($_SESSION['user_full_name']) && trim($_SESSION['user_full_name']) !== '' ? $_SESSION['user_full_name'] : $_SESSION['username'];

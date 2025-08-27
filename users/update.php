@@ -1,5 +1,5 @@
 <?php
-// users/update.php - v2.0 (Control de Acceso Híbrido)
+// users/update.php - v2.1 (Hash Argon2id y Log de Actividad)
 // Procesa la actualización de un usuario, sus roles y sus permisos explícitos.
 
 require_once '../auth.php';
@@ -22,15 +22,10 @@ $permisos_explicitos = $_POST['permisos'] ?? [];
 
 // Validaciones básicas
 if (!$id_usuario || empty($nombre_usuario)) {
-    $_SESSION['flash_message'] = ['type' => 'error', 'message' => 'Faltan datos para actualizar.'];
-    header('Location: edit.php?id=' . $id_usuario);
-    exit;
+    redirect_with_error('edit.php?id=' . $id_usuario, 'Faltan datos para actualizar.');
 }
-
 if (!empty($contrasena) && $contrasena !== $confirmar_contrasena) {
-    $_SESSION['flash_message'] = ['type' => 'error', 'message' => 'Las contraseñas no coinciden.'];
-    header('Location: edit.php?id=' . $id_usuario);
-    exit;
+    redirect_with_error('edit.php?id=' . $id_usuario, 'Las contraseñas no coinciden.');
 }
 
 try {
@@ -38,24 +33,29 @@ try {
     $stmt_check = $pdo->prepare("SELECT id FROM usuarios WHERE nombre_usuario = ? AND id != ?");
     $stmt_check->execute([$nombre_usuario, $id_usuario]);
     if ($stmt_check->fetch()) {
-        $_SESSION['flash_message'] = ['type' => 'error', 'message' => 'El nombre de usuario ya está en uso.'];
-        header('Location: edit.php?id=' . $id_usuario);
-        exit();
+        redirect_with_error('edit.php?id=' . $id_usuario, 'El nombre de usuario ya está en uso.');
     }
 
     $pdo->beginTransaction();
 
     // 2. Actualizar la tabla principal de usuarios
+    $log_details = ['usuario' => $nombre_usuario, 'estado' => $estado];
     if (!empty($contrasena)) {
-        $hash_contrasena = password_hash($contrasena, PASSWORD_DEFAULT);
+// Se crea el hash usando explícitamente el algoritmo Argon2id y los parámetros personalizados.
+        $hash_contrasena = password_hash($contrasena, PASSWORD_ARGON2ID, [
+            'memory_cost' => ARGON2_MEMORY_COST,
+            'time_cost'   => ARGON2_TIME_COST,
+            'threads'     => ARGON2_THREADS
+        ]);
         $stmt_user = $pdo->prepare("UPDATE usuarios SET nombre_usuario = ?, contrasena = ?, estado = ? WHERE id = ?");
         $stmt_user->execute([$nombre_usuario, $hash_contrasena, $estado, $id_usuario]);
+        $log_details['contrasena'] = 'actualizada';
     } else {
         $stmt_user = $pdo->prepare("UPDATE usuarios SET nombre_usuario = ?, estado = ? WHERE id = ?");
         $stmt_user->execute([$nombre_usuario, $estado, $id_usuario]);
     }
 
-    // 3. Sincronizar los roles en la tabla usuario_rol
+    // 3. Sincronizar los roles
     $stmt_delete_roles = $pdo->prepare("DELETE FROM usuario_rol WHERE id_usuario = ?");
     $stmt_delete_roles->execute([$id_usuario]);
 
@@ -66,14 +66,13 @@ try {
         }
     }
 
-    // 4. Sincronizar los permisos explícitos en la tabla permisos_usuario
+    // 4. Sincronizar los permisos explícitos
     $stmt_delete_perms = $pdo->prepare("DELETE FROM permisos_usuario WHERE id_usuario = ?");
     $stmt_delete_perms->execute([$id_usuario]);
 
     if (!empty($permisos_explicitos)) {
         $stmt_insert_perm = $pdo->prepare("INSERT INTO permisos_usuario (id_usuario, id_permiso, tiene_permiso) VALUES (?, ?, ?)");
         foreach ($permisos_explicitos as $id_permiso => $valor) {
-            // Solo insertamos si el valor no es "heredar" (-1)
             if ($valor !== '-1') {
                 $stmt_insert_perm->execute([$id_usuario, $id_permiso, $valor]);
             }
@@ -82,16 +81,15 @@ try {
 
     $pdo->commit();
 
-    $_SESSION['flash_message'] = ['type' => 'success', 'message' => 'Usuario actualizado correctamente.'];
-    header('Location: index.php');
-    exit;
+    // --- AÑADIDO: Registro de Actividad ---
+    log_activity('Actualizó un usuario', 'usuarios', $id_usuario, json_encode($log_details));
+
+    redirect_with_success('index.php', 'Usuario actualizado correctamente.');
 
 } catch (PDOException $e) {
     if ($pdo->inTransaction()) {
         $pdo->rollBack();
     }
     error_log("Error al actualizar usuario: " . $e->getMessage());
-    $_SESSION['flash_message'] = ['type' => 'error', 'message' => 'Error de base de datos al actualizar el usuario.'];
-    header('Location: edit.php?id=' . $id_usuario);
-    exit;
+    redirect_with_error('edit.php?id=' . $id_usuario, 'Error de base de datos al actualizar el usuario.');
 }
