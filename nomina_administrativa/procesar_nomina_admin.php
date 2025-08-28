@@ -91,29 +91,14 @@ try {
             WHERE n.id_contrato = ? AND c.codigo_concepto = 'SYS-SKIP-PAYROLL' 
             AND n.periodo_aplicacion BETWEEN ? AND ? AND n.estado_novedad = 'Pendiente'
         ");
-        $stmt_check_skip->execute([$id_contrato, $fecha_inicio, $fecha_fin]);
-        $novedad_skip_id = $stmt_check_skip->fetchColumn();
-    
-        if ($novedad_skip_id) {
-            // Si se encuentra la novedad, se marca como aplicada y se salta al siguiente empleado.
-            $stmt_mark_applied = $pdo->prepare("UPDATE novedadesperiodo SET estado_novedad = 'Aplicada' WHERE id = ?");
-            $stmt_mark_applied->execute([$novedad_skip_id]);
-            continue; // ¡Esta es la clave! Pasa al siguiente empleado en el bucle.
-        }
-
-             // --- INICIO: RECOLECCIÓN Y CLASIFICACIÓN ---
-        $conceptos_del_empleado = [];
-        $ingresos_fijos_isr = 0;       // Para Salario + Ingresos Recurrentes
-        $ingresos_extras_isr = 0;      // Para Novedades (Bonos, etc.)
-        $ids_novedades_a_marcar = [];
-        $monto_ajuste_isr = 0;
-        $monto_saldo_a_favor = 0; // Se mantiene de tu lógica original
-
-
-        // Recopilación de Conceptos (sin cambios)
+              // --- INICIO: CÁLCULO DE SALARIO Y MANEJO DE NOVEDAD DE OMISIÓN ---
+        
+        // 1. Calcular el salario quincenal base.
         $salario_quincenal_completo = round($empleado['salario_mensual_bruto'] / 2, 2);
         $salario_a_pagar = $salario_quincenal_completo;
         $descripcion_salario = 'Salario Quincenal';
+        
+        // 2. Verificar si hay que prorratear el salario por nuevo ingreso.
         $fecha_inicio_contrato = new DateTime($empleado['fecha_inicio']);
         $fecha_inicio_periodo = new DateTime($fecha_inicio);
         $fecha_fin_periodo = new DateTime($fecha_fin);
@@ -130,6 +115,35 @@ try {
             $salario_a_pagar = round($salario_diario * $dias_laborables_a_pagar, 2);
             $descripcion_salario = "Salario Quincenal (Prorrateado {$dias_laborables_a_pagar} días laborables)";
         }
+
+        // 3. Verificar si existe una novedad para OMITIR el pago del salario. Esta es la decisión final.
+        $stmt_check_skip = $pdo->prepare("
+            SELECT n.id FROM novedadesperiodo n
+            JOIN conceptosnomina c ON n.id_concepto = c.id
+            WHERE n.id_contrato = ? AND c.codigo_concepto = 'SYS-SKIP-PAYROLL' 
+            AND n.periodo_aplicacion BETWEEN ? AND ? AND n.estado_novedad = 'Pendiente'
+        ");
+        $stmt_check_skip->execute([$id_contrato, $fecha_inicio, $fecha_fin]);
+        $novedad_skip_id = $stmt_check_skip->fetchColumn();
+
+        if ($novedad_skip_id) {
+            // Si se encuentra la novedad, se anula el pago del salario y se marca la novedad como aplicada.
+            $salario_a_pagar = 0;
+            $descripcion_salario = 'Salario omitido por adelanto de vacaciones/bono';
+            $stmt_mark_applied = $pdo->prepare("UPDATE novedadesperiodo SET estado_novedad = 'Aplicada' WHERE id = ?");
+            $stmt_mark_applied->execute([$novedad_skip_id]);
+        }
+        
+        // --- FIN: CÁLCULO DE SALARIO Y MANEJO DE NOVEDAD DE OMISIÓN ---
+
+        // --- INICIO: RECOLECCIÓN Y CLASIFICACIÓN ---
+        $conceptos_del_empleado = [];
+        $ingresos_fijos_isr = 0;
+        $ingresos_extras_isr = 0;
+        $ids_novedades_a_marcar = [];
+        $monto_ajuste_isr = 0;
+        $monto_saldo_a_favor = 0;
+
         $conceptos_del_empleado['ING-SALARIO'] = ['monto' => $salario_a_pagar, 'aplica_tss' => true, 'aplica_isr' => true, 'desc' => $descripcion_salario, 'tipo' => 'Ingreso'];
         $ingresos_fijos_isr += $salario_a_pagar;
         $stmt_ing_rec = $pdo->prepare("SELECT ir.monto_ingreso, cn.codigo_concepto, cn.descripcion_publica, cn.afecta_tss, cn.afecta_isr FROM ingresosrecurrentes ir JOIN conceptosnomina cn ON ir.id_concepto_ingreso = cn.id WHERE ir.id_contrato = ? AND ir.estado = 'Activa' AND (ir.quincena_aplicacion = 0 OR ir.quincena_aplicacion = ?)");
@@ -162,6 +176,7 @@ foreach ($stmt_novedades->fetchAll(PDO::FETCH_ASSOC) as $novedad) {
 
     } else {
         // 3. Es cualquier otra novedad: Se procesa normalmente.
+        $ids_novedades_a_marcar[] = $novedad['id']; // <-- LÍNEA AÑADIDA
         if ($novedad['tipo_concepto'] === 'Ingreso' && $novedad['afecta_isr']) {
             $ingresos_extras_isr += $novedad['monto_valor'];
         }
@@ -170,6 +185,7 @@ foreach ($stmt_novedades->fetchAll(PDO::FETCH_ASSOC) as $novedad) {
         }
         $conceptos_del_empleado[$codigo]['monto'] += $novedad['monto_valor'];
     }
+
 }
 
         $stmt_ded_rec = $pdo->prepare("SELECT dr.monto_deduccion, cn.codigo_concepto, cn.descripcion_publica FROM deduccionesrecurrentes dr JOIN conceptosnomina cn ON dr.id_concepto_deduccion = cn.id WHERE dr.id_contrato = ? AND dr.estado = 'Activa' AND (dr.quincena_aplicacion = 0 OR dr.quincena_aplicacion = ?)");
@@ -209,6 +225,7 @@ foreach ($stmt_novedades->fetchAll(PDO::FETCH_ASSOC) as $novedad) {
         $deduccion_afp = min($afp_calculado_actual, $afp_restante_a_deducir);
         
               // --- [INICIO] LÓGICA DE ISR CON CIERRE DE MES ---
+        $base_isr_q2_actual = max(0, $ingreso_total_isr - ($deduccion_afp + $deduccion_sfs));
         $deduccion_isr = 0;
         $tiene_ingresos_variables = false;
         foreach ($conceptos_del_empleado as $codigo => $data) {
@@ -267,38 +284,70 @@ foreach ($stmt_novedades->fetchAll(PDO::FETCH_ASSOC) as $novedad) {
                 $deduccion_isr = round(max(0, ($isr_anual / 12) / 2), 2);
             }
 
-        } else {
-            // --- LÓGICA PARA LA SEGUNDA QUINCENA (NUEVO CIERRE DE MES) ---
+           } else {
+            // --- LÓGICA PARA LA SEGUNDA QUINCENA v3.0 (CON DETECCIÓN DE AJUSTE RETROACTIVO) ---
 
-            // 1. Obtener la base ISR y el ISR retenido en la primera quincena del mes.
-            $stmt_primera_quincena = $pdo->prepare("
-                SELECT 
-                    (SELECT nd.monto_resultado FROM nominadetalle nd JOIN nominasprocesadas np_inner ON nd.id_nomina_procesada = np_inner.id WHERE np_inner.id = np.id AND nd.id_contrato = ? AND nd.codigo_concepto = 'BASE-ISR-QUINCENAL' LIMIT 1) as base_isr_q1,
-                    (SELECT nd.monto_resultado FROM nominadetalle nd JOIN nominasprocesadas np_inner ON nd.id_nomina_procesada = np_inner.id WHERE np_inner.id = np.id AND nd.id_contrato = ? AND nd.codigo_concepto = 'DED-ISR' LIMIT 1) as isr_retenido_q1
-                FROM nominasprocesadas np
-                WHERE np.tipo_nomina_procesada = 'Administrativa' 
-                AND MONTH(np.periodo_fin) = ? 
-                AND YEAR(np.periodo_fin) = ? 
-                AND DAY(np.periodo_fin) <= 15
-                AND EXISTS (SELECT 1 FROM nominadetalle nd_exist WHERE nd_exist.id_nomina_procesada = np.id AND nd_exist.id_contrato = ?)
-                LIMIT 1
+            // 1. BUSCAR SI EXISTE UN AJUSTE SALARIAL EN ESTE MES PARA ESTE EMPLEADO
+            $stmt_ajuste = $pdo->prepare("
+                SELECT SUM(n.monto_valor) FROM novedadesperiodo n
+                JOIN conceptosnomina c ON n.id_concepto = c.id
+                WHERE n.id_contrato = ? AND c.codigo_concepto = 'ING-AJUSTE-SALARIAL'
+                AND MONTH(n.periodo_aplicacion) = ? AND YEAR(n.periodo_aplicacion) = ?
             ");
-            $stmt_primera_quincena->execute([$id_contrato, $id_contrato, $mes, $anio, $id_contrato]);
-            $datos_q1 = $stmt_primera_quincena->fetch(PDO::FETCH_ASSOC);
+            $stmt_ajuste->execute([$id_contrato, $mes, $anio]);
+            $monto_ajuste_salarial = (float)$stmt_ajuste->fetchColumn();
 
-            $base_isr_q1 = (float)($datos_q1['base_isr_q1'] ?? 0);
-            $isr_retenido_q1 = (float)($datos_q1['isr_retenido_q1'] ?? 0);
+            // 2. OBTENER TODO EL ISR RETENIDO HASTA AHORA EN EL MES (Q1 + ESPECIALES)
+            $stmt_isr_q1 = $pdo->prepare("
+                SELECT SUM(CASE WHEN nd.codigo_concepto = 'DED-ISR' THEN nd.monto_resultado ELSE 0 END) as isr_retenido_q1
+                FROM nominadetalle nd JOIN nominasprocesadas np ON nd.id_nomina_procesada = np.id
+                WHERE nd.id_contrato = ? AND MONTH(np.periodo_fin) = ? AND YEAR(np.periodo_fin) = ? AND DAY(np.periodo_fin) <= 15
+            ");
+            $stmt_isr_q1->execute([$id_contrato, $mes, $anio]);
+            $isr_retenido_q1 = (float)$stmt_isr_q1->fetchColumn();
 
-            // 2. Calcular la base ISR de la quincena actual (Q2).
-            $base_isr_q2_actual = max(0, $ingreso_total_isr - ($deduccion_afp + $deduccion_sfs));
+            $isr_total_del_mes = 0;
 
-            // 3. Calcular la base ISR total del mes.
-            $base_isr_total_mes = $base_isr_q1 + $base_isr_q2_actual;
+            // 3. DECIDIR LA RUTA DE CÁLCULO
+            if ($monto_ajuste_salarial > 0) {
+                // RUTA ESPECIAL: EL EMPLEADO TUVO UN AJUSTE SALARIAL ESTE MES
 
-            // 4. Proyectar el ingreso anual basado en el total del mes.
-            $ingreso_anual_proyectado = $base_isr_total_mes * 12;
+                // 3A. OBTENER TODOS LOS INGRESOS DEL MES COMPLETO (Q1, Especiales, y los de esta Q2)
+                $stmt_ingresos_mes = $pdo->prepare("
+                    SELECT SUM(nd.monto_resultado) FROM nominadetalle nd
+                    JOIN nominasprocesadas np ON nd.id_nomina_procesada = np.id
+                    JOIN conceptosnomina cn ON nd.codigo_concepto = cn.codigo_concepto
+                    WHERE nd.id_contrato = ? AND cn.afecta_isr = 1 AND MONTH(np.periodo_fin) = ? AND YEAR(np.periodo_fin) = ? AND DAY(np.periodo_fin) <= 15
+                ");
+                $stmt_ingresos_mes->execute([$id_contrato, $mes, $anio]);
+                $ingresos_totales_mes = (float)$stmt_ingresos_mes->fetchColumn() + $ingreso_total_isr;
 
-            // 5. Calcular el ISR Anual total (misma lógica que el CSV).
+                // 3B. CALCULAR LA BASE DE TSS CORRECTA (Salario Fijo + Ajuste)
+                $salario_mensual_bruto = $empleado['salario_mensual_bruto'];
+                $base_tss_mensual_ajustada = $salario_mensual_bruto + $monto_ajuste_salarial;
+                $sfs_total_mes = round(min($base_tss_mensual_ajustada, (float)($configs_db['TSS_TOPE_SFS']??0)) * (float)($configs_db['TSS_PORCENTAJE_SFS']??0.0304), 2);
+                $afp_total_mes = round(min($base_tss_mensual_ajustada, (float)($configs_db['TSS_TOPE_AFP']??0)) * (float)($configs_db['TSS_PORCENTAJE_AFP']??0.0287), 2);
+
+                // 3C. CALCULAR LA BASE IMPONIBLE REAL DEL MES
+                $base_imponible_isr_total = $ingresos_totales_mes - ($sfs_total_mes + $afp_total_mes);
+                $ingreso_anual_proyectado = $base_imponible_isr_total * 12;
+
+            } else {
+                // RUTA ESTÁNDAR: CÁLCULO NORMAL DE CIERRE DE MES
+                $stmt_bases_q1 = $pdo->prepare("
+                    SELECT SUM(CASE WHEN nd.codigo_concepto IN ('BASE-ISR-QUINCENAL', 'BASE-ISR-MENSUAL') THEN nd.monto_resultado ELSE 0 END) as base_isr_q1
+                    FROM nominadetalle nd JOIN nominasprocesadas np ON nd.id_nomina_procesada = np.id
+                    WHERE nd.id_contrato = ? AND MONTH(np.periodo_fin) = ? AND YEAR(np.periodo_fin) = ? AND DAY(np.periodo_fin) <= 15
+                ");
+                $stmt_bases_q1->execute([$id_contrato, $mes, $anio]);
+                $base_isr_q1 = (float)$stmt_bases_q1->fetchColumn();
+
+                $base_isr_q2_actual = max(0, $ingreso_total_isr - ($deduccion_afp + $deduccion_sfs));
+                $base_isr_total_mes = $base_isr_q1 + $base_isr_q2_actual;
+                $ingreso_anual_proyectado = $base_isr_total_mes * 12;
+            }
+
+            // 4. APLICAR ESCALA DE ISR SOBRE LA PROYECCIÓN ANUAL (YA SEA ESPECIAL O ESTÁNDAR)
             $isr_anual_total = 0;
             if (count($escala_isr) === 4) {
                 $tramo1 = (float)$escala_isr[0]['hasta_monto_anual']; $tramo2 = (float)$escala_isr[1]['hasta_monto_anual']; $tramo3 = (float)$escala_isr[2]['hasta_monto_anual'];
@@ -306,13 +355,12 @@ foreach ($stmt_novedades->fetchAll(PDO::FETCH_ASSOC) as $novedad) {
                 elseif ($ingreso_anual_proyectado > $tramo2) { $excedente = $ingreso_anual_proyectado - $tramo2; $tasa = (float)$escala_isr[2]['tasa_porcentaje'] / 100; $fijo = (float)$escala_isr[2]['monto_fijo_adicional']; $isr_anual_total = $fijo + ($excedente * $tasa); } 
                 elseif ($ingreso_anual_proyectado > $tramo1) { $excedente = $ingreso_anual_proyectado - $tramo1; $tasa = (float)$escala_isr[1]['tasa_porcentaje'] / 100; $fijo = (float)$escala_isr[1]['monto_fijo_adicional']; $isr_anual_total = $fijo + ($excedente * $tasa); }
             }
-            
-            // 6. Calcular el ISR total que corresponde pagar en el mes.
             $isr_total_del_mes = round($isr_anual_total / 12, 2);
-
-            // 7. La retención de esta quincena es el total del mes menos lo que ya se retuvo.
+            
+            // 5. La retención de esta quincena es el total del mes menos lo que ya se retuvo.
             $deduccion_isr = max(0, $isr_total_del_mes - $isr_retenido_q1);
         }
+
 
         
 // Aplicar el ajuste manual primero
@@ -351,8 +399,13 @@ $deduccion_isr = max(0, $deduccion_isr);
         if ($deduccion_isr > 0) $stmt_detalle->execute([$id_nomina_procesada, $id_contrato, 'DED-ISR', 'Impuesto ISR', 'Deducción', $deduccion_isr]);
         if ($ingreso_total_tss > 0) $stmt_detalle->execute([$id_nomina_procesada, $id_contrato, 'BASE-TSS-QUINCENAL', 'Base TSS Quincenal', 'Base de Cálculo', $ingreso_total_tss]);
         if ($base_isr_quincenal_actual > 0) $stmt_detalle->execute([$id_nomina_procesada, $id_contrato, 'BASE-ISR-QUINCENAL', 'Base ISR Quincenal', 'Base de Cálculo', $base_isr_quincenal_actual]);
-        $stmt_marcar_novedades = $pdo->prepare("UPDATE novedadesperiodo SET estado_novedad = 'Aplicada' WHERE id_contrato = ? AND periodo_aplicacion BETWEEN ? AND ?");
-        $stmt_marcar_novedades->execute([$id_contrato, $fecha_inicio, $fecha_fin]);
+                // Marca como aplicadas solo las novedades que se procesaron en este ciclo.
+        if (!empty($ids_novedades_a_marcar)) {
+            $placeholders = rtrim(str_repeat('?,', count($ids_novedades_a_marcar)), ',');
+            $stmt_marcar_novedades = $pdo->prepare("UPDATE novedadesperiodo SET estado_novedad = 'Aplicada' WHERE id IN ($placeholders)");
+            $stmt_marcar_novedades->execute($ids_novedades_a_marcar);
+        }
+
     }
 
     $pdo->commit();
