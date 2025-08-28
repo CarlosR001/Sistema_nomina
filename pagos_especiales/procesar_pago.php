@@ -109,7 +109,7 @@ try {
     }
     if (empty($lineas_de_pago)) throw new Exception("No se proporcionaron líneas de pago válidas.");
 
-// --- [INICIO] LÓGICA DE ISR v6 (MÉTODO DE TASA MARGINAL ESTÁNDAR) ---
+// --- [INICIO] LÓGICA DE ISR v9 (Estándar de Tasa Marginal) ---
 $deduccion_afp = 0; $deduccion_sfs = 0;
 if ($ingreso_total_tss > 0) {
     $porcentaje_afp = (float)($configs_db['TSS_PORCENTAJE_AFP'] ?? 0.0287);
@@ -118,37 +118,45 @@ if ($ingreso_total_tss > 0) {
     $deduccion_afp = round($ingreso_total_tss * $porcentaje_afp, 2);
 }
 
-// 1. Obtener la base imponible NETA de este pago especial.
-$base_isr_neta_pago_especial = max(0, $ingreso_total_isr - ($deduccion_afp + $deduccion_sfs));
-
-// 2. Proyectar el ingreso FIJO del empleado para encontrar su tasa marginal de impuestos.
+// 1. Proyectar ingreso FIJO del empleado para encontrar su tasa marginal.
 $salario_mensual_bruto = (float)$contrato['salario_mensual_bruto'];
+$stmt_rec_mensual_isr = $pdo->prepare("SELECT SUM(ir.monto_ingreso) FROM ingresosrecurrentes ir JOIN conceptosnomina cn ON ir.id_concepto_ingreso = cn.id WHERE ir.id_contrato = ? AND ir.estado = 'Activa' AND cn.afecta_isr = 1");
+$stmt_rec_mensual_isr->execute([$id_contrato]);
+$ingreso_mensual_proyectable = $salario_mensual_bruto + (float)$stmt_rec_mensual_isr->fetchColumn();
 
-// 3. Calcular deducciones teóricas de TSS sobre su salario mensual FIJO.
-$sfs_mensual_teorico = round(min($salario_mensual_bruto, (float)($configs_db['TSS_TOPE_SFS'] ?? 0)) * (float)($configs_db['TSS_PORCENTAJE_SFS'] ?? 0.0304), 2);
-$afp_mensual_teorico = round(min($salario_mensual_bruto, (float)($configs_db['TSS_TOPE_AFP'] ?? 0)) * (float)($configs_db['TSS_PORCENTAJE_AFP'] ?? 0.0287), 2);
+// 2. Calcular deducciones teóricas de TSS sobre la base proyectable.
+$sfs_mensual_teorico = round(min($ingreso_mensual_proyectable, (float)($configs_db['TSS_TOPE_SFS'] ?? 0)) * $porcentaje_sfs, 2);
+$afp_mensual_teorico = round(min($ingreso_mensual_proyectable, (float)($configs_db['TSS_TOPE_AFP'] ?? 0)) * $porcentaje_afp, 2);
 
-// 4. Calcular la base anual proyectada SOLO de sus ingresos fijos.
-$base_isr_anual_proyectada = ($salario_mensual_bruto - ($sfs_mensual_teorico + $afp_mensual_teorico)) * 12;
-
-// 5. Determinar la Tasa Marginal basándose en la proyección anual.
+$base_isr_anual_proyectada = ($ingreso_mensual_proyectable - ($sfs_mensual_teorico + $afp_mensual_teorico)) * 12;
 $tasa_marginal = 0;
-if (count($escala_isr) === 4) {
-    $tramo1 = (float)$escala_isr[0]['hasta_monto_anual']; $tramo2 = (float)$escala_isr[1]['hasta_monto_anual']; $tramo3 = (float)$escala_isr[2]['hasta_monto_anual'];
-    if ($base_isr_anual_proyectada > $tramo3) { $tasa_marginal = (float)$escala_isr[3]['tasa_porcentaje'] / 100; } 
-    elseif ($base_isr_anual_proyectada > $tramo2) { $tasa_marginal = (float)$escala_isr[2]['tasa_porcentaje'] / 100; } 
-    elseif ($base_isr_anual_proyectada > $tramo1) { $tasa_marginal = (float)$escala_isr[1]['tasa_porcentaje'] / 100; }
+
+foreach ($escala_isr as $escala) {
+    if ($base_isr_anual_proyectada >= $escala['desde_monto_anual'] && ($base_isr_anual_proyectada <= $escala['hasta_monto_anual'] || $escala['hasta_monto_anual'] === null)) {
+        $tasa_marginal = (float)$escala['tasa_porcentaje'] / 100;
+        break;
+    }
 }
 
-// 6. La deducción de ISR para ESTE PAGO es la base neta del pago por su tasa marginal.
+// 3. La deducción de ISR para ESTE PAGO es la base neta del pago por su tasa marginal.
+$base_isr_neta_pago_especial = max(0, $ingreso_total_isr - ($deduccion_afp + $deduccion_sfs));
 $deduccion_isr = round($base_isr_neta_pago_especial * $tasa_marginal, 2);
-// --- [FIN] LÓGICA DE ISR v6 ---
 
-    // [CORRECCIÓN] Se añade el 'estado_nomina' al crear la cabecera.
-    $sql_nomina = "INSERT INTO nominasprocesadas (tipo_nomina_procesada, tipo_calculo_nomina, periodo_inicio, periodo_fin, id_usuario_ejecutor, estado_nomina) VALUES (?, 'Especial', ?, ?, ?, 'Calculada')";
-    $stmt_nomina = $pdo->prepare($sql_nomina);
-    $stmt_nomina->execute([$contrato['tipo_nomina'], $fecha_pago, $fecha_pago, $_SESSION['user_id']]);
-    $id_nomina_procesada = $pdo->lastInsertId();
+$sql_nomina = "INSERT INTO nominasprocesadas (tipo_nomina_procesada, tipo_calculo_nomina, periodo_inicio, periodo_fin, id_usuario_ejecutor, estado_nomina) VALUES (?, 'Especial', ?, ?, ?, 'Calculada')";
+$stmt_nomina = $pdo->prepare($sql_nomina);
+$stmt_nomina->execute([$contrato['tipo_nomina'], $fecha_pago, $fecha_pago, $_SESSION['user_id']]);
+$id_nomina_procesada = $pdo->lastInsertId();
+
+$stmt_detalle = $pdo->prepare("INSERT INTO nominadetalle (id_nomina_procesada, id_contrato, codigo_concepto, descripcion_concepto, tipo_concepto, monto_resultado) VALUES (?, ?, ?, ?, ?, ?)");
+foreach ($lineas_de_pago as $linea) { $stmt_detalle->execute([$id_nomina_procesada, $id_contrato, $linea['info']['codigo_concepto'], $linea['info']['descripcion_publica'], 'Ingreso', $linea['monto']]); }
+if ($deduccion_afp > 0) $stmt_detalle->execute([$id_nomina_procesada, $id_contrato, 'DED-AFP', 'Aporte AFP (2.87%)', 'Deducción', $deduccion_afp]);
+if ($deduccion_sfs > 0) $stmt_detalle->execute([$id_nomina_procesada, $id_contrato, 'DED-SFS', 'Aporte SFS (3.04%)', 'Deducción', $deduccion_sfs]);
+if ($deduccion_isr > 0) $stmt_detalle->execute([$id_nomina_procesada, $id_contrato, 'DED-ISR', 'Impuesto Sobre la Renta (ISR)', 'Deducción', $deduccion_isr]);
+
+// GUARDAR LA BASE DE CÁLCULO DE FORMA ESTÁNDAR para que la Q2 pueda encontrarla.
+$stmt_detalle->execute([$id_nomina_procesada, $id_contrato, 'BASE-ISR-QUINCENAL', 'Base ISR (Pago Especial)', 'Base de Cálculo', $base_isr_neta_pago_especial]);
+// --- [FIN] LÓGICA DE ISR v9 ---
+
 
     $stmt_detalle = $pdo->prepare("INSERT INTO nominadetalle (id_nomina_procesada, id_contrato, codigo_concepto, descripcion_concepto, tipo_concepto, monto_resultado) VALUES (?, ?, ?, ?, ?, ?)");
     foreach ($lineas_de_pago as $linea) { $stmt_detalle->execute([$id_nomina_procesada, $id_contrato, $linea['info']['codigo_concepto'], $linea['info']['descripcion_publica'], 'Ingreso', $linea['monto']]); }

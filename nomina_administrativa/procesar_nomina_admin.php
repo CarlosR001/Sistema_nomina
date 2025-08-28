@@ -214,145 +214,157 @@ try {
         $afp_calculado_actual = round(min($ingreso_total_tss, $tope_afp_mensual) * $porcentaje_afp, 2);
         $deduccion_afp = min($afp_calculado_actual, $afp_restante_a_deducir);
         
-              // --- [INICIO] LÓGICA DE ISR CON CIERRE DE MES ---
-        $base_isr_q2_actual = max(0, $ingreso_total_isr - ($deduccion_afp + $deduccion_sfs));
-        $deduccion_isr = 0;
-        $tiene_ingresos_variables = false;
-        foreach ($conceptos_del_empleado as $codigo => $data) {
-            if ($data['tipo'] === 'Ingreso' && $codigo !== 'ING-SALARIO' && !empty($data['aplica_isr']) && $data['monto'] > 0) {
-                $tiene_ingresos_variables = true;
+       // --- [INICIO] LÓGICA DE ISR v8 (Reconciliación Mensual Total) ---
+$base_isr_quincenal_actual_neto = max(0, $ingreso_total_isr - ($deduccion_afp + $deduccion_sfs));
+$deduccion_isr = 0;
+
+if ($quincena == 1) {
+    // --- LÓGICA PARA LA PRIMERA QUINCENA v3.0 (CON RECONCILIACIÓN ADELANTADA) ---
+
+    // 1. VERIFICAR SI LA Q2 SERÁ OMITIDA
+    $fecha_inicio_q2 = date('Y-m-16', strtotime($fecha_inicio));
+    $fecha_fin_q2 = date('Y-m-t', strtotime($fecha_inicio));
+    $stmt_check_skip_q2 = $pdo->prepare("SELECT COUNT(*) FROM novedadesperiodo n JOIN conceptosnomina c ON n.id_concepto = c.id WHERE n.id_contrato = ? AND c.codigo_concepto = 'SYS-SKIP-PAYROLL' AND n.periodo_aplicacion BETWEEN ? AND ? AND n.estado_novedad = 'Pendiente'");
+    $stmt_check_skip_q2->execute([$id_contrato, $fecha_inicio_q2, $fecha_fin_q2]);
+    $skip_en_q2 = $stmt_check_skip_q2->fetchColumn() > 0;
+
+    if ($skip_en_q2) {
+        // CASO ESPECIAL: La Q2 se omitirá. SE EJECUTA LA LÓGICA DE CIERRE DE MES AHORA.
+        // Esta es una copia adaptada de la lógica de la Q2.
+
+        // a) Sumar TODAS las bases imponibles del mes (pagos especiales + esta Q1).
+        $stmt_bases_pasadas = $pdo->prepare("SELECT SUM(nd.monto_resultado) FROM nominadetalle nd JOIN nominasprocesadas np ON nd.id_nomina_procesada = np.id WHERE nd.id_contrato = ? AND nd.codigo_concepto IN ('BASE-ISR-QUINCENAL', 'BASE-ISR-MENSUAL') AND MONTH(np.periodo_fin) = ? AND YEAR(np.periodo_fin) = ?");
+        $stmt_bases_pasadas->execute([$id_contrato, $mes, $anio]);
+        $base_isr_pasada = (float)$stmt_bases_pasadas->fetchColumn();
+        
+        $base_isr_actual = max(0, $ingreso_total_isr - ($deduccion_afp + $deduccion_sfs));
+        $base_isr_total_mes = $base_isr_pasada + $base_isr_actual;
+        $ingreso_anual_proyectado = $base_isr_total_mes * 12;
+
+        // b) Calcular el ISR total y correcto para el mes completo.
+        $isr_anual_total = 0;
+        foreach ($escala_isr as $escala) {
+            if ($ingreso_anual_proyectado >= $escala['desde_monto_anual'] && ($ingreso_anual_proyectado <= $escala['hasta_monto_anual'] || $escala['hasta_monto_anual'] === null)) {
+                $excedente = $ingreso_anual_proyectado - $escala['desde_monto_anual'];
+                $isr_anual_total = ($excedente * ($escala['tasa_porcentaje'] / 100)) + $escala['monto_fijo_adicional'];
                 break;
             }
         }
+        $isr_total_del_mes = round($isr_anual_total / 12, 2);
 
-        // --- LÓGICA PARA LA PRIMERA QUINCENA ---
-        if ($quincena == 1) {
-            // Si tiene ingresos variables, usamos la lógica de Tasa Marginal que ya existía.
-            if ($tiene_ingresos_variables) {
-                // Proyectar ingreso FIJO para encontrar la tasa marginal
-                $salario_mensual_bruto = $empleado['salario_mensual_bruto'];
-                $stmt_rec_mensual_isr = $pdo->prepare("SELECT SUM(ir.monto_ingreso) FROM ingresosrecurrentes ir JOIN conceptosnomina cn ON ir.id_concepto_ingreso = cn.id WHERE ir.id_contrato = ? AND ir.estado = 'Activa' AND cn.afecta_isr = 1");
-                $stmt_rec_mensual_isr->execute([$id_contrato]);
-                $ingreso_mensual_proyectable = $salario_mensual_bruto + (float)$stmt_rec_mensual_isr->fetchColumn();
-
-                $stmt_rec_mensual_tss = $pdo->prepare("SELECT SUM(ir.monto_ingreso) FROM ingresosrecurrentes ir JOIN conceptosnomina cn ON ir.id_concepto_ingreso = cn.id WHERE ir.id_contrato = ? AND ir.estado = 'Activa' AND cn.afecta_tss = 1");
-                $stmt_rec_mensual_tss->execute([$id_contrato]);
-                $ingreso_mensual_cotizable = $salario_mensual_bruto + (float)$stmt_rec_mensual_tss->fetchColumn();
-
-                $afp_mensual_teorico = round(min($ingreso_mensual_cotizable, $tope_afp_mensual) * $porcentaje_afp, 2);
-                $sfs_mensual_teorico = round(min($ingreso_mensual_cotizable, $tope_sfs_mensual) * $porcentaje_sfs, 2);
-                
-                $base_isr_anual_proyectada = ($ingreso_mensual_proyectable - ($afp_mensual_teorico + $sfs_mensual_teorico)) * 12;
-                $isr_anual_fijo = 0; $tasa_marginal = 0;
-
-                if (count($escala_isr) === 4) {
-                    $tramo1 = (float)$escala_isr[0]['hasta_monto_anual']; $tramo2 = (float)$escala_isr[1]['hasta_monto_anual']; $tramo3 = (float)$escala_isr[2]['hasta_monto_anual'];
-                    if ($base_isr_anual_proyectada > $tramo3) { $excedente = $base_isr_anual_proyectada - $tramo3; $tasa = (float)$escala_isr[3]['tasa_porcentaje'] / 100; $fijo = (float)$escala_isr[3]['monto_fijo_adicional']; $isr_anual_fijo = $fijo + ($excedente * $tasa); $tasa_marginal = $tasa; } 
-                    elseif ($base_isr_anual_proyectada > $tramo2) { $excedente = $base_isr_anual_proyectada - $tramo2; $tasa = (float)$escala_isr[2]['tasa_porcentaje'] / 100; $fijo = (float)$escala_isr[2]['monto_fijo_adicional']; $isr_anual_fijo = $fijo + ($excedente * $tasa); $tasa_marginal = $tasa; } 
-                    elseif ($base_isr_anual_proyectada > $tramo1) { $excedente = $base_isr_anual_proyectada - $tramo1; $tasa = (float)$escala_isr[1]['tasa_porcentaje'] / 100; $fijo = (float)$escala_isr[1]['monto_fijo_adicional']; $isr_anual_fijo = $fijo + ($excedente * $tasa); $tasa_marginal = $tasa; }
-                }
-                
-                $isr_quincenal_fijo = round(max(0, $isr_anual_fijo / 24), 2);
-                $isr_extras = round($ingresos_extras_isr * $tasa_marginal, 2);
-                $deduccion_isr = $isr_quincenal_fijo + $isr_extras;
-
-            } else {
-                // Si NO hay ingresos variables, usamos la lógica de Suavizado que ya existía.
-                $salario_mensual = $empleado['salario_mensual_bruto'];
-                $sfs_mensual_teorico = round(min($salario_mensual, $tope_sfs_mensual) * $porcentaje_sfs, 2);
-                $afp_mensual_teorico = round(min($salario_mensual, $tope_afp_mensual) * $porcentaje_afp, 2);
-                $base_isr_mensual = $salario_mensual - ($sfs_mensual_teorico + $afp_mensual_teorico);
-                $ingreso_anual_proyectado = $base_isr_mensual * 12;
-                $isr_anual = 0;
-
-                if (count($escala_isr) === 4) {
-                    $tramo1 = (float)$escala_isr[0]['hasta_monto_anual']; $tramo2 = (float)$escala_isr[1]['hasta_monto_anual']; $tramo3 = (float)$escala_isr[2]['hasta_monto_anual'];
-                    if ($ingreso_anual_proyectado > $tramo3) { $excedente = $ingreso_anual_proyectado - $tramo3; $tasa = (float)$escala_isr[3]['tasa_porcentaje'] / 100; $fijo = (float)$escala_isr[3]['monto_fijo_adicional']; $isr_anual = $fijo + ($excedente * $tasa); } 
-                    elseif ($ingreso_anual_proyectado > $tramo2) { $excedente = $ingreso_anual_proyectado - $tramo2; $tasa = (float)$escala_isr[2]['tasa_porcentaje'] / 100; $fijo = (float)$escala_isr[2]['monto_fijo_adicional']; $isr_anual = $fijo + ($excedente * $tasa); } 
-                    elseif ($ingreso_anual_proyectado > $tramo1) { $excedente = $ingreso_anual_proyectado - $tramo1; $tasa = (float)$escala_isr[1]['tasa_porcentaje'] / 100; $fijo = (float)$escala_isr[1]['monto_fijo_adicional']; $isr_anual = $fijo + ($excedente * $tasa); }
-                }
-                $deduccion_isr = round(max(0, ($isr_anual / 12) / 2), 2);
-            }
-
-           } else {
-            // --- LÓGICA PARA LA SEGUNDA QUINCENA v3.0 (CON DETECCIÓN DE AJUSTE RETROACTIVO) ---
-
-            // 1. BUSCAR SI EXISTE UN AJUSTE SALARIAL EN ESTE MES PARA ESTE EMPLEADO
-            $stmt_ajuste = $pdo->prepare("
-                SELECT SUM(n.monto_valor) FROM novedadesperiodo n
-                JOIN conceptosnomina c ON n.id_concepto = c.id
-                WHERE n.id_contrato = ? AND c.codigo_concepto = 'ING-AJUSTE-SALARIAL'
-                AND MONTH(n.periodo_aplicacion) = ? AND YEAR(n.periodo_aplicacion) = ?
-            ");
-            $stmt_ajuste->execute([$id_contrato, $mes, $anio]);
-            $monto_ajuste_salarial = (float)$stmt_ajuste->fetchColumn();
-
-            // 2. OBTENER TODO EL ISR RETENIDO HASTA AHORA EN EL MES (Q1 + ESPECIALES)
-            $stmt_isr_q1 = $pdo->prepare("
-                SELECT SUM(CASE WHEN nd.codigo_concepto = 'DED-ISR' THEN nd.monto_resultado ELSE 0 END) as isr_retenido_q1
-                FROM nominadetalle nd JOIN nominasprocesadas np ON nd.id_nomina_procesada = np.id
-                WHERE nd.id_contrato = ? AND MONTH(np.periodo_fin) = ? AND YEAR(np.periodo_fin) = ? AND DAY(np.periodo_fin) <= 15
-            ");
-            $stmt_isr_q1->execute([$id_contrato, $mes, $anio]);
-            $isr_retenido_q1 = (float)$stmt_isr_q1->fetchColumn();
-
-            $isr_total_del_mes = 0;
-
-            // 3. DECIDIR LA RUTA DE CÁLCULO
-            if ($monto_ajuste_salarial > 0) {
-                // RUTA ESPECIAL: EL EMPLEADO TUVO UN AJUSTE SALARIAL ESTE MES
-
-                // 3A. OBTENER TODOS LOS INGRESOS DEL MES COMPLETO (Q1, Especiales, y los de esta Q2)
-                $stmt_ingresos_mes = $pdo->prepare("
-                    SELECT SUM(nd.monto_resultado) FROM nominadetalle nd
-                    JOIN nominasprocesadas np ON nd.id_nomina_procesada = np.id
-                    JOIN conceptosnomina cn ON nd.codigo_concepto = cn.codigo_concepto
-                    WHERE nd.id_contrato = ? AND cn.afecta_isr = 1 AND MONTH(np.periodo_fin) = ? AND YEAR(np.periodo_fin) = ? AND DAY(np.periodo_fin) <= 15
-                ");
-                $stmt_ingresos_mes->execute([$id_contrato, $mes, $anio]);
-                $ingresos_totales_mes = (float)$stmt_ingresos_mes->fetchColumn() + $ingreso_total_isr;
-
-                // 3B. CALCULAR LA BASE DE TSS CORRECTA (Salario Fijo + Ajuste)
-                $salario_mensual_bruto = $empleado['salario_mensual_bruto'];
-                $base_tss_mensual_ajustada = $salario_mensual_bruto + $monto_ajuste_salarial;
-                $sfs_total_mes = round(min($base_tss_mensual_ajustada, (float)($configs_db['TSS_TOPE_SFS']??0)) * (float)($configs_db['TSS_PORCENTAJE_SFS']??0.0304), 2);
-                $afp_total_mes = round(min($base_tss_mensual_ajustada, (float)($configs_db['TSS_TOPE_AFP']??0)) * (float)($configs_db['TSS_PORCENTAJE_AFP']??0.0287), 2);
-
-                // 3C. CALCULAR LA BASE IMPONIBLE REAL DEL MES
-                $base_imponible_isr_total = $ingresos_totales_mes - ($sfs_total_mes + $afp_total_mes);
-                $ingreso_anual_proyectado = $base_imponible_isr_total * 12;
-
-            } else {
-                // RUTA ESTÁNDAR: CÁLCULO NORMAL DE CIERRE DE MES
-                $stmt_bases_q1 = $pdo->prepare("
-                    SELECT SUM(CASE WHEN nd.codigo_concepto IN ('BASE-ISR-QUINCENAL', 'BASE-ISR-MENSUAL') THEN nd.monto_resultado ELSE 0 END) as base_isr_q1
-                    FROM nominadetalle nd JOIN nominasprocesadas np ON nd.id_nomina_procesada = np.id
-                    WHERE nd.id_contrato = ? AND MONTH(np.periodo_fin) = ? AND YEAR(np.periodo_fin) = ? AND DAY(np.periodo_fin) <= 15
-                ");
-                $stmt_bases_q1->execute([$id_contrato, $mes, $anio]);
-                $base_isr_q1 = (float)$stmt_bases_q1->fetchColumn();
-
-                $base_isr_q2_actual = max(0, $ingreso_total_isr - ($deduccion_afp + $deduccion_sfs));
-                $base_isr_total_mes = $base_isr_q1 + $base_isr_q2_actual;
-                $ingreso_anual_proyectado = $base_isr_total_mes * 12;
-            }
-
-            // 4. APLICAR ESCALA DE ISR SOBRE LA PROYECCIÓN ANUAL (YA SEA ESPECIAL O ESTÁNDAR)
-            $isr_anual_total = 0;
-            if (count($escala_isr) === 4) {
-                $tramo1 = (float)$escala_isr[0]['hasta_monto_anual']; $tramo2 = (float)$escala_isr[1]['hasta_monto_anual']; $tramo3 = (float)$escala_isr[2]['hasta_monto_anual'];
-                if ($ingreso_anual_proyectado > $tramo3) { $excedente = $ingreso_anual_proyectado - $tramo3; $tasa = (float)$escala_isr[3]['tasa_porcentaje'] / 100; $fijo = (float)$escala_isr[3]['monto_fijo_adicional']; $isr_anual_total = $fijo + ($excedente * $tasa); } 
-                elseif ($ingreso_anual_proyectado > $tramo2) { $excedente = $ingreso_anual_proyectado - $tramo2; $tasa = (float)$escala_isr[2]['tasa_porcentaje'] / 100; $fijo = (float)$escala_isr[2]['monto_fijo_adicional']; $isr_anual_total = $fijo + ($excedente * $tasa); } 
-                elseif ($ingreso_anual_proyectado > $tramo1) { $excedente = $ingreso_anual_proyectado - $tramo1; $tasa = (float)$escala_isr[1]['tasa_porcentaje'] / 100; $fijo = (float)$escala_isr[1]['monto_fijo_adicional']; $isr_anual_total = $fijo + ($excedente * $tasa); }
-            }
-            $isr_total_del_mes = round($isr_anual_total / 12, 2);
-            
-            // 5. La retención de esta quincena es el total del mes menos lo que ya se retuvo.
-            $deduccion_isr = max(0, $isr_total_del_mes - $isr_retenido_q1);
-        }
-
-
+        // c) Buscar ISR ya retenido en pagos especiales.
+        $stmt_isr_retenido = $pdo->prepare("SELECT SUM(nd.monto_resultado) FROM nominadetalle nd JOIN nominasprocesadas np ON nd.id_nomina_procesada = np.id WHERE nd.id_contrato = ? AND nd.codigo_concepto = 'DED-ISR' AND MONTH(np.periodo_fin) = ? AND YEAR(np.periodo_fin) = ?");
+        $stmt_isr_retenido->execute([$id_contrato, $mes, $anio]);
+        $isr_retenido_previamente = (float)$stmt_isr_retenido->fetchColumn();
         
+        // d) La deducción para esta quincena es el total del mes menos lo ya retenido.
+        $deduccion_isr = $isr_total_del_mes - $isr_retenido_previamente;
+
+        // e) Traer las deducciones recurrentes de la Q2 a esta Q1.
+        $stmt_ded_rec_q2 = $pdo->prepare("SELECT dr.monto_deduccion, cn.codigo_concepto, cn.descripcion_publica FROM deduccionesrecurrentes dr JOIN conceptosnomina cn ON dr.id_concepto_deduccion = cn.id WHERE dr.id_contrato = ? AND dr.estado = 'Activa' AND dr.quincena_aplicacion = 2");
+        $stmt_ded_rec_q2->execute([$id_contrato]);
+        foreach ($stmt_ded_rec_q2->fetchAll(PDO::FETCH_ASSOC) as $ded_rec_q2) {
+            $codigo = $ded_rec_q2['codigo_concepto'];
+            if (!isset($conceptos_del_empleado[$codigo])) { 
+                $conceptos_del_empleado[$codigo] = ['monto' => 0, 'desc' => $ded_rec_q2['descripcion_publica'], 'tipo' => 'Deducción']; 
+            }
+            $conceptos_del_empleado[$codigo]['monto'] += $ded_rec_q2['monto_deduccion'];
+        }
+        
+    } else {
+        // CASO NORMAL: La Q2 se pagará, así que se usa la lógica estándar de Tasa Marginal.
+        $salario_mensual_bruto = $empleado['salario_mensual_bruto'];
+        $stmt_rec_mensual_isr = $pdo->prepare("SELECT SUM(ir.monto_ingreso) FROM ingresosrecurrentes ir JOIN conceptosnomina cn ON ir.id_concepto_ingreso = cn.id WHERE ir.id_contrato = ? AND ir.estado = 'Activa' AND cn.afecta_isr = 1");
+        $stmt_rec_mensual_isr->execute([$id_contrato]);
+        $ingreso_mensual_proyectable = $salario_mensual_bruto + (float)$stmt_rec_mensual_isr->fetchColumn();
+
+        $sfs_mensual_teorico = round(min($ingreso_mensual_proyectable, $tope_sfs_mensual) * $porcentaje_sfs, 2);
+        $afp_mensual_teorico = round(min($ingreso_mensual_proyectable, $tope_afp_mensual) * $porcentaje_afp, 2);
+        
+        $base_isr_anual_proyectada = ($ingreso_mensual_proyectable - ($sfs_mensual_teorico + $afp_mensual_teorico)) * 12;
+        $isr_anual_fijo = 0; 
+        $tasa_marginal = 0;
+
+        foreach ($escala_isr as $escala) {
+            if ($base_isr_anual_proyectada >= $escala['desde_monto_anual'] && ($base_isr_anual_proyectada <= $escala['hasta_monto_anual'] || $escala['hasta_monto_anual'] === null)) {
+                $excedente = $base_isr_anual_proyectada - $escala['desde_monto_anual'];
+                $fijo = (float)$escala['monto_fijo_adicional'];
+                $tasa = (float)$escala['tasa_porcentaje'] / 100;
+                $isr_anual_fijo = $fijo + ($excedente * $tasa);
+                $tasa_marginal = $tasa;
+                break;
+            }
+        }
+        
+        $isr_quincenal_fijo = round(max(0, $isr_anual_fijo / 24), 2);
+        $isr_extras = round($ingresos_extras_isr * $tasa_marginal, 2);
+        $deduccion_isr = $isr_quincenal_fijo + $isr_extras;
+    }
+
+} else { // --- CÁLCULO PARA LA SEGUNDA QUINCENA (CIERRE Y RECONCILIACIÓN) ---
+
+    // 1. OBTENER TODOS los ingresos afectos a ISR del MES COMPLETO.
+    $stmt_ingresos_mes_completo = $pdo->prepare("
+        SELECT SUM(nd.monto_resultado) 
+        FROM nominadetalle nd
+        JOIN nominasprocesadas np ON nd.id_nomina_procesada = np.id
+        JOIN conceptosnomina cn ON nd.codigo_concepto = cn.codigo_concepto
+        WHERE nd.id_contrato = ? 
+          AND cn.afecta_isr = 1 
+          AND nd.tipo_concepto = 'Ingreso'
+          AND MONTH(np.periodo_fin) = ? 
+          AND YEAR(np.periodo_fin) = ?
+    ");
+    $stmt_ingresos_mes_completo->execute([$id_contrato, $mes, $anio]);
+    $ingresos_pasados_del_mes = (float)$stmt_ingresos_mes_completo->fetchColumn();
+    $ingresos_totales_reales_del_mes = $ingresos_pasados_del_mes + $ingreso_total_isr;
+
+    // 2. OBTENER TODAS las deducciones de TSS del MES COMPLETO.
+    $stmt_tss_mes_completo = $pdo->prepare("
+        SELECT SUM(nd.monto_resultado) 
+        FROM nominadetalle nd
+        JOIN nominasprocesadas np ON nd.id_nomina_procesada = np.id
+        WHERE nd.id_contrato = ? 
+          AND nd.codigo_concepto IN ('DED-AFP', 'DED-SFS')
+          AND MONTH(np.periodo_fin) = ? 
+          AND YEAR(np.periodo_fin) = ?
+    ");
+    $stmt_tss_mes_completo->execute([$id_contrato, $mes, $anio]);
+    $tss_pasado_del_mes = (float)$stmt_tss_mes_completo->fetchColumn();
+    $tss_total_real_del_mes = $tss_pasado_del_mes + $deduccion_afp + $deduccion_sfs;
+
+    // 3. CALCULAR la base imponible REAL del mes completo.
+    $base_imponible_total_mes = $ingresos_totales_reales_del_mes - $tss_total_real_del_mes;
+    $ingreso_anual_final = $base_imponible_total_mes * 12;
+    $isr_anual_total = 0;
+
+    // 4. APLICAR ESCALA DE ISR sobre la proyección anual REAL.
+    foreach ($escala_isr as $escala) {
+        if ($ingreso_anual_final >= $escala['desde_monto_anual'] && ($ingreso_anual_final <= $escala['hasta_monto_anual'] || $escala['hasta_monto_anual'] === null)) {
+            $excedente = $ingreso_anual_final - $escala['desde_monto_anual'];
+            $isr_anual_total = ($excedente * ($escala['tasa_porcentaje'] / 100)) + $escala['monto_fijo_adicional'];
+            break;
+        }
+    }
+    $isr_total_correcto_del_mes = round($isr_anual_total / 12, 2);
+
+    // 5. OBTENER TODO el ISR ya retenido en el mes (Q1 + Pagos Especiales).
+    $stmt_isr_retenido = $pdo->prepare("
+        SELECT SUM(nd.monto_resultado) 
+        FROM nominadetalle nd JOIN nominasprocesadas np ON nd.id_nomina_procesada = np.id
+        WHERE nd.id_contrato = ? 
+          AND nd.codigo_concepto = 'DED-ISR' 
+          AND MONTH(np.periodo_fin) = ? 
+          AND YEAR(np.periodo_fin) = ?
+    ");
+    $stmt_isr_retenido->execute([$id_contrato, $mes, $anio]);
+    $isr_retenido_previamente = (float)$stmt_isr_retenido->fetchColumn();
+
+    // 6. La retención para esta quincena es el total correcto menos lo ya retenido.
+    $deduccion_isr = $isr_total_correcto_del_mes - $isr_retenido_previamente;
+}
+
+// AJUSTES FINALES (SIN CAMBIOS)
 // Aplicar el ajuste manual primero
 $deduccion_isr += $monto_ajuste_isr;
 
@@ -360,7 +372,6 @@ $deduccion_isr += $monto_ajuste_isr;
 if ($monto_saldo_a_favor > 0) {
     $remanente = $monto_saldo_a_favor - $deduccion_isr;
     if ($remanente > 0) {
-        // El saldo cubre todo el ISR y sobra. El ISR es 0 y se paga el remanente.
         $deduccion_isr = 0;
         $conceptos_del_empleado['ING-REEMBOLSO-SF'] = [
             'monto' => $remanente, 
@@ -370,7 +381,6 @@ if ($monto_saldo_a_favor > 0) {
             'tipo' => 'Ingreso'
         ];
     } else {
-        // El saldo es menor que el ISR, solo lo reduce.
         $deduccion_isr -= $monto_saldo_a_favor;
     }
 }
@@ -378,8 +388,9 @@ if ($monto_saldo_a_favor > 0) {
 // Línea de seguridad final para que el ISR nunca sea negativo.
 $deduccion_isr = max(0, $deduccion_isr); 
 
-        $base_isr_quincenal_actual = max(0, $ingreso_total_isr - ($deduccion_afp + $deduccion_sfs));
-        // --- [FIN] LÓGICA HÍBRIDA DE ISR ---
+$base_isr_quincenal_actual = max(0, $ingreso_total_isr - ($deduccion_afp + $deduccion_sfs));
+// --- [FIN] LÓGICA DE ISR v8 ---
+
 
         // Guardado de Resultados (sin cambios)
         $stmt_detalle = $pdo->prepare("INSERT INTO nominadetalle (id_nomina_procesada, id_contrato, codigo_concepto, descripcion_concepto, tipo_concepto, monto_resultado) VALUES (?, ?, ?, ?, ?, ?)");
