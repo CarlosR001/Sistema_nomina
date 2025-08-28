@@ -1,5 +1,5 @@
 <?php
-// payroll/payslip.php - v2.2 (Corrección con LEFT JOIN para visibilidad total)
+// payroll/payslip.php - v2.3 (Proyección de ISR Corregida)
 
 require_once '../auth.php';
 require_login();
@@ -53,47 +53,62 @@ $detalles_stmt->execute([$id_nomina, $id_contrato]);
 $detalles = $detalles_stmt->fetchAll(PDO::FETCH_ASSOC);
 
 
-// --- INICIO: Lógica v3 (CORRECTA) para Calcular ISR Mensual Proyectado ---
+// --- INICIO: Lógica v5 para mostrar la PROYECCIÓN MENSUAL DE ISR (CORRECTA Y UNIFICADA) ---
 $isr_mensual_proyectado_para_vista = 0;
 if (has_permission('nomina.procesar')) {
-    $id_contrato_actual = $payslip['id_contrato'];
+    $id_contrato_actual = $id_contrato;
+    $mes = date('m', strtotime($nomina['periodo_fin']));
     $anio = date('Y', strtotime($nomina['periodo_fin']));
 
-    // 1. Obtener el salario mensual fijo del empleado
-    $stmt_contrato = $pdo->prepare("SELECT salario_mensual_bruto FROM contratos WHERE id = ?");
-    $stmt_contrato->execute([$id_contrato_actual]);
-    $salario_mensual_bruto = (float)$stmt_contrato->fetchColumn();
+    // 1. Obtener la SUMA de todas las bases imponibles de ISR (regulares y especiales) para el mes completo.
+    $stmt_bases_mensuales = $pdo->prepare("
+        SELECT SUM(nd.monto_resultado)
+        FROM nominadetalle nd
+        JOIN nominasprocesadas np ON nd.id_nomina_procesada = np.id
+        WHERE nd.id_contrato = ?
+        AND (nd.codigo_concepto = 'BASE-ISR-QUINCENAL' OR nd.codigo_concepto = 'BASE-ISR-MENSUAL')
+        AND MONTH(np.periodo_fin) = ? 
+        AND YEAR(np.periodo_fin) = ?
+    ");
+    $stmt_bases_mensuales->execute([$id_contrato_actual, $mes, $anio]);
+    $base_isr_total_mes = (float)$stmt_bases_mensuales->fetchColumn();
 
-    if ($salario_mensual_bruto > 0) {
-        // 2. Cargar configuraciones y escala de ISR
-        $configs_db_vista = $pdo->query("SELECT clave, valor FROM configuracionglobal")->fetchAll(PDO::FETCH_KEY_PAIR);
+    if ($base_isr_total_mes > 0) {
+        // 2. Cargar la escala de ISR
         $escala_isr_vista = $pdo->query("SELECT * FROM escalasisr WHERE anio_fiscal = {$anio} ORDER BY desde_monto_anual ASC")->fetchAll(PDO::FETCH_ASSOC);
 
-        // 3. Calcular la base imponible anual PROYECTADA solo con el salario fijo (Lógica del CSV)
-        $porcentaje_sfs = (float)($configs_db_vista['TSS_PORCENTAJE_SFS'] ?? 0.0304);
-        $porcentaje_afp = (float)($configs_db_vista['TSS_PORCENTAJE_AFP'] ?? 0.0287);
-        $tope_sfs_mensual = (float)($configs_db_vista['TSS_TOPE_SFS'] ?? 0);
-        $tope_afp_mensual = (float)($configs_db_vista['TSS_TOPE_AFP'] ?? 0);
+        // 3. Proyectar la base mensual a un año
+        $ingreso_anual_proyectado = $base_isr_total_mes * 12;
 
-        $sfs_mensual_fijo = round(min($salario_mensual_bruto, $tope_sfs_mensual) * $porcentaje_sfs, 2);
-        $afp_mensual_fijo = round(min($salario_mensual_bruto, $tope_afp_mensual) * $porcentaje_afp, 2);
-        $base_isr_mensual_fija = $salario_mensual_bruto - ($sfs_mensual_fijo + $afp_mensual_fijo);
-        $ingreso_anual_proyectado = $base_isr_mensual_fija * 12;
-
-        // 4. Calcular el ISR Anual
+        // 4. Aplicar la escala de ISR para obtener el ISR anual
         $isr_anual_total = 0;
         if (count($escala_isr_vista) === 4) {
-            $tramo1 = (float)$escala_isr_vista[0]['hasta_monto_anual']; $tramo2 = (float)$escala_isr_vista[1]['hasta_monto_anual']; $tramo3 = (float)$escala_isr_vista[2]['hasta_monto_anual'];
-            if ($ingreso_anual_proyectado > $tramo3) { $excedente = $ingreso_anual_proyectado - $tramo3; $tasa = (float)$escala_isr_vista[3]['tasa_porcentaje'] / 100; $fijo = (float)$escala_isr_vista[3]['monto_fijo_adicional']; $isr_anual_total = $fijo + ($excedente * $tasa); } 
-            elseif ($ingreso_anual_proyectado > $tramo2) { $excedente = $ingreso_anual_proyectado - $tramo2; $tasa = (float)$escala_isr_vista[2]['tasa_porcentaje'] / 100; $fijo = (float)$escala_isr_vista[2]['monto_fijo_adicional']; $isr_anual_total = $fijo + ($excedente * $tasa); } 
-            elseif ($ingreso_anual_proyectado > $tramo1) { $excedente = $ingreso_anual_proyectado - $tramo1; $tasa = (float)$escala_isr_vista[1]['tasa_porcentaje'] / 100; $fijo = (float)$escala_isr_vista[1]['monto_fijo_adicional']; $isr_anual_total = $fijo + ($excedente * $tasa); }
+            $tramo1 = (float)$escala_isr_vista[0]['hasta_monto_anual']; 
+            $tramo2 = (float)$escala_isr_vista[1]['hasta_monto_anual']; 
+            $tramo3 = (float)$escala_isr_vista[2]['hasta_monto_anual'];
+            if ($ingreso_anual_proyectado > $tramo3) { 
+                $excedente = $ingreso_anual_proyectado - $tramo3; 
+                $tasa = (float)$escala_isr_vista[3]['tasa_porcentaje'] / 100; 
+                $fijo = (float)$escala_isr_vista[3]['monto_fijo_adicional']; 
+                $isr_anual_total = $fijo + ($excedente * $tasa); 
+            } elseif ($ingreso_anual_proyectado > $tramo2) { 
+                $excedente = $ingreso_anual_proyectado - $tramo2; 
+                $tasa = (float)$escala_isr_vista[2]['tasa_porcentaje'] / 100; 
+                $fijo = (float)$escala_isr_vista[2]['monto_fijo_adicional']; 
+                $isr_anual_total = $fijo + ($excedente * $tasa); 
+            } elseif ($ingreso_anual_proyectado > $tramo1) { 
+                $excedente = $ingreso_anual_proyectado - $tramo1; 
+                $tasa = (float)$escala_isr_vista[1]['tasa_porcentaje'] / 100; 
+                $fijo = (float)$escala_isr_vista[1]['monto_fijo_adicional']; 
+                $isr_anual_total = $fijo + ($excedente * $tasa); 
+            }
         }
         
-        // 5. El ISR mensual proyectado es el anual dividido entre 12
+        // 5. La proyección mensual es el ISR anual dividido entre 12
         $isr_mensual_proyectado_para_vista = round($isr_anual_total / 12, 2);
     }
 }
-// --- FIN: Lógica v3 ---
+// --- FIN: Lógica v5 ---
 
 
 // Procesamiento de detalles para la visualización
