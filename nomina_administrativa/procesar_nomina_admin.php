@@ -116,25 +116,7 @@ try {
             $descripcion_salario = "Salario Quincenal (Prorrateado {$dias_laborables_a_pagar} días laborables)";
         }
 
-        // 3. Verificar si existe una novedad para OMITIR el pago del salario. Esta es la decisión final.
-        $stmt_check_skip = $pdo->prepare("
-            SELECT n.id FROM novedadesperiodo n
-            JOIN conceptosnomina c ON n.id_concepto = c.id
-            WHERE n.id_contrato = ? AND c.codigo_concepto = 'SYS-SKIP-PAYROLL' 
-            AND n.periodo_aplicacion BETWEEN ? AND ? AND n.estado_novedad = 'Pendiente'
-        ");
-        $stmt_check_skip->execute([$id_contrato, $fecha_inicio, $fecha_fin]);
-        $novedad_skip_id = $stmt_check_skip->fetchColumn();
-
-        if ($novedad_skip_id) {
-            // Si se encuentra la novedad, se anula el pago del salario y se marca la novedad como aplicada.
-            $salario_a_pagar = 0;
-            $descripcion_salario = 'Salario omitido por adelanto de vacaciones/bono';
-            $stmt_mark_applied = $pdo->prepare("UPDATE novedadesperiodo SET estado_novedad = 'Aplicada' WHERE id = ?");
-            $stmt_mark_applied->execute([$novedad_skip_id]);
-        }
-        
-        // --- FIN: CÁLCULO DE SALARIO Y MANEJO DE NOVEDAD DE OMISIÓN ---
+            // --- FIN: CÁLCULO DE SALARIO Y MANEJO DE NOVEDAD DE OMISIÓN ---
 
         // --- INICIO: RECOLECCIÓN Y CLASIFICACIÓN ---
         $conceptos_del_empleado = [];
@@ -144,8 +126,46 @@ try {
         $monto_ajuste_isr = 0;
         $monto_saldo_a_favor = 0;
 
+        // Bucle de Novedades optimizado
+        $stmt_novedades = $pdo->prepare("SELECT n.id, n.monto_valor, c.codigo_concepto, c.descripcion_publica, c.tipo_concepto, c.afecta_tss, c.afecta_isr FROM novedadesperiodo n JOIN conceptosnomina c ON n.id_concepto = c.id WHERE n.id_contrato = ? AND n.periodo_aplicacion BETWEEN ? AND ? AND n.estado_novedad = 'Pendiente'");
+        $stmt_novedades->execute([$id_contrato, $fecha_inicio, $fecha_fin]);
+
+        $novedad_skip_encontrada = false;
+
+        foreach ($stmt_novedades->fetchAll(PDO::FETCH_ASSOC) as $novedad) {
+            $codigo = $novedad['codigo_concepto'];
+            $ids_novedades_a_marcar[] = $novedad['id']; // Marcar toda novedad leída para ser aplicada.
+
+            if ($codigo === 'SYS-SKIP-PAYROLL') {
+                $novedad_skip_encontrada = true;
+                continue; // No procesar esta novedad como un ingreso/deducción normal.
+            }
+
+            if ($codigo === 'SYS-SALDO-FAVOR') {
+                $monto_saldo_a_favor += $novedad['monto_valor'];
+            } elseif ($codigo === 'DED-AJUSTE-ISR' || $codigo === 'ING-AJUSTE-ISR') {
+                $monto_ajuste_isr += ($codigo === 'ING-AJUSTE-ISR' ? -$novedad['monto_valor'] : $novedad['monto_valor']);
+            } else {
+                if ($novedad['tipo_concepto'] === 'Ingreso' && $novedad['afecta_isr']) {
+                    $ingresos_extras_isr += $novedad['monto_valor'];
+                }
+                if (!isset($conceptos_del_empleado[$codigo])) { 
+                    $conceptos_del_empleado[$codigo] = ['monto' => 0, 'aplica_tss' => (bool)$novedad['afecta_tss'], 'aplica_isr' => (bool)$novedad['afecta_isr'], 'desc' => $novedad['descripcion_publica'], 'tipo' => $novedad['tipo_concepto']]; 
+                }
+                $conceptos_del_empleado[$codigo]['monto'] += $novedad['monto_valor'];
+            }
+        }
+
+        // DECISIÓN FINAL: Después de revisar todas las novedades, si se encontró la de omitir, se anula el salario.
+        if ($novedad_skip_encontrada) {
+            $salario_a_pagar = 0;
+            $descripcion_salario = 'Salario omitido por adelanto de vacaciones/bono';
+        }
+
+        // Finalmente, añadir el salario (que podría ser 0) y los ingresos recurrentes al array de conceptos.
         $conceptos_del_empleado['ING-SALARIO'] = ['monto' => $salario_a_pagar, 'aplica_tss' => true, 'aplica_isr' => true, 'desc' => $descripcion_salario, 'tipo' => 'Ingreso'];
-        $ingresos_fijos_isr += $salario_a_pagar;
+
+       $ingresos_fijos_isr += $salario_a_pagar;
         $stmt_ing_rec = $pdo->prepare("SELECT ir.monto_ingreso, cn.codigo_concepto, cn.descripcion_publica, cn.afecta_tss, cn.afecta_isr FROM ingresosrecurrentes ir JOIN conceptosnomina cn ON ir.id_concepto_ingreso = cn.id WHERE ir.id_contrato = ? AND ir.estado = 'Activa' AND (ir.quincena_aplicacion = 0 OR ir.quincena_aplicacion = ?)");
         $stmt_ing_rec->execute([$id_contrato, $quincena]);
         foreach ($stmt_ing_rec->fetchAll(PDO::FETCH_ASSOC) as $ing_rec) {
@@ -157,36 +177,6 @@ try {
                 $ingresos_fijos_isr += $ing_rec['monto_ingreso'];
             }
         }
-
-$stmt_novedades = $pdo->prepare("SELECT n.id, n.monto_valor, c.codigo_concepto, c.descripcion_publica, c.tipo_concepto, c.afecta_tss, c.afecta_isr FROM novedadesperiodo n JOIN conceptosnomina c ON n.id_concepto = c.id WHERE n.id_contrato = ? AND n.periodo_aplicacion BETWEEN ? AND ? AND n.estado_novedad = 'Pendiente'");
-$stmt_novedades->execute([$id_contrato, $fecha_inicio, $fecha_fin]);
-
-foreach ($stmt_novedades->fetchAll(PDO::FETCH_ASSOC) as $novedad) {
-    $codigo = $novedad['codigo_concepto'];
-
-    if ($codigo === 'SYS-SALDO-FAVOR') {
-        // 1. Es un Saldo a Favor: Lo guardamos y lo marcamos como aplicado.
-        $monto_saldo_a_favor += $novedad['monto_valor'];
-        $pdo->prepare("UPDATE novedadesperiodo SET estado_novedad = 'Aplicada' WHERE id = ?")->execute([$novedad['id']]);
-
-    } elseif ($codigo === 'DED-AJUSTE-ISR' || $codigo === 'ING-AJUSTE-ISR') {
-        // 2. Es un Ajuste de ISR: Lo guardamos y lo marcamos como aplicado.
-        $monto_ajuste_isr += ($codigo === 'ING-AJUSTE-ISR' ? -$novedad['monto_valor'] : $novedad['monto_valor']);
-        $pdo->prepare("UPDATE novedadesperiodo SET estado_novedad = 'Aplicada' WHERE id = ?")->execute([$novedad['id']]);
-
-    } else {
-        // 3. Es cualquier otra novedad: Se procesa normalmente.
-        $ids_novedades_a_marcar[] = $novedad['id']; // <-- LÍNEA AÑADIDA
-        if ($novedad['tipo_concepto'] === 'Ingreso' && $novedad['afecta_isr']) {
-            $ingresos_extras_isr += $novedad['monto_valor'];
-        }
-        if (!isset($conceptos_del_empleado[$codigo])) { 
-            $conceptos_del_empleado[$codigo] = ['monto' => 0, 'aplica_tss' => (bool)$novedad['afecta_tss'], 'aplica_isr' => (bool)$novedad['afecta_isr'], 'desc' => $novedad['descripcion_publica'], 'tipo' => $novedad['tipo_concepto']]; 
-        }
-        $conceptos_del_empleado[$codigo]['monto'] += $novedad['monto_valor'];
-    }
-
-}
 
         $stmt_ded_rec = $pdo->prepare("SELECT dr.monto_deduccion, cn.codigo_concepto, cn.descripcion_publica FROM deduccionesrecurrentes dr JOIN conceptosnomina cn ON dr.id_concepto_deduccion = cn.id WHERE dr.id_contrato = ? AND dr.estado = 'Activa' AND (dr.quincena_aplicacion = 0 OR dr.quincena_aplicacion = ?)");
         $stmt_ded_rec->execute([$id_contrato, $quincena]);

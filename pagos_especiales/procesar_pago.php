@@ -66,7 +66,7 @@ try {
         exit();
     }
 
-    // --- LÓGICA PARA PAGO ESPECIAL MANUAL ---
+       // --- LÓGICA PARA PAGO ESPECIAL MANUAL ---
     $id_empleado = filter_input(INPUT_POST, 'id_empleado', FILTER_VALIDATE_INT);
     $fecha_pago = $_POST['fecha_pago'];
     $conceptos_post = $_POST['conceptos'];
@@ -75,9 +75,10 @@ try {
         throw new Exception("Datos del formulario inválidos o incompletos.");
     }
 
-    $stmt_contrato = $pdo->prepare("SELECT id, tipo_nomina FROM contratos WHERE id_empleado = ? AND estado_contrato = 'Vigente'");
+    // CORRECCIÓN: Se añade salario_mensual_bruto a la consulta y se usa FETCH_ASSOC.
+    $stmt_contrato = $pdo->prepare("SELECT id, tipo_nomina, salario_mensual_bruto FROM contratos WHERE id_empleado = ? AND estado_contrato = 'Vigente'");
     $stmt_contrato->execute([$id_empleado]);
-    $contrato = $stmt_contrato->fetch();
+    $contrato = $stmt_contrato->fetch(PDO::FETCH_ASSOC);
     if (!$contrato) throw new Exception("No se encontró un contrato vigente para el empleado.");
     $id_contrato = $contrato['id'];
 
@@ -156,12 +157,7 @@ $deduccion_isr = round($base_isr_neta_pago_especial * $tasa_marginal, 2);
     if ($deduccion_isr > 0) $stmt_detalle->execute([$id_nomina_procesada, $id_contrato, 'DED-ISR', 'Impuesto Sobre la Renta (ISR)', 'Deducción', $deduccion_isr]);
 // Línea 153 CORREGIDA
 $stmt_detalle->execute([$id_nomina_procesada, $id_contrato, 'BASE-ISR-MENSUAL', 'Base ISR Mensual Acumulada', 'Base de Cálculo', $ingreso_total_isr]);
-if ($ajuste_salarial > 0) {
-    // Necesitamos crear el concepto si no existe
-    $pdo->exec("INSERT IGNORE INTO conceptosnomina (codigo_concepto, descripcion_publica, tipo_concepto, origen_calculo, afecta_tss, afecta_isr, incluir_en_volante) VALUES ('BASE-AJUSTE-SALARIAL', 'Base Ajuste Salarial del Mes', 'Base de Cálculo', 'Formula', 0, 0, 0)");
-    
-    $stmt_detalle->execute([$id_nomina_procesada, $id_contrato, 'BASE-AJUSTE-SALARIAL', 'Base Ajuste Salarial del Mes', 'Base de Cálculo', $ajuste_salarial]);
-}
+
     if ($se_pago_bono_vacacional) {
         // 1. Obtener el ID del concepto del sistema
         $stmt_skip_id = $pdo->prepare("SELECT id FROM conceptosnomina WHERE codigo_concepto = 'SYS-SKIP-PAYROLL'");

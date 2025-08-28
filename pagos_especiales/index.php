@@ -1,5 +1,5 @@
 <?php
-// pagos_especiales/index.php - v2.0 (Multi-línea)
+// pagos_especiales/index.php - v2.3 (Formulario Simplificado)
 
 require_once '../auth.php';
 require_login();
@@ -72,9 +72,11 @@ document.getElementById('btn-anadir-linea').addEventListener('click', function()
     const primeraLinea = container.querySelector('.linea-pago');
     const nuevaLinea = primeraLinea.cloneNode(true);
     
-    // Limpiar valores y habilitar el botón de eliminar
-    nuevaLinea.querySelector('select').selectedIndex = 0;
-    nuevaLinea.querySelector('input').value = '';
+    // Limpia los valores de la nueva fila clonada para que no se copien
+    nuevaLinea.querySelector('select[name="conceptos[id][]"]').selectedIndex = 0;
+    nuevaLinea.querySelector('input[name="conceptos[monto][]"]').value = '';
+    
+    // Habilita el botón de eliminar en la nueva fila
     const btnEliminar = nuevaLinea.querySelector('button');
     btnEliminar.disabled = false;
     
@@ -82,7 +84,9 @@ document.getElementById('btn-anadir-linea').addEventListener('click', function()
 });
 
 function eliminarLinea(btn) {
-    btn.closest('.linea-pago').remove();
+    if (document.querySelectorAll('.linea-pago').length > 1) {
+        btn.closest('.linea-pago').remove();
+    }
 }
 
 function validarFormulario() {
@@ -91,7 +95,7 @@ function validarFormulario() {
         alert('Debe añadir al menos una línea de pago.');
         return false;
     }
-    if (!confirm('¿Está seguro de que desea procesar este pago especial? Esta acción es irreversible.')) {
+    if (!confirm('¿Está seguro de que desea procesar este pago especial?')) {
         return false;
     }
     return true;
