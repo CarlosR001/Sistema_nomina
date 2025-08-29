@@ -156,16 +156,31 @@ try {
             }
         }
 
-        // DECISIÓN FINAL: Después de revisar todas las novedades, si se encontró la de omitir, se anula el salario.
+            // --- INICIO DE LA CORRECCIÓN DEFINITIVA ---
+        // Si se encontró la novedad de omitir, se registra el salario en cero y se detiene el procesamiento para este empleado.
         if ($novedad_skip_encontrada) {
-            $salario_a_pagar = 0;
             $descripcion_salario = 'Salario omitido por adelanto de vacaciones/bono';
+            
+            // 1. Guarda ÚNICAMENTE el concepto de salario en cero.
+            $stmt_detalle = $pdo->prepare("INSERT INTO nominadetalle (id_nomina_procesada, id_contrato, codigo_concepto, descripcion_concepto, tipo_concepto, monto_resultado) VALUES (?, ?, ?, ?, ?, ?)");
+            $stmt_detalle->execute([$id_nomina_procesada, $id_contrato, 'ING-SALARIO', $descripcion_salario, 'Ingreso', 0]);
+
+            // 2. Marca las novedades como 'Aplicada' para que no vuelvan a ser procesadas.
+            if (!empty($ids_novedades_a_marcar)) {
+                $placeholders = rtrim(str_repeat('?,', count($ids_novedades_a_marcar)), ',');
+                $stmt_marcar_novedades = $pdo->prepare("UPDATE novedadesperiodo SET estado_novedad = 'Aplicada' WHERE id IN ($placeholders)");
+                $stmt_marcar_novedades->execute($ids_novedades_a_marcar);
+            }
+            
+            // 3. Usa 'continue' para saltar inmediatamente al SIGUIENTE empleado del bucle.
+            continue; 
         }
+        // --- FIN DE LA CORRECCIÓN DEFINITIVA ---
 
-        // Finalmente, añadir el salario (que podría ser 0) y los ingresos recurrentes al array de conceptos.
+        // Si la nómina NO se omite, se procede con la lógica normal de cálculo.
         $conceptos_del_empleado['ING-SALARIO'] = ['monto' => $salario_a_pagar, 'aplica_tss' => true, 'aplica_isr' => true, 'desc' => $descripcion_salario, 'tipo' => 'Ingreso'];
+        $ingresos_fijos_isr += $salario_a_pagar;
 
-       $ingresos_fijos_isr += $salario_a_pagar;
         $stmt_ing_rec = $pdo->prepare("SELECT ir.monto_ingreso, cn.codigo_concepto, cn.descripcion_publica, cn.afecta_tss, cn.afecta_isr FROM ingresosrecurrentes ir JOIN conceptosnomina cn ON ir.id_concepto_ingreso = cn.id WHERE ir.id_contrato = ? AND ir.estado = 'Activa' AND (ir.quincena_aplicacion = 0 OR ir.quincena_aplicacion = ?)");
         $stmt_ing_rec->execute([$id_contrato, $quincena]);
         foreach ($stmt_ing_rec->fetchAll(PDO::FETCH_ASSOC) as $ing_rec) {
@@ -221,10 +236,11 @@ $deduccion_isr = 0;
 if ($quincena == 1) {
     // --- LÓGICA PARA LA PRIMERA QUINCENA v3.0 (CON RECONCILIACIÓN ADELANTADA) ---
 
-    // 1. VERIFICAR SI LA Q2 SERÁ OMITIDA
+      // 1. VERIFICAR SI LA Q2 SERÁ OMITIDA (CORREGIDO)
     $fecha_inicio_q2 = date('Y-m-16', strtotime($fecha_inicio));
     $fecha_fin_q2 = date('Y-m-t', strtotime($fecha_inicio));
-    $stmt_check_skip_q2 = $pdo->prepare("SELECT COUNT(*) FROM novedadesperiodo n JOIN conceptosnomina c ON n.id_concepto = c.id WHERE n.id_contrato = ? AND c.codigo_concepto = 'SYS-SKIP-PAYROLL' AND n.periodo_aplicacion BETWEEN ? AND ? AND n.estado_novedad = 'Pendiente'");
+    // Se elimina la condición de estado_novedad para que la detección funcione sin importar el orden del recálculo.
+    $stmt_check_skip_q2 = $pdo->prepare("SELECT COUNT(*) FROM novedadesperiodo n JOIN conceptosnomina c ON n.id_concepto = c.id WHERE n.id_contrato = ? AND c.codigo_concepto = 'SYS-SKIP-PAYROLL' AND n.periodo_aplicacion BETWEEN ? AND ?");
     $stmt_check_skip_q2->execute([$id_contrato, $fecha_inicio_q2, $fecha_fin_q2]);
     $skip_en_q2 = $stmt_check_skip_q2->fetchColumn() > 0;
 
@@ -299,7 +315,7 @@ if ($quincena == 1) {
         $isr_quincenal_fijo = round(max(0, $isr_anual_fijo / 24), 2);
         $isr_extras = round($ingresos_extras_isr * $tasa_marginal, 2);
         $deduccion_isr = $isr_quincenal_fijo + $isr_extras;
-    }
+    } //hasta aqui
 
 } else { // --- CÁLCULO PARA LA SEGUNDA QUINCENA (CIERRE Y RECONCILIACIÓN) ---
 

@@ -47,6 +47,7 @@ if (isset($_SESSION['user_id'])) {
                                     <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>payroll/index.php">Procesar Nómina</a></li>
                                     <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>payroll/review.php">Revisión de Nóminas</a></li>
                                     <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>nomina_administrativa/index.php">Nómina Administrativa</a></li>
+                                    <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>remanentes/index.php">Gestión de Remanentes</a></li>
                                     <li><hr class="dropdown-divider"></li>
                                     <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>pagos_especiales/index.php">Pagos Especiales</a></li>
                                     <li><a class="dropdown-item" href="<?php echo BASE_URL; ?>liquidaciones/index.php">Liquidaciones</a></li>
